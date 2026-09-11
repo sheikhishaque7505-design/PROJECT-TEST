@@ -28,9 +28,9 @@ export default function App() {
     phaseProgress: 0,
     timeInPhase: 0,
     stats: {
-      vehiclesDetected: 60,
-      vehiclesMoving: 30,
-      vehiclesWaiting: 30,
+      vehiclesDetected: 80,
+      vehiclesMoving: 40,
+      vehiclesWaiting: 40,
       density: "HIGH",
     },
   });
