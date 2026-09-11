@@ -1,218 +1,64 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { width: 100%; height: 100%; overflow: hidden; }
-body { background: #9edcf5; font-family: 'Inter', Arial, Helvetica, sans-serif; color: white; }
-
-.app-root { position: fixed; inset: 0; overflow: hidden; }
-
-.ui-brand {
-  position: fixed; top: 18px; left: 18px; z-index: 50;
-  padding: 16px 24px;
-  background: linear-gradient(135deg, rgba(8, 25, 40, 0.95), rgba(3, 13, 22, 0.92));
-  border: 1px solid rgba(75, 220, 255, 0.5);
-  border-radius: 17px;
-  box-shadow: 0 15px 55px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(120, 240, 255, 0.15);
-}
-.ui-brand .title { font-size: 24px; font-weight: 900; letter-spacing: 5px; background: linear-gradient(90deg, #70e4ff, #ffffff, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.ui-brand .sub { margin-top: 6px; color: #70e4ff; font-size: 10px; letter-spacing: 2px; }
-
-.day-night-btn {
-  position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
-  z-index: 60; padding: 12px 26px; border-radius: 14px;
-  background: linear-gradient(135deg, #1e2a35, #0d1620);
-  border: 1px solid rgba(90, 225, 255, 0.5); color: #c9f5ff;
-  font-size: 13px; font-weight: 900; letter-spacing: 2px; cursor: pointer;
-}
-.day-night-btn.night {
-  background: linear-gradient(135deg, #0d1a30, #050a15);
-  border-color: rgba(255, 220, 120, 0.7); color: #ffe28a;
-}
-
-/* ═══════════════════════════════════════════
-   AI TRAFFIC PANEL
-   ═══════════════════════════════════════════ */
-.ai-panel {
-  position: fixed; top: 18px; right: 18px; z-index: 50;
-  width: 380px;
-  background: linear-gradient(135deg, rgba(8, 25, 40, 0.95), rgba(3, 13, 22, 0.94));
-  border: 1px solid rgba(70, 220, 255, 0.4);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(12px);
-}
-.ai-panel-header { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(90, 225, 255, 0.2); margin-bottom: 12px; }
-.ai-dot {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: #22ff66; box-shadow: 0 0 15px #22ff66;
-  animation: aiPulse 1.2s infinite;
-}
-@keyframes aiPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.4); } }
-.ai-title { font-size: 12px; font-weight: 900; letter-spacing: 2px; color: #22d3ee; }
-.ai-subtitle { font-size: 9px; color: #70e4ff; letter-spacing: 1.5px; opacity: 0.7; margin-top: 2px; }
-
-.signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.signal-box {
-  padding: 10px 8px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(100, 130, 160, 0.3);
-  border-radius: 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+.live-traffic-btn {
+  position: fixed; top: 130px; left: 50%; transform: translateX(-50%);
+  z-index: 70;
+  padding: 14px 32px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  border: 2px solid rgba(255, 100, 100, 0.6);
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 15px 40px rgba(220, 38, 38, 0.6), 0 0 30px rgba(255, 50, 50, 0.4);
+  animation: livePulse 1.8s infinite;
   transition: all 0.3s;
 }
-.signal-box.active {
-  border-color: #22ff66;
-  box-shadow: 0 0 20px rgba(34, 255, 102, 0.4);
-  background: rgba(20, 40, 30, 0.8);
-}
-.signal-label { font-size: 9px; letter-spacing: 1.5px; color: #94a3b8; font-weight: 700; }
-.signal-light { width: 22px; height: 22px; border-radius: 50%; transition: all 0.2s; }
-.signal-info { display: flex; align-items: baseline; gap: 4px; margin-top: 2px; }
-.queue-count { font-size: 16px; font-weight: 900; color: #f1f5f9; }
-.queue-label { font-size: 7px; color: #64748b; letter-spacing: 1px; }
-.signal-state { font-size: 9px; font-weight: 900; letter-spacing: 1.5px; }
 
-.cycle-bar-new { margin-bottom: 12px; }
-.cycle-label { font-size: 10px; color: #22d3ee; font-weight: 900; letter-spacing: 1.5px; text-align: center; margin-bottom: 6px; }
-.cycle-track { height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; }
-.cycle-fill { height: 100%; background: linear-gradient(90deg, #22d3ee, #a855f7); transition: width 0.2s; box-shadow: 0 0 10px rgba(34, 211, 238, 0.6); }
-
-.ai-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
-.stat-box {
-  padding: 8px 4px; text-align: center;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(100, 130, 160, 0.2);
-  border-radius: 8px;
-}
-.stat-value { display: block; font-size: 14px; font-weight: 900; color: #22d3ee; }
-.stat-label { display: block; font-size: 7px; color: #64748b; letter-spacing: 1px; margin-top: 2px; }
-
-.ai-log {
-  padding: 10px; background: rgba(15, 23, 42, 0.6);
-  border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2);
-}
-.ai-log-title { font-size: 9px; color: #3b82f6; letter-spacing: 1.5px; font-weight: 900; margin-bottom: 6px; }
-.ai-log-item { display: flex; gap: 6px; padding: 3px 0; font-size: 9px; color: #cbd5e1; }
-.ai-log-time { color: #22d3ee; font-weight: 900; }
-.ai-log-text { flex: 1; }
-
-/* ═══════════════════════════════════════════
-   MESSAGES
-   ═══════════════════════════════════════════ */
-.ai-message {
-  position: fixed; left: 50%; top: 100px; transform: translateX(-50%);
-  z-index: 55; padding: 12px 24px; border-radius: 12px;
-  background: rgba(3, 13, 22, 0.95); border: 1px solid rgba(90, 225, 255, 0.5);
-  color: #c9f5ff; font-size: 12px; font-weight: 700; opacity: 0; transition: 0.4s;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
-}
-.ai-message.show { opacity: 1; }
-
-.tourist-message {
-  position: fixed; top: 200px; left: 50%; transform: translateX(-50%);
-  z-index: 90; padding: 16px 32px; border-radius: 14px;
-  background: linear-gradient(135deg, rgba(243, 156, 18, 0.95), rgba(230, 126, 34, 0.95));
-  color: #fff; font-size: 15px; font-weight: 900; letter-spacing: 1.5px;
-  border: 2px solid rgba(255, 220, 120, 0.8);
-  box-shadow: 0 15px 45px rgba(243, 156, 18, 0.7);
-  animation: touristPop 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-}
-.tourist-message::before { content: "✈ "; margin-right: 6px; }
-@keyframes touristPop {
-  0% { transform: translateX(-50%) scale(0.4); opacity: 0; }
-  60% { transform: translateX(-50%) scale(1.1); opacity: 1; }
-  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+.live-traffic-btn:hover {
+  transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 20px 55px rgba(220, 38, 38, 0.8), 0 0 45px rgba(255, 50, 50, 0.6);
 }
 
-/* ═══════════════════════════════════════════
-   MENU
-   ═══════════════════════════════════════════ */
-.menu-btn {
-  position: fixed; top: 120px; left: 18px; z-index: 70;
-  padding: 12px 20px; border-radius: 12px;
-  background: linear-gradient(135deg, #22cfff, #0a8fbf);
-  border: 1px solid rgba(255, 255, 255, 0.4); color: #03141b;
-  font-weight: 900; letter-spacing: 1.5px; font-size: 12px;
-  cursor: pointer; display: flex; align-items: center; gap: 8px;
-  box-shadow: 0 10px 30px rgba(30, 180, 220, 0.5);
+.live-traffic-btn .live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px #fff;
+  animation: liveDot 1s infinite;
 }
-.menu-btn .icon { font-size: 18px; }
 
-.main-menu {
-  position: fixed; top: 0; left: -340px; z-index: 75;
-  width: 340px; height: 100vh;
-  background: linear-gradient(180deg, rgba(3, 13, 22, 0.98), rgba(6, 20, 32, 0.98));
-  border-right: 2px solid rgba(90, 225, 255, 0.4);
-  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.7);
-  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex; flex-direction: column; overflow-y: auto;
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 15px 40px rgba(220, 38, 38, 0.6), 0 0 30px rgba(255, 50, 50, 0.4); }
+  50% { box-shadow: 0 15px 55px rgba(220, 38, 38, 0.9), 0 0 60px rgba(255, 50, 50, 0.7); }
 }
-.main-menu.open { left: 0; }
-.menu-header {
-  padding: 20px 22px; border-bottom: 1px solid rgba(90, 225, 255, 0.25);
-  display: flex; justify-content: space-between; align-items: center;
-  position: sticky; top: 0; background: rgba(3, 13, 22, 0.98); z-index: 2;
-}
-.menu-title { font-size: 16px; font-weight: 900; letter-spacing: 2px; color: #22cfff; }
-.menu-header .close-btn {
-  width: 32px; height: 32px; border: 0; border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1); color: #c9d6dd; font-size: 18px; cursor: pointer;
-}
-.menu-sub {
-  padding: 14px 22px 8px; color: #70e4ff; font-size: 10px;
-  letter-spacing: 2px; text-transform: uppercase; opacity: 0.75;
-}
-.menu-list { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; }
-.menu-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #d0dce1; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s;
-}
-.menu-item:hover { background: rgba(34, 207, 255, 0.15); border-color: rgba(34, 207, 255, 0.5); color: #22cfff; transform: translateX(4px); }
-.menu-item.active { background: rgba(34, 207, 255, 0.25); border-color: #22cfff; color: #22cfff; }
-.m-icon { font-size: 20px; width: 28px; text-align: center; }
-.m-label { flex: 1; }
-.menu-item .arrow { font-size: 12px; opacity: 0.5; }
-.camera-options { display: flex; flex-direction: column; gap: 4px; padding: 8px 0 8px 40px; }
-.cam-option {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03); border-left: 3px solid #22cfff;
-  color: #c9d6dd; font-size: 11px; cursor: pointer; transition: 0.2s;
-}
-.cam-option:hover { background: rgba(34, 207, 255, 0.15); color: #fff; transform: translateX(4px); }
 
-/* ═══════════════════════════════════════════
-   CAM INDICATOR
-   ═══════════════════════════════════════════ */
-.cam-indicator {
-  position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
-  z-index: 68; padding: 10px 20px; border-radius: 12px;
-  background: linear-gradient(135deg, #c22b1a, #8a1f0f);
-  border: 2px solid rgba(255, 150, 80, 0.8); color: #fff;
-  font-size: 12px; font-weight: 900; letter-spacing: 1.5px;
-  display: flex; align-items: center; gap: 10px;
+@keyframes liveDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
-.cam-indicator .rec { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: recBlink 1s infinite; }
-@keyframes recBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-.cam-btn { padding: 5px 12px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.2); color: #fff; font-size: 10px; cursor: pointer; font-weight: 900; letter-spacing: 1px; }
 
-/* ═══════════════════════════════════════════
-   INFO PANEL
-   ═══════════════════════════════════════════ */
-.panel {
-  position: fixed; right: 18px; bottom: 18px; width: 340px; z-index: 60;
-  padding: 20px; border-radius: 16px;
-  background: linear-gradient(135deg, rgba(8, 25, 40, 0.95), rgba(3, 13, 22, 0.94));
-  border: 1px solid rgba(70, 220, 255, 0.4);
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.55);
+.back-to-city-btn {
+  position: fixed; top: 130px; left: 50%; transform: translateX(-50%);
+  z-index: 70;
+  padding: 12px 28px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  border: 2px solid rgba(90, 200, 255, 0.6);
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 15px 40px rgba(14, 165, 233, 0.6);
+  transition: all 0.3s;
 }
-.panel h2 { color: #68e2ff; margin-bottom: 9px; font-size: 20px; }
-.panel .type { color: #8097a2; font-size: 10px; letter-spacing: 1.5px; margin-bottom: 12px; }
-.panel p { color: #d0dce1; line-height: 1.6; font-size: 12px; }
-.panel .close {
-  position: absolute; right: 12px; top: 12px; width: 30px; height: 30px;
-  border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.1); color: #fff;
-  font-size: 18px; cursor: pointer;
+
+.back-to-city-btn:hover {
+  transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 20px 55px rgba(14, 165, 233, 0.8);
 }
