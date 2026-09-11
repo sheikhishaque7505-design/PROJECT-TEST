@@ -8,29 +8,29 @@ export default function App() {
   const [panel, setPanel] = useState(null);
   const [camIndicator, setCamIndicator] = useState(null);
   const [locations, setLocations] = useState([]);
-  const [aiTraffic, setAiTraffic] = useState({
-    currentSide: "north",
-    currentPhase: "green",
-    queueCounts: { north: 0, south: 0, east: 0, west: 0 },
-    signals: [
-      { side: "north", count: 0, signal: "green" },
-      { side: "south", count: 0, signal: "red" },
-      { side: "east", count: 0, signal: "red" },
-      { side: "west", count: 0, signal: "red" },
-    ],
-    totalCycles: 0,
-    jamEvents: 0,
-    aiActions: 0,
-    aiHistory: [],
-    elapsed: 0,
+  const [liveTrafficMode, setLiveTrafficMode] = useState(false);
+
+  const [traffic, setTraffic] = useState({
+    state: "TRAFFIC NORMAL",
+    stateColor: "#63ddff",
+    reason: "4-SITE NETWORK OPERATING NORMALLY",
+    level: "NORMAL",
+    flow: "92%",
+    mode: "MONITORING",
+    incident: "<span>LIVE:</span> Traffic flowing normally",
   });
+
   const [simTime, setSimTime] = useState("00:00");
   const [cycleLabel, setCycleLabel] = useState("NEXT TRAFFIC EVENT IN");
   const [cyclePct, setCyclePct] = useState(0);
+  const [cycleVisible, setCycleVisible] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
   const [aiMsgVisible, setAiMsgVisible] = useState(false);
+  const [aiReason, setAiReason] = useState({ visible: false, title: "AI ACTION LOG", text: "", result: "" });
+  const [showAiBtn, setShowAiBtn] = useState(false);
   const [touristMsg, setTouristMsg] = useState("");
   const [touristMsgVisible, setTouristMsgVisible] = useState(false);
+
   const cityRef = useRef(null);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function App() {
   const showAiMessage = useCallback((msg) => {
     setAiMsg(msg);
     setAiMsgVisible(true);
-    setTimeout(() => setAiMsgVisible(false), 3000);
+    setTimeout(() => setAiMsgVisible(false), 4000);
   }, []);
 
   const showTouristMessage = useCallback((msg) => {
@@ -56,27 +56,76 @@ export default function App() {
   }, []);
 
   const handleToggleMenu = () => setMenuOpen((v) => !v);
+
   const handleCameraSelect = (key, camName) => {
+    setLiveTrafficMode(false);
     setMenuOpen(false);
-    cityRef.current?.goToLocationCamera?.(key, camName, (label) => setCamIndicator({ text: `🔒 ${label.toUpperCase()} — ${camName}` }));
+    cityRef.current?.goToLocationCamera?.(key, camName, (label) => {
+      setCamIndicator({ text: `🔒 ${label.toUpperCase()} — ${camName}` });
+    });
   };
+
   const handleLocationClick = (key) => {
+    setLiveTrafficMode(false);
     setMenuOpen(false);
-    cityRef.current?.goToLocation?.(key, (label) => setCamIndicator({ text: `🔒 ${label.toUpperCase()}` }));
+    cityRef.current?.goToLocation?.(key, (label) => {
+      setCamIndicator({ text: `🔒 ${label.toUpperCase()}` });
+    });
   };
+
   const handleFollowVehicle = (key) => {
+    setLiveTrafficMode(false);
     setMenuOpen(false);
     cityRef.current?.followVehicle?.(key, (text) => setCamIndicator({ text }));
   };
-  const handleOverview = () => { setMenuOpen(false); setCamIndicator(null); cityRef.current?.goToOverview?.(); };
-  const handleTopDown = () => { setMenuOpen(false); setCamIndicator(null); cityRef.current?.goToTopDown?.(); };
-  const handleExitCamera = () => { setCamIndicator(null); cityRef.current?.exitCameraView?.(); };
-  const handleToggleDayNight = () => { const next = !isNight; setIsNight(next); cityRef.current?.setDayNight?.(next); };
 
-  const getSignalColor = (signal) => {
-    if (signal === "green") return "#22ff66";
-    if (signal === "yellow") return "#ffcc22";
-    return "#ff2222";
+  const handleOverview = () => {
+    setLiveTrafficMode(false);
+    setMenuOpen(false);
+    setCamIndicator(null);
+    cityRef.current?.goToOverview?.();
+  };
+
+  const handleTopDown = () => {
+    setLiveTrafficMode(false);
+    setMenuOpen(false);
+    setCamIndicator(null);
+    cityRef.current?.goToTopDown?.();
+  };
+
+  const handleExitCamera = () => {
+    setCamIndicator(null);
+    setLiveTrafficMode(false);
+    cityRef.current?.exitCameraView?.();
+  };
+
+  const handleToggleDayNight = () => {
+    const next = !isNight;
+    setIsNight(next);
+    cityRef.current?.setDayNight?.(next);
+  };
+
+  const handleViewLiveTraffic = () => {
+    setMenuOpen(false);
+    setLiveTrafficMode(true);
+    setCamIndicator({ text: "🔴 LIVE TRAFFIC — MONITORING" });
+    cityRef.current?.goToLiveTraffic?.();
+  };
+
+  const handleBackToCity = () => {
+    setLiveTrafficMode(false);
+    setCamIndicator(null);
+    cityRef.current?.goToOverview?.();
+  };
+
+  const closeAiReason = () => {
+    setAiReason((v) => ({ ...v, visible: false }));
+    setShowAiBtn(true);
+  };
+
+  const reopenAiReason = () => {
+    setAiReason((v) => ({ ...v, visible: true }));
+    setShowAiBtn(false);
   };
 
   return (
@@ -84,23 +133,47 @@ export default function App() {
       <SmartCity3D
         ref={cityRef}
         onPanel={setPanel}
+        onTrafficUpdate={setTraffic}
         onSimTime={setSimTime}
-        onCycleUpdate={(label, pct) => { setCycleLabel(label); setCyclePct(pct); }}
+        onCycleUpdate={(label, pct, visible) => {
+          setCycleLabel(label);
+          setCyclePct(pct);
+          setCycleVisible(visible);
+        }}
         onAiMessage={showAiMessage}
+        onAiReason={(data) => {
+          setAiReason(data);
+          setShowAiBtn(!data.visible);
+        }}
         onTouristMessage={showTouristMessage}
-        onAITrafficUpdate={setAiTraffic}
       />
 
       <div className="ui-brand">
         <div className="title">BSS WORLD</div>
-        <div className="sub">AI-POWERED SMART CITY</div>
+        <div className="sub">3D SMART CITY • BEACONHOUSE SCHOOL SYSTEM</div>
       </div>
 
-      <button className={`day-night-btn ${isNight ? "night" : ""}`} onClick={handleToggleDayNight}>
+      <button
+        className={`day-night-btn ${isNight ? "night" : ""}`}
+        onClick={handleToggleDayNight}
+      >
         {isNight ? "🌙 NIGHT" : "☀ DAY"}
       </button>
 
-      {camIndicator && (
+      {!liveTrafficMode && (
+        <button className="live-traffic-btn" onClick={handleViewLiveTraffic}>
+          <span className="live-dot"></span>
+          <span>VIEW LIVE TRAFFIC</span>
+        </button>
+      )}
+
+      {liveTrafficMode && (
+        <button className="back-to-city-btn" onClick={handleBackToCity}>
+          <span>← BACK TO CITY</span>
+        </button>
+      )}
+
+      {camIndicator && !liveTrafficMode && (
         <div className="cam-indicator show">
           <span className="rec"></span>
           <span>{camIndicator.text}</span>
@@ -108,63 +181,49 @@ export default function App() {
         </div>
       )}
 
-      <div className="ai-panel">
-        <div className="ai-panel-header">
-          <div className="ai-dot"></div>
-          <div>
-            <div className="ai-title">AI TRAFFIC MONITORING</div>
-            <div className="ai-subtitle">AUTONOMOUS SIGNAL CONTROL</div>
-          </div>
+      <div className="traffic-status">
+        <div className="heading">AI TRAFFIC MANAGEMENT</div>
+        <div className="state" style={{ color: traffic.stateColor }}>{traffic.state}</div>
+        <div className="incident-reason">{traffic.reason}</div>
+        <div className="traffic-info">
+          <div className="info-box"><span>SIMULATION</span><strong>{simTime}</strong></div>
+          <div className="info-box"><span>TRAFFIC</span><strong>{traffic.level}</strong></div>
+          <div className="info-box"><span>FLOW</span><strong>{traffic.flow}</strong></div>
+          <div className="info-box"><span>AI MODE</span><strong>{traffic.mode}</strong></div>
         </div>
-
-        <div className="signal-grid">
-          {["north", "south", "east", "west"].map((side) => {
-            const sig = aiTraffic.signals.find(s => s.side === side) || { count: 0, signal: "red" };
-            const isActive = aiTraffic.currentSide === side;
-            return (
-              <div key={side} className={`signal-box ${isActive ? "active" : ""}`}>
-                <div className="signal-label">{side.toUpperCase()}</div>
-                <div className="signal-light" style={{ background: getSignalColor(sig.signal), boxShadow: `0 0 15px ${getSignalColor(sig.signal)}` }}></div>
-                <div className="signal-info">
-                  <span className="queue-count">{sig.count}</span>
-                  <span className="queue-label">QUEUE</span>
-                </div>
-                <div className="signal-state" style={{ color: getSignalColor(sig.signal) }}>
-                  {sig.signal.toUpperCase()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="cycle-bar-new">
-          <div className="cycle-label">{cycleLabel}</div>
-          <div className="cycle-track"><div className="cycle-fill" style={{ width: `${cyclePct}%` }} /></div>
-        </div>
-
-        <div className="ai-stats">
-          <div className="stat-box"><span className="stat-value">{simTime}</span><span className="stat-label">TIME</span></div>
-          <div className="stat-box"><span className="stat-value">{aiTraffic.totalCycles}</span><span className="stat-label">CYCLES</span></div>
-          <div className="stat-box"><span className="stat-value">{aiTraffic.aiActions}</span><span className="stat-label">AI ACTIONS</span></div>
-          <div className="stat-box"><span className="stat-value">{aiTraffic.jamEvents}</span><span className="stat-label">JAMS</span></div>
-        </div>
-
-        {aiTraffic.aiHistory.length > 0 && (
-          <div className="ai-log">
-            <div className="ai-log-title">🔵 AI ACTION LOG</div>
-            {aiTraffic.aiHistory.slice(0, 3).map((h, i) => (
-              <div key={i} className="ai-log-item"><span className="ai-log-time">{h.time}</span><span className="ai-log-text">{h.action}</span></div>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className={`ai-message ${aiMsgVisible ? "show" : ""}`}>{aiMsg}</div>
-      {touristMsgVisible && <div className="tourist-message">{touristMsg}</div>}
+
+      {touristMsgVisible && (
+        <div className="tourist-message">{touristMsg}</div>
+      )}
+
+      <div className="incident-bar" dangerouslySetInnerHTML={{ __html: traffic.incident }} />
+
+      {cycleVisible && !liveTrafficMode && (
+        <div className="cycle-bar">
+          <div className="label">{cycleLabel}</div>
+          <div className="bar"><div className="fill" style={{ width: `${cyclePct}%` }} /></div>
+        </div>
+      )}
+
+      {aiReason.visible && !liveTrafficMode && (
+        <div className="ai-reason">
+          <button className="close-reason" onClick={closeAiReason}>×</button>
+          <div className="title"><span className="dot"></span><span>{aiReason.title}</span></div>
+          <div className="reason" dangerouslySetInnerHTML={{ __html: aiReason.text }} />
+          <div className="result" dangerouslySetInnerHTML={{ __html: aiReason.result }} />
+        </div>
+      )}
+
+      {showAiBtn && !liveTrafficMode && (
+        <button className="show-ai-btn" onClick={reopenAiReason}>👁 SHOW AI LOG</button>
+      )}
 
       <button className="menu-btn" onClick={handleToggleMenu}>
         <span className="icon">☰</span>
-        <span>SMART CITY</span>
+        <span>SMART CITY MENU</span>
       </button>
 
       <div className={`main-menu ${menuOpen ? "open" : ""}`}>
@@ -172,32 +231,55 @@ export default function App() {
           <div className="menu-title">🏙 SMART CITY</div>
           <button className="close-btn" onClick={handleToggleMenu}>×</button>
         </div>
+
         <div className="menu-sub">🏛 LOCATIONS</div>
         <div className="menu-list">
           {locations.length === 0 ? (
-            <div className="menu-item" style={{ opacity: 0.5 }}><span className="m-icon">⏳</span><span className="m-label">Loading...</span></div>
+            <div className="menu-item" style={{ opacity: 0.5 }}>
+              <span className="m-icon">⏳</span>
+              <span className="m-label">Loading locations...</span>
+            </div>
           ) : (
             locations.map((loc) => (
-              <LocationItem key={loc.key} loc={loc} onCameraClick={handleCameraSelect} onLocationClick={handleLocationClick} />
+              <LocationItem
+                key={loc.key}
+                loc={loc}
+                onCameraClick={handleCameraSelect}
+                onLocationClick={handleLocationClick}
+              />
             ))
           )}
         </div>
+
         <div className="menu-sub">🚗 VEHICLES</div>
         <div className="menu-list">
           {[
-            { key: "garbageTruck", label: "Garbage Truck", icon: "🚛" },
+            { key: "cityCars", label: "City Cars Traffic", icon: "🚗" },
+            { key: "garbageTruck", label: "Garbage Truck (moving)", icon: "🚛" },
             { key: "fertTruck1", label: "Fertilizer Truck 1", icon: "🌱" },
             { key: "fertTruck2", label: "Fertilizer Truck 2", icon: "🌱" },
           ].map((v) => (
             <div key={v.key} className="menu-item" onClick={() => handleFollowVehicle(v.key)}>
-              <span className="m-icon">{v.icon}</span><span className="m-label">{v.label}</span>
+              <span className="m-icon">{v.icon}</span>
+              <span className="m-label">{v.label}</span>
             </div>
           ))}
         </div>
+
         <div className="menu-sub">🌍 CITY VIEW</div>
         <div className="menu-list">
-          <div className="menu-item" onClick={handleOverview}><span className="m-icon">🌐</span><span className="m-label">360° OVERVIEW</span></div>
-          <div className="menu-item" onClick={handleTopDown}><span className="m-icon">🛰</span><span className="m-label">TOP-DOWN VIEW</span></div>
+          <div className="menu-item" onClick={handleViewLiveTraffic}>
+            <span className="m-icon">🔴</span>
+            <span className="m-label">VIEW LIVE TRAFFIC</span>
+          </div>
+          <div className="menu-item" onClick={handleOverview}>
+            <span className="m-icon">🌐</span>
+            <span className="m-label">360° CITY OVERVIEW</span>
+          </div>
+          <div className="menu-item" onClick={handleTopDown}>
+            <span className="m-icon">🛰</span>
+            <span className="m-label">TOP-DOWN VIEW</span>
+          </div>
         </div>
       </div>
 
@@ -207,6 +289,12 @@ export default function App() {
           <h2>{panel.title}</h2>
           <div className="type">{panel.type}</div>
           <p>{panel.text}</p>
+        </div>
+      )}
+
+      {!liveTrafficMode && (
+        <div className="hint">
+          Drag = Rotate &nbsp;|&nbsp; Wheel = Zoom &nbsp;|&nbsp; Click buildings &nbsp;|&nbsp; ☰ Menu
         </div>
       )}
     </div>
@@ -230,7 +318,8 @@ function LocationItem({ loc, onCameraClick, onLocationClick }) {
       {open && (
         <div className="camera-options">
           {loc.cameras.map((cam) => (
-            <div key={cam.name} className="cam-option" onClick={(e) => { e.stopPropagation(); onCameraClick(loc.key, cam.name); }}>
+            <div key={cam.name} className="cam-option"
+              onClick={(e) => { e.stopPropagation(); onCameraClick(loc.key, cam.name); }}>
               <span className="cam-icon">{cam.inside ? "🎯" : cam.top ? "🔭" : "📹"}</span>
               <span>{cam.name}</span>
             </div>
