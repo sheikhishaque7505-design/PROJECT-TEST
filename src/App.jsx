@@ -20,6 +20,21 @@ export default function App() {
     incident: "<span>LIVE:</span> Traffic flowing normally",
   });
 
+  const [aiTraffic, setAiTraffic] = useState({
+    phase: 1,
+    inYellow: false,
+    currentGreenRoads: [1, 2],
+    currentRedRoads: [3, 4],
+    phaseProgress: 0,
+    timeInPhase: 0,
+    stats: {
+      vehiclesDetected: 60,
+      vehiclesMoving: 30,
+      vehiclesWaiting: 30,
+      density: "HIGH",
+    },
+  });
+
   const [simTime, setSimTime] = useState("00:00");
   const [cycleLabel, setCycleLabel] = useState("NEXT TRAFFIC EVENT IN");
   const [cyclePct, setCyclePct] = useState(0);
@@ -128,6 +143,25 @@ export default function App() {
     setShowAiBtn(false);
   };
 
+  const handleAITrafficUpdate = useCallback((data) => {
+    setAiTraffic(data);
+  }, []);
+
+  const getRoadSignal = (roadId) => {
+    if (aiTraffic.inYellow) {
+      if (aiTraffic.currentGreenRoads.includes(roadId)) return "yellow";
+      return "red";
+    }
+    if (aiTraffic.currentGreenRoads.includes(roadId)) return "green";
+    return "red";
+  };
+
+  const getSignalColor = (signal) => {
+    if (signal === "green") return "#22ff66";
+    if (signal === "yellow") return "#ffcc22";
+    return "#ff2222";
+  };
+
   return (
     <div className="app-root">
       <SmartCity3D
@@ -146,11 +180,12 @@ export default function App() {
           setShowAiBtn(!data.visible);
         }}
         onTouristMessage={showTouristMessage}
+        onAITrafficUpdate={handleAITrafficUpdate}
       />
 
       <div className="ui-brand">
         <div className="title">BSS WORLD</div>
-        <div className="sub">3D SMART CITY • BEACONHOUSE SCHOOL SYSTEM</div>
+        <div className="sub">3D SMART CITY • AI TRAFFIC CONTROL</div>
       </div>
 
       <button
@@ -181,17 +216,74 @@ export default function App() {
         </div>
       )}
 
-      <div className="traffic-status">
-        <div className="heading">AI TRAFFIC MANAGEMENT</div>
-        <div className="state" style={{ color: traffic.stateColor }}>{traffic.state}</div>
-        <div className="incident-reason">{traffic.reason}</div>
-        <div className="traffic-info">
-          <div className="info-box"><span>SIMULATION</span><strong>{simTime}</strong></div>
-          <div className="info-box"><span>TRAFFIC</span><strong>{traffic.level}</strong></div>
-          <div className="info-box"><span>FLOW</span><strong>{traffic.flow}</strong></div>
-          <div className="info-box"><span>AI MODE</span><strong>{traffic.mode}</strong></div>
+      {liveTrafficMode && (
+        <div className="live-traffic-panel">
+          <div className="ltp-header">
+            <div className="ai-dot"></div>
+            <div>
+              <div className="ltp-title">AI TRAFFIC MONITORING</div>
+              <div className="ltp-status">SYSTEM STATUS: <span className="active-txt">ACTIVE</span></div>
+            </div>
+          </div>
+
+          <div className="ltp-signals-title">CURRENT SIGNAL STATE</div>
+
+          <div className="ltp-signal-grid">
+            {[1, 2, 3, 4].map((roadId) => {
+              const sig = getRoadSignal(roadId);
+              const isGreen = sig === "green";
+              const isYellow = sig === "yellow";
+              const isRed = sig === "red";
+              return (
+                <div key={roadId} className={`ltp-signal-box ${isGreen ? "green" : ""} ${isRed ? "red" : ""} ${isYellow ? "yellow" : ""}`}>
+                  <div className="ltp-road-name">ROAD {roadId}</div>
+                  <div className="ltp-light" style={{ background: getSignalColor(sig), boxShadow: `0 0 20px ${getSignalColor(sig)}` }}></div>
+                  <div className="ltp-state" style={{ color: getSignalColor(sig) }}>{sig.toUpperCase()}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="ltp-phase-bar">
+            <div className="ltp-phase-label">
+              {aiTraffic.inYellow ? "🟡 YELLOW — SWITCHING" : `🟢 PHASE ${aiTraffic.phase} — ${aiTraffic.currentGreenRoads.map(r => "ROAD " + r).join(" + ")} GREEN`}
+            </div>
+            <div className="ltp-track"><div className="ltp-fill" style={{ width: `${aiTraffic.phaseProgress * 100}%` }}></div></div>
+          </div>
+
+          <div className="ltp-signal-summary">
+            <div className="ltp-summary-green">
+              <span className="ltp-summary-label">GREEN</span>
+              <span className="ltp-summary-value">{aiTraffic.currentGreenRoads.map(r => "ROAD " + r).join(" + ")}</span>
+            </div>
+            <div className="ltp-summary-red">
+              <span className="ltp-summary-label">RED</span>
+              <span className="ltp-summary-value">{aiTraffic.currentRedRoads.map(r => "ROAD " + r).join(" + ")}</span>
+            </div>
+          </div>
+
+          <div className="ltp-stats-grid">
+            <div className="ltp-stat"><span className="ltp-stat-value">{aiTraffic.stats.vehiclesDetected}</span><span className="ltp-stat-label">DETECTED</span></div>
+            <div className="ltp-stat"><span className="ltp-stat-value" style={{ color: "#22ff66" }}>{aiTraffic.stats.vehiclesMoving}</span><span className="ltp-stat-label">MOVING</span></div>
+            <div className="ltp-stat"><span className="ltp-stat-value" style={{ color: "#ff2222" }}>{aiTraffic.stats.vehiclesWaiting}</span><span className="ltp-stat-label">WAITING</span></div>
+            <div className="ltp-stat"><span className={`ltp-stat-value density-${aiTraffic.stats.density.toLowerCase()}`}>{aiTraffic.stats.density}</span><span className="ltp-stat-label">DENSITY</span></div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {!liveTrafficMode && (
+        <div className="traffic-status">
+          <div className="heading">AI TRAFFIC MANAGEMENT</div>
+          <div className="state" style={{ color: traffic.stateColor }}>{traffic.state}</div>
+          <div className="incident-reason">{traffic.reason}</div>
+          <div className="traffic-info">
+            <div className="info-box"><span>SIMULATION</span><strong>{simTime}</strong></div>
+            <div className="info-box"><span>TRAFFIC</span><strong>{traffic.level}</strong></div>
+            <div className="info-box"><span>FLOW</span><strong>{traffic.flow}</strong></div>
+            <div className="info-box"><span>AI MODE</span><strong>{traffic.mode}</strong></div>
+          </div>
+        </div>
+      )}
 
       <div className={`ai-message ${aiMsgVisible ? "show" : ""}`}>{aiMsg}</div>
 
@@ -199,7 +291,9 @@ export default function App() {
         <div className="tourist-message">{touristMsg}</div>
       )}
 
-      <div className="incident-bar" dangerouslySetInnerHTML={{ __html: traffic.incident }} />
+      {!liveTrafficMode && (
+        <div className="incident-bar" dangerouslySetInnerHTML={{ __html: traffic.incident }} />
+      )}
 
       {cycleVisible && !liveTrafficMode && (
         <div className="cycle-bar">
