@@ -24,81 +24,111 @@ export const LOCATIONS = {
   wasteManagement: { key: "wasteManagement", label: "Waste Management", icon: "♻", type: "MUNICIPAL", position: [3600, 5, 3600], camHeight: 450, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   cultureCenter: { key: "cultureCenter", label: "Culture Center", icon: "🏛", type: "CULTURAL", position: [-1800, 5, 1800], camHeight: 450, camDistance: 450, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   sewageCompany: { key: "sewageCompany", label: "Sewage & Gas Co.", icon: "🏭", type: "INDUSTRIAL", position: [1800, 5, 600], camHeight: 400, camDistance: 400, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  scifi9: { key: "scifi9", label: "Sci-Fi Building 9", icon: "🛸", type: "SCI-FI", position: [-3000, 5, -2400], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  beautifulTower: { key: "beautifulTower", label: "Beautiful Tower", icon: "🗼", type: "SKYLINE", position: [-3000, 5, -800], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3000, 5, 800], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  twinTowers: { key: "twinTowers", label: "Twin Sci-Fi Towers", icon: "🏙", type: "SKYLINE", position: [-3000, 5, 2400], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  scifi9: { key: "scifi9", label: "Sci-Fi Building 9", icon: "🛸", type: "SCI-FI", position: [-3600, 5, -2400], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  beautifulTower: { key: "beautifulTower", label: "Beautiful Tower", icon: "🗼", type: "SKYLINE", position: [-3600, 5, -800], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3600, 5, 800], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  twinTowers: { key: "twinTowers", label: "Twin Sci-Fi Towers", icon: "🏙", type: "SKYLINE", position: [-3600, 5, 2400], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   wasteCollector: { key: "wasteCollector", label: "Waste Collector Point", icon: "🗑", type: "MUNICIPAL", position: [900, 5, 1400], camHeight: 300, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   trafficController: { key: "trafficController", label: "AI Traffic Controller", icon: "🤖", type: "TRANSPORTATION", position: [0, 5, 0], camHeight: 320, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
 };
 
-function createCitySimulation(callbacks) {
-  const CYCLE_TIME = 60, NORMAL_DURATION = 25, JAM_DURATION = 20, REROUTE_DURATION = 15;
-  let simSec = 0, tState = 0, cycleStart = 0, jamStart = 0, rerouteStart = 0;
+function createAITrafficSystem(callbacks) {
+  const PHASE_DURATION = 10;
+  const YELLOW_DURATION = 2.5;
+  let elapsed = 0;
+  let phase = 1;
+  let inYellow = false;
+  let yellowElapsed = 0;
+  let currentGreenRoads = [1, 2];
+  let currentRedRoads = [3, 4];
+
+  const stats = {
+    vehiclesDetected: 60,
+    vehiclesMoving: 30,
+    vehiclesWaiting: 30,
+    density: "HIGH",
+  };
 
   function tick(delta) {
-    simSec += delta;
-    const tt = Math.floor(simSec);
-    callbacks.onSimTime?.(String(Math.floor(tt / 60)).padStart(2, "0") + ":" + String(tt % 60).padStart(2, "0"));
-    const now = simSec - cycleStart;
-    if (tState === 0) {
-      if (now >= CYCLE_TIME) { jamStart = simSec; setState(1); callbacks.onAiMessage?.("⚠ CARS QUEUING AT INTERSECTION"); }
-    } else if (tState === 1) {
-      if (simSec - jamStart >= JAM_DURATION) { rerouteStart = simSec; setState(2); callbacks.onAiMessage?.("🤖 AI SPLITS TRAFFIC TO INNER ROADS"); }
-    } else if (tState === 2) {
-      if (simSec - rerouteStart >= REROUTE_DURATION) { setState(3); callbacks.onAiMessage?.("✅ JAM CLEARED BY AI"); }
-    } else if (tState === 3) {
-      if (simSec - rerouteStart >= REROUTE_DURATION + 10) { cycleStart = simSec; setState(0); }
+    elapsed += delta;
+
+    if (inYellow) {
+      yellowElapsed += delta;
+      if (yellowElapsed >= YELLOW_DURATION) {
+        inYellow = false;
+        yellowElapsed = 0;
+        elapsed = 0;
+        if (phase === 1) {
+          phase = 2;
+          currentGreenRoads = [3, 4];
+          currentRedRoads = [1, 2];
+        } else {
+          phase = 1;
+          currentGreenRoads = [1, 2];
+          currentRedRoads = [3, 4];
+        }
+      }
+    } else if (elapsed >= PHASE_DURATION) {
+      inYellow = true;
+      yellowElapsed = 0;
     }
-    const pct = Math.min(((simSec - cycleStart) / CYCLE_TIME) * 100, 100);
-    let label = "", visible = true;
-    if (tState === 0) label = "🚦 TRAFFIC EVENT IN " + Math.max(0, Math.ceil(CYCLE_TIME - now)) + "s";
-    else if (tState === 1) label = "🔴 JAM ACTIVE — " + Math.max(0, Math.ceil(NORMAL_DURATION + JAM_DURATION - now)) + "s";
-    else if (tState === 2) label = "🔵 AI REROUTING — " + Math.max(0, Math.ceil(NORMAL_DURATION + JAM_DURATION + REROUTE_DURATION - now)) + "s";
-    else { label = "🟢 RESOLVED"; visible = false; }
-    callbacks.onCycleUpdate?.(label, pct, visible);
+
+    const greenCount = 30;
+    const redCount = 30;
+    if (phase === 1) {
+      stats.vehiclesMoving = greenCount + Math.floor(Math.random() * 5);
+      stats.vehiclesWaiting = redCount + Math.floor(Math.random() * 5);
+    } else {
+      stats.vehiclesMoving = redCount + Math.floor(Math.random() * 5);
+      stats.vehiclesWaiting = greenCount + Math.floor(Math.random() * 5);
+    }
+
+    const densityRoll = stats.vehiclesWaiting / (stats.vehiclesMoving + stats.vehiclesWaiting);
+    if (densityRoll > 0.6) stats.density = "HIGH";
+    else if (densityRoll > 0.35) stats.density = "MEDIUM";
+    else stats.density = "LOW";
+
+    callbacks.onTrafficUpdate?.({
+      phase,
+      inYellow,
+      currentGreenRoads,
+      currentRedRoads,
+      phaseProgress: inYellow ? yellowElapsed / YELLOW_DURATION : elapsed / PHASE_DURATION,
+      stats: { ...stats },
+      timeInPhase: inYellow ? yellowElapsed : elapsed,
+    });
   }
 
-  function setState(s) {
-    tState = s;
-    const t = { state: "", stateColor: "", reason: "", level: "", flow: "", mode: "", incident: "" };
-    let aiReason = null;
-    if (s === 0) {
-      t.state = "TRAFFIC NORMAL"; t.stateColor = "#63ddff"; t.reason = "4-SITE NETWORK OPERATING NORMALLY";
-      t.level = "NORMAL"; t.flow = "92%"; t.mode = "MONITORING";
-      t.incident = "<span>LIVE:</span> Traffic flowing normally";
-    } else if (s === 1) {
-      t.state = "TRAFFIC JAM"; t.stateColor = "#ffd15a"; t.reason = "QUEUE BUILDING AT CENTRAL INTERSECTION";
-      t.level = "HEAVY"; t.flow = "28%"; t.mode = "ANALYZING";
-      t.incident = "<span>INCIDENT:</span> Cars queuing";
-      aiReason = { visible: true, title: "🔴 PROBLEM DETECTED", text: "<strong>REASON:</strong> Too many cars at central intersection.", result: "AI is <strong>reading the queue</strong> to figure out the best fix." };
-    } else if (s === 2) {
-      t.state = "AI REROUTING"; t.stateColor = "#67e4ff"; t.reason = "AI SPLITTING TRAFFIC TO INNER ROADS";
-      t.level = "RECOVERING"; t.flow = "68%"; t.mode = "OPTIMIZING";
-      t.incident = "<span>AI ACTION:</span> Rerouting cars via inner roads";
-      aiReason = { visible: true, title: "🔵 AI IS ACTING", text: "<strong>AI DID THIS:</strong> Flipped signals to green on inner roads and redirected half the cars.", result: "Result: <strong>less cars at intersection → jam clearing.</strong>" };
-    } else if (s === 3) {
-      t.state = "TRAFFIC CLEAR"; t.stateColor = "#6aff9d"; t.reason = "ALL ROUTES FLOWING NORMALLY";
-      t.level = "CLEAR"; t.flow = "96%"; t.mode = "OPTIMAL";
-      t.incident = "<span>SYSTEM:</span> All routes flowing normally";
-      aiReason = { visible: true, title: "🟢 RESOLVED BY AI", text: "<strong>AI RESOLVED IT</strong> by splitting traffic between outer and inner roads.", result: "Jam cleared in <strong>15 seconds</strong>." };
-    }
-    callbacks.onTrafficUpdate?.(t);
-    if (s === 0) callbacks.onAiReason?.({ visible: false, title: "", text: "", result: "" });
-    else if (aiReason) callbacks.onAiReason?.(aiReason);
+  function isGreen(road) {
+    return !inYellow && currentGreenRoads.includes(road);
   }
-  return { tick, getState: () => tState };
+  function isRed(road) {
+    return !inYellow && currentRedRoads.includes(road);
+  }
+  function isYellowRoad(road) {
+    return inYellow && (currentGreenRoads.includes(road) || currentRedRoads.includes(road));
+  }
+
+  return {
+    tick,
+    isGreen,
+    isRed,
+    isYellowRoad,
+    getPhase: () => phase,
+    getStats: () => ({ ...stats }),
+  };
 }
 
 const SmartCity3D = forwardRef((props, ref) => {
-  const { onPanel, onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason, onTouristMessage } = props;
+  const { onPanel, onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason, onTouristMessage, onAITrafficUpdate } = props;
   const mountRef = useRef(null);
 
   const s = useRef({
     camera: null, controls: null, renderer: null, scene: null,
     isLocked: false, lockedLocation: null, followTarget: null,
     savedCamPos: null, savedCamTarget: null, camTransition: null,
-    trucks: {}, people: [], tourists: [], cityCars: [], trafficLights: [],
+    trucks: {}, people: [], tourists: [], cityCars: [], intersectionCars: [],
+    trafficLights: [], intersectionLights: [],
     turbines: [], streetBulbMats: [], batteryRings: [],
     waterParticles: [], clickable: [], borderLights: [],
     controller: null, radar: null, controllerRing: null, controllerRing2: null,
@@ -106,6 +136,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     grassMaterial: null, roadMaterial: null, roadLaneMaterial: null,
     curbMaterial: null, sidewalkMat: null, ambient: null, sun: null,
     sim: null, roadZs: null, roadXs: null,
+    aiSystem: null,
   }).current;
 
   useImperativeHandle(ref, () => ({
@@ -182,9 +213,9 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.savedCamPos = s.camera.position.clone();
     s.savedCamTarget = s.controls.target.clone();
     smoothCameraTo(
-      new THREE.Vector3(0, 200, 500),
+      new THREE.Vector3(180, 180, 480),
       new THREE.Vector3(0, 5, 0),
-      1800
+      2000
     );
     s.controls.enableRotate = true;
   }
@@ -254,9 +285,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE), grassMaterial);
     ground.rotation.x = -Math.PI / 2; scene.add(ground);
 
-    const cityBoundMat = new THREE.MeshStandardMaterial({
-      color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5, metalness: 0.7, roughness: 0.2,
-    });
+    const cityBoundMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5, metalness: 0.7, roughness: 0.2 });
     s.borderLights.push(cityBoundMat);
     const boundThick = 20, boundY = 6;
     const boundFront = new THREE.Mesh(new THREE.BoxGeometry(CITY_HALF * 2 + boundThick, 2, boundThick), cityBoundMat);
@@ -425,6 +454,32 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     roadXs.forEach((x) => roadZs.forEach((z) => tl(x, z)));
 
+    const intersectionLights = []; s.intersectionLights = intersectionLights;
+    const INTERSECTION_LIGHT_OFFSET = 70;
+    function makeIntersectionLight(x, z, road) {
+      const g = new THREE.Group(); g.position.set(x, 5, z);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 11, 5), darkMaterial);
+      pole.position.y = 5.5; g.add(pole);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(3, 0.25, 0.25), darkMaterial);
+      arm.position.set(1.5, 10.5, 0); g.add(arm);
+      const box = new THREE.Mesh(new THREE.BoxGeometry(1.8, 5.5, 1.6), darkMaterial);
+      box.position.set(3, 10.5, 0); g.add(box);
+      const light = (color, y) => {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 10), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0 }));
+        m.position.set(3, y, 0.9); g.add(m); return m;
+      };
+      const r = light(0xff2222, 12.2);
+      const yL = light(0xffcc22, 10.5);
+      const gr = light(0x22ff66, 8.8);
+      scene.add(g);
+      intersectionLights.push({ r, y: yL, gr, road });
+    }
+
+    makeIntersectionLight(-INTERSECTION_LIGHT_OFFSET, -INTERSECTION_LIGHT_OFFSET, 1);
+    makeIntersectionLight(INTERSECTION_LIGHT_OFFSET, INTERSECTION_LIGHT_OFFSET, 2);
+    makeIntersectionLight(INTERSECTION_LIGHT_OFFSET, -INTERSECTION_LIGHT_OFFSET, 3);
+    makeIntersectionLight(-INTERSECTION_LIGHT_OFFSET, INTERSECTION_LIGHT_OFFSET, 4);
+
     const controller = new THREE.Group(); s.controller = controller;
     controller.position.set(0, 5, 0);
     const controllerBase = new THREE.Mesh(new THREE.CylinderGeometry(55, 62, 3, 24), mat(0x142f3b, 0.28, 0.4));
@@ -550,8 +605,8 @@ const SmartCity3D = forwardRef((props, ref) => {
       { x: -600, z: 600, r: 500 },
       { x: 750, z: 750, r: 200 }, { x: 1000, z: 400, r: 220 },
       { x: -1600, z: 800, r: 260 },
-      { x: -3000, z: -2400, r: 350 }, { x: -3000, z: -800, r: 400 },
-      { x: -3000, z: 800, r: 350 }, { x: -3000, z: 2400, r: 400 },
+      { x: -3600, z: -2400, r: 350 }, { x: -3600, z: -800, r: 400 },
+      { x: -3600, z: 800, r: 350 }, { x: -3600, z: 2400, r: 400 },
       { x: 900, z: 1400, r: 250 },
     ];
     function isOnBuilding(x, z) {
@@ -684,10 +739,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     bld("/nearbank.glb", 240, [750, 750], "nearBank", "Near Bank Building", 0xf39c12);
     bld("/commercial_building_concept.glb", 340, [1000, 400], "commercial", "Commercial Building", 0x3498db);
     bld("/power-suply-companey.glb", 380, [-1600, 800], "powerCompany", "City Power Supply Co.", 0xf1c40f);
-    bld("/sci-fi_building_9.glb", 440, [-3000, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
-    bld("/beautifultowerbuilding.glb", 520, [-3000, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
-    bld("/sci-fi_building_10.glb", 440, [-3000, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-    bld("/twobuildingsneedspace.glb", 560, [-3000, 2400], "twinTowers", "Twin Sci-Fi Towers", 0xaa8ae0);
+    bld("/sci-fi_building_9.glb", 440, [-3600, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
+    bld("/beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
+    bld("/sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
+    bld("/twobuildingsneedspace.glb", 560, [-3600, 2400], "twinTowers", "Twin Sci-Fi Towers", 0xaa8ae0);
 
     const wcGroup = new THREE.Group();
     wcGroup.position.set(900, 5, 1400); scene.add(wcGroup);
@@ -723,10 +778,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     board("CULTURE CENTER", -1800, 5, 2400, 260, 18, 0xf39c12);
     board("CITY POWER SUPPLY CO.", -1600, 5, 400, 300, 16, 0xf1c40f);
     board("AI TRAFFIC CONTROLLER", 0, 5, 300, 190, 14);
-    board("SCI-FI BUILDING 9", -3000, 5, -2400 + 320, 260, 16, 0x66ff99);
-    board("BEAUTIFUL TOWER", -3000, 5, -800 + 320, 260, 16, 0x22cfff);
-    board("SCI-FI BUILDING 10", -3000, 5, 800 + 320, 260, 16, 0xff66dd);
-    board("TWIN SCI-FI TOWERS", -3000, 5, 2400 + 320, 280, 16, 0xaa8ae0);
+    board("SCI-FI BUILDING 9", -3600, 5, -2400 + 320, 260, 16, 0x66ff99);
+    board("BEAUTIFUL TOWER", -3600, 5, -800 + 320, 260, 16, 0x22cfff);
+    board("SCI-FI BUILDING 10", -3600, 5, 800 + 320, 260, 16, 0xff66dd);
+    board("TWIN SCI-FI TOWERS", -3600, 5, 2400 + 320, 280, 16, 0xaa8ae0);
 
     function shop(x, z, scale = 1.4, name) {
       loader.load("/dagashiya_shop_japanese_old_snack_shop.glb", (g) => {
@@ -1010,40 +1065,96 @@ const SmartCity3D = forwardRef((props, ref) => {
     for (let i = 0; i < 5; i++) spawnCar(innerRoute, i / 5, 1, 0.25, -26);
     for (let i = 0; i < 5; i++) spawnCar(innerRoute, i / 5 + 0.5, -1, 0.25, 26);
 
-    function updateCarMovement() {
-      for (const d of cityCars) {
-        let speed = d.baseSpeed;
-        const p = routePoint(d.route, d.progress);
-        const dist = Math.sqrt(p.x * p.x + p.z * p.z);
-        if (dist < 500) speed *= 0.55;
-        else if (dist < 900) speed *= 0.8;
-        d.progress += speed / 3200;
-        if (d.progress > 1) d.progress -= 1;
-        if (d.progress < 0) d.progress += 1;
-        const p2 = routePoint(d.route, d.progress);
-        const dx = p2.bx - p2.ax;
-        const dz = p2.bz - p2.az;
-        const len = Math.sqrt(dx * dx + dz * dz);
-        const nx = dx / len;
-        const nz = dz / len;
-        const perpX = -nz;
-        const perpZ = nx;
-        const carX = p2.x + perpX * d.laneOffset;
-        const carZ = p2.z + perpZ * d.laneOffset;
-        const HALF = 55;
-        const TOL = 20;
-        const onRoad =
-          roadZs.some(rz => Math.abs(carZ - rz) < HALF + TOL) ||
-          roadXs.some(rx => Math.abs(carX - rx) < HALF + TOL);
-        if (onRoad) {
-          d.car.visible = true;
-          d.car.position.set(carX, 5.2, carZ);
-          let angle = -Math.atan2(dz, dx);
-          if (d.direction < 0) angle += Math.PI;
-          d.car.rotation.y = angle;
+    const intersectionCars = []; s.intersectionCars = intersectionCars;
+
+    const ROAD_LANES = [
+      { id: 1, dir: "north", axis: "z", sign: -1, xOffset: -30, startPos: -1000, endPos: 400 },
+      { id: 2, dir: "south", axis: "z", sign: 1, xOffset: 30, startPos: 1000, endPos: -400 },
+      { id: 3, dir: "east", axis: "x", sign: 1, zOffset: 30, startPos: 1000, endPos: -400 },
+      { id: 4, dir: "west", axis: "x", sign: -1, zOffset: -30, startPos: -1000, endPos: 400 },
+    ];
+
+    function spawnIntersectionCar(roadId, startPos, lane) {
+      const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)]);
+      scene.add(car);
+      const carObj = {
+        car,
+        roadId,
+        axis: lane.axis,
+        sign: lane.sign,
+        xOffset: lane.xOffset || 0,
+        zOffset: lane.zOffset || 0,
+        pos: startPos,
+        speed: 0.4 + Math.random() * 0.3,
+        baseSpeed: 0.4 + Math.random() * 0.3,
+        waiting: false,
+      };
+      intersectionCars.push(carObj);
+      updateIntersectionCarTransform(carObj);
+    }
+
+    function updateIntersectionCarTransform(c) {
+      if (c.axis === "z") {
+        c.car.position.set(c.xOffset, 5.2, c.pos);
+        c.car.rotation.y = c.sign < 0 ? 0 : Math.PI;
+      } else {
+        c.car.position.set(c.pos, 5.2, c.zOffset);
+        c.car.rotation.y = c.sign < 0 ? Math.PI : 0;
+      }
+    }
+
+    for (let i = 0; i < 12; i++) {
+      const roadId = (i % 4) + 1;
+      const lane = ROAD_LANES[roadId - 1];
+      const startPos = lane.startPos + (i * 60) * Math.sign(lane.endPos - lane.startPos);
+      spawnIntersectionCar(roadId, startPos, lane);
+    }
+
+    function updateIntersectionCars(delta, aiSystem) {
+      for (const c of intersectionCars) {
+        const isGreen = aiSystem.isGreen(c.roadId);
+        const isYellow = aiSystem.isYellowRoad(c.roadId);
+
+        const stopLinePos = c.axis === "z"
+          ? (c.sign < 0 ? 180 : -180)
+          : (c.sign < 0 ? -180 : 180);
+
+        const distToStop = Math.abs(c.pos - stopLinePos);
+
+        let targetSpeed = c.baseSpeed;
+
+        if (isYellow) {
+          targetSpeed = c.baseSpeed * 0.6;
+        } else if (!isGreen) {
+          if (distToStop < 60) {
+            targetSpeed = 0;
+            c.waiting = true;
+          } else if (distToStop < 180) {
+            targetSpeed = c.baseSpeed * 0.3;
+            c.waiting = false;
+          } else {
+            targetSpeed = c.baseSpeed * 0.7;
+            c.waiting = false;
+          }
         } else {
-          d.car.visible = false;
+          c.waiting = false;
         }
+
+        c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 4);
+
+        c.pos += c.sign * c.speed * delta * 60;
+
+        if (c.sign < 0 && c.pos < c.endPosAt || c.sign > 0 && c.pos > c.endPosAt) {
+        }
+
+        const range = 1200;
+        if (c.sign < 0 && c.pos < -range) {
+          c.pos = range;
+        } else if (c.sign > 0 && c.pos > range) {
+          c.pos = -range;
+        }
+
+        updateIntersectionCarTransform(c);
       }
     }
 
@@ -1088,10 +1199,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     spawnPeople(600, 1800, 10, 220);
     spawnPeople(0, 0, 5, 130);
     spawnPeople(-1800, 1800, 12, 200);
-    spawnPeople(-3000, -2400, 4, 200);
-    spawnPeople(-3000, -800, 4, 200);
-    spawnPeople(-3000, 800, 4, 200);
-    spawnPeople(-3000, 2400, 4, 200);
+    spawnPeople(-3600, -2400, 4, 200);
+    spawnPeople(-3600, -800, 4, 200);
+    spawnPeople(-3600, 800, 4, 200);
+    spawnPeople(-3600, 2400, 4, 200);
 
     const tourists = []; s.tourists = tourists;
     const touristShirtColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0x00cec9, 0xff9f43];
@@ -1123,10 +1234,10 @@ const SmartCity3D = forwardRef((props, ref) => {
         const p = makeTourist();
         const angle = Math.random() * Math.PI * 2;
         const r = 200 + Math.random() * 600;
-        p.g.position.set(-3000 + Math.cos(angle) * r, 5, -200 + Math.sin(angle) * r);
+        p.g.position.set(-3600 + Math.cos(angle) * r, 5, -200 + Math.sin(angle) * r);
         p.g.rotation.y = angle;
         scene.add(p.g);
-        tourists.push({ obj: p.g, legL: p.legL, legR: p.legR, armL: p.armL, armR: p.armR, cx: -3000, cz: -200, r, angle, dir: Math.random() > 0.5 ? 1 : -1, speed: 0.004 + Math.random() * 0.006, phase: Math.random() * Math.PI * 2 });
+        tourists.push({ obj: p.g, legL: p.legL, legR: p.legR, armL: p.armL, armR: p.armR, cx: -3600, cz: -200, r, angle, dir: Math.random() > 0.5 ? 1 : -1, speed: 0.004 + Math.random() * 0.006, phase: Math.random() * Math.PI * 2 });
       }
     }
     spawnTourists(20);
@@ -1166,10 +1277,10 @@ const SmartCity3D = forwardRef((props, ref) => {
         { x: 750, z: 750, w: 400, d: 400, sidewalk: true, parking: false, trees: 4 },
         { x: 1000, z: 400, w: 460, d: 460, sidewalk: true, parking: true, trees: 5 },
         { x: -1600, z: 800, w: 480, d: 480, sidewalk: true, parking: true, trees: 5 },
-        { x: -3000, z: -2400, w: 600, d: 600, sidewalk: true, parking: false, trees: 8 },
-        { x: -3000, z: -800, w: 640, d: 640, sidewalk: true, parking: false, trees: 8 },
-        { x: -3000, z: 800, w: 600, d: 600, sidewalk: true, parking: false, trees: 8 },
-        { x: -3000, z: 2400, w: 640, d: 640, sidewalk: true, parking: false, trees: 8 },
+        { x: -3600, z: -2400, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
+        { x: -3600, z: -800, w: 720, d: 720, sidewalk: true, parking: false, trees: 10 },
+        { x: -3600, z: 800, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
+        { x: -3600, z: 2400, w: 720, d: 720, sidewalk: true, parking: false, trees: 10 },
       ];
       buildingPlots.forEach(plot => {
         const grass = new THREE.Mesh(new THREE.BoxGeometry(plot.w + 60, 0.35, plot.d + 60), grassPatchMat);
@@ -1233,6 +1344,11 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     const sim = createCitySimulation({ onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason });
     s.sim = sim;
+
+    const aiSystem = createAITrafficSystem({
+      onTrafficUpdate: (data) => onAITrafficUpdate?.(data),
+    });
+    s.aiSystem = aiSystem;
 
     const garbageRoute = [
       [-1200, -1200], [0, -1200], [1200, -1200], [1200, 0], [1200, 1200],
@@ -1328,7 +1444,23 @@ const SmartCity3D = forwardRef((props, ref) => {
       fc++;
 
       sim.tick(delta);
+      aiSystem.tick(delta);
       updateCarMovement();
+      updateIntersectionCars(delta, aiSystem);
+
+      const currentGreen = aiSystem.isGreen;
+      for (const l of intersectionLights) {
+        l.r.material.emissiveIntensity = 0;
+        l.y.material.emissiveIntensity = 0;
+        l.gr.material.emissiveIntensity = 0;
+        if (aiSystem.isGreen(l.road)) {
+          l.gr.material.emissiveIntensity = 4.5;
+        } else if (aiSystem.isYellowRoad(l.road)) {
+          l.y.material.emissiveIntensity = 5;
+        } else {
+          l.r.material.emissiveIntensity = 4.5;
+        }
+      }
 
       for (const p of people) {
         p.angle += p.speed * p.dir;
@@ -1372,15 +1504,9 @@ const SmartCity3D = forwardRef((props, ref) => {
         l.r.material.emissiveIntensity = 0;
         l.y.material.emissiveIntensity = 0;
         l.gr.material.emissiveIntensity = 0;
-        if (sim.getState() === 1) {
-          if (cyc < 7) l.r.material.emissiveIntensity = 4;
-          else if (cyc < 8.5) l.y.material.emissiveIntensity = 4;
-          else l.gr.material.emissiveIntensity = 4;
-        } else {
-          if (cyc < 5) l.r.material.emissiveIntensity = 4;
-          else if (cyc < 7) l.y.material.emissiveIntensity = 4;
-          else l.gr.material.emissiveIntensity = 4;
-        }
+        if (cyc < 5) l.r.material.emissiveIntensity = 4;
+        else if (cyc < 7) l.y.material.emissiveIntensity = 4;
+        else l.gr.material.emissiveIntensity = 4;
       }
 
       moveTruck(garbageTruck, garbageRoute, garbageState, delta, 0.18);
