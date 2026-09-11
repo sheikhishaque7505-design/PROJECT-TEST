@@ -3,6 +3,16 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+/* ═══════════════════════════════════════════
+   CITY BOUNDS — chhoti city
+   ═══════════════════════════════════════════ */
+const CITY_HALF = 3900;       /* City boundary half (city 7800 x 7800) */
+const ROAD_HALF_LEN = 3800;   /* Road length half — city ke andar */
+const GROUND_SIZE = 8200;     /* Ground just bigger than city */
+
+/* ═══════════════════════════════════════════
+   LOCATIONS CONFIG
+   ═══════════════════════════════════════════ */
 export const LOCATIONS = {
   school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   hospital: { key: "hospital", label: "Smart Hospital", icon: "🏥", type: "HEALTHCARE", position: [600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
@@ -20,7 +30,6 @@ export const LOCATIONS = {
   wasteManagement: { key: "wasteManagement", label: "Waste Management", icon: "♻", type: "MUNICIPAL", position: [3600, 5, 3600], camHeight: 450, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   cultureCenter: { key: "cultureCenter", label: "Culture Center", icon: "🏛", type: "CULTURAL", position: [-1800, 5, 1800], camHeight: 450, camDistance: 450, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   sewageCompany: { key: "sewageCompany", label: "Sewage & Gas Co.", icon: "🏭", type: "INDUSTRIAL", position: [1800, 5, 600], camHeight: 400, camDistance: 400, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  /* ═══ SCI-FI — alag-alag jagah ═══ */
   scifi9: { key: "scifi9", label: "Sci-Fi Building 9", icon: "🛸", type: "SCI-FI", position: [-3000, 5, -2400], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   beautifulTower: { key: "beautifulTower", label: "Beautiful Tower", icon: "🗼", type: "SKYLINE", position: [-3000, 5, -800], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3000, 5, 800], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
@@ -40,7 +49,6 @@ function createCitySimulation(callbacks) {
     simSec += delta;
     const tt = Math.floor(simSec);
     callbacks.onSimTime?.(String(Math.floor(tt / 60)).padStart(2, "0") + ":" + String(tt % 60).padStart(2, "0"));
-
     const now = simSec - cycleStart;
     if (tState === 0) {
       if (now >= CYCLE_TIME) { jamStart = simSec; setState(1); callbacks.onAiMessage?.("⚠ CARS QUEUING AT INTERSECTION"); }
@@ -51,7 +59,6 @@ function createCitySimulation(callbacks) {
     } else if (tState === 3) {
       if (simSec - rerouteStart >= REROUTE_DURATION + 10) { cycleStart = simSec; setState(0); }
     }
-
     const pct = Math.min(((simSec - cycleStart) / CYCLE_TIME) * 100, 100);
     let label = "", visible = true;
     if (tState === 0) label = "🚦 TRAFFIC EVENT IN " + Math.max(0, Math.ceil(CYCLE_TIME - now)) + "s";
@@ -89,7 +96,6 @@ function createCitySimulation(callbacks) {
     if (s === 0) callbacks.onAiReason?.({ visible: false, title: "", text: "", result: "" });
     else if (aiReason) callbacks.onAiReason?.(aiReason);
   }
-
   return { tick, getState: () => tState };
 }
 
@@ -197,7 +203,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.sidewalkMat.color.setHex(night ? 0x30363a : 0x8a8f94);
     s.streetBulbMats.forEach((m) => { m.emissiveIntensity = night ? 6.0 : 0.9; });
     s.batteryRings.forEach((m) => { m.emissiveIntensity = night ? 5.0 : 1.5; });
-    /* Border lights brighter at night */
     s.borderLights.forEach((m) => { m.emissiveIntensity = night ? 6.5 : 2.8; });
   }
 
@@ -242,11 +247,41 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.roadLaneMaterial = roadLaneMaterial; s.curbMaterial = curbMaterial;
     s.sidewalkMat = sidewalkMat;
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), grassMaterial);
+    /* ═══════════════════════════════════════════
+       GROUND — chhoti, city ke hisaab se
+       ═══════════════════════════════════════════ */
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE), grassMaterial);
     ground.rotation.x = -Math.PI / 2; scene.add(ground);
 
-    /* ROADS */
-    const ROAD_W = 110, ROAD_HALF = ROAD_W / 2, ROAD_LEN = 9600;
+    /* CITY BOUNDARY — glowing ring around city */
+    const cityBoundMat = new THREE.MeshStandardMaterial({
+      color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5,
+      metalness: 0.7, roughness: 0.2,
+    });
+    s.borderLights.push(cityBoundMat);
+    const boundThick = 20;
+    const boundY = 6;
+    const boundFront = new THREE.Mesh(new THREE.BoxGeometry(CITY_HALF * 2 + boundThick, 2, boundThick), cityBoundMat);
+    boundFront.position.set(0, boundY, CITY_HALF); scene.add(boundFront);
+    const boundBack = boundFront.clone(); boundBack.position.z = -CITY_HALF; scene.add(boundBack);
+    const boundLeft = new THREE.Mesh(new THREE.BoxGeometry(boundThick, 2, CITY_HALF * 2 + boundThick), cityBoundMat);
+    boundLeft.position.set(-CITY_HALF, boundY, 0); scene.add(boundLeft);
+    const boundRight = boundLeft.clone(); boundRight.position.x = CITY_HALF; scene.add(boundRight);
+
+    /* 4 city corner pillars */
+    for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
+      const cx = dx * CITY_HALF, cz = dz * CITY_HALF;
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(6, 8, 30, 12), cityBoundMat);
+      p.position.set(cx, 20, cz); scene.add(p);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 12),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x22cfff, emissiveIntensity: 4 }));
+      s.borderLights.push(cap.material);
+      cap.position.set(cx, 37, cz); scene.add(cap);
+    }
+
+    /* ROADS — sirf city ke andar (bounded) */
+    const ROAD_W = 110, ROAD_HALF = ROAD_W / 2;
+    const ROAD_LEN = ROAD_HALF_LEN * 2;  /* 7600 — city ke andar */
     const roadZs = [-2400, -1200, 0, 1200, 2400];
     const roadXs = [-2400, -1200, 0, 1200, 2400];
 
@@ -300,27 +335,18 @@ const SmartCity3D = forwardRef((props, ref) => {
       const s2 = s1.clone(); s2.position.x = x - ROAD_HALF - 10; scene.add(s2);
     });
 
-    /* ═══════════════════════════════════════════
-       BUILDING BORDER — COLORFUL, NIGHT GLOW
-       ═══════════════════════════════════════════ */
+    /* BUILDING BORDER */
     function buildingBorder(x, z, w, d, color = 0x22cfff) {
       const bMat = new THREE.MeshStandardMaterial({
-        color, emissive: color, emissiveIntensity: 2.8,
-        metalness: 0.7, roughness: 0.2,
+        color, emissive: color, emissiveIntensity: 2.8, metalness: 0.7, roughness: 0.2,
       });
       s.borderLights.push(bMat);
-
-      /* Front / Back */
       const front = new THREE.Mesh(new THREE.BoxGeometry(w + 20, 2.5, 6), bMat);
       front.position.set(x, 6.5, z + d / 2 + 10); scene.add(front);
       const back = front.clone(); back.position.z = z - d / 2 - 10; scene.add(back);
-
-      /* Left / Right */
       const left = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, d + 20), bMat);
       left.position.set(x - w / 2 - 10, 6.5, z); scene.add(left);
       const right = left.clone(); right.position.x = x + w / 2 + 10; scene.add(right);
-
-      /* 4 corner pillars */
       for (const cx of [-1, 1]) for (const cz of [-1, 1]) {
         const px = x + cx * (w / 2 + 10), pz = z + cz * (d / 2 + 10);
         const p = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 4.5, 22, 10), bMat);
@@ -330,14 +356,10 @@ const SmartCity3D = forwardRef((props, ref) => {
         const cap = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), capMat);
         cap.position.set(px, 30, pz); scene.add(cap);
       }
-
-      /* Colorful accent lights on 4 sides */
       const accentColors = [0xff6b6b, 0xffdd57, 0x6aff9d, 0x22cfff, 0xff66dd, 0xffa500];
       for (let i = 0; i < 4; i++) {
         const accentColor = accentColors[Math.floor(Math.random() * accentColors.length)];
-        const accentMat = new THREE.MeshStandardMaterial({
-          color: accentColor, emissive: accentColor, emissiveIntensity: 3.5,
-        });
+        const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 3.5 });
         s.borderLights.push(accentMat);
         const side = Math.floor(Math.random() * 4);
         let ax, az;
@@ -346,12 +368,10 @@ const SmartCity3D = forwardRef((props, ref) => {
         else if (side === 2) { ax = x - w / 2 - 14; az = z + (Math.random() - 0.5) * d; }
         else { ax = x + w / 2 + 14; az = z + (Math.random() - 0.5) * d; }
         const accent = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 8), accentMat);
-        accent.position.set(ax, 8 + Math.random() * 4, az);
-        scene.add(accent);
+        accent.position.set(ax, 8 + Math.random() * 4, az); scene.add(accent);
       }
     }
 
-    /* BOARD */
     function board(text, x, y, z, w = 80, h = 12, color) {
       const g = new THREE.Group(); g.position.set(x, y, z);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 14, 6), darkMaterial);
@@ -374,7 +394,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       scene.add(g);
     }
 
-    /* STREET LIGHTS */
     const streetBulbMats = []; s.streetBulbMats = streetBulbMats;
     function sl(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
@@ -388,10 +407,11 @@ const SmartCity3D = forwardRef((props, ref) => {
       scene.add(g); streetBulbMats.push(bMat);
     }
     roadZs.forEach((z) => {
-      for (let x = -4500; x <= 4500; x += 400) { sl(x, z + ROAD_HALF + 18); sl(x, z - ROAD_HALF - 18); }
+      for (let x = -ROAD_HALF_LEN + 100; x <= ROAD_HALF_LEN - 100; x += 400) {
+        sl(x, z + ROAD_HALF + 18); sl(x, z - ROAD_HALF - 18);
+      }
     });
 
-    /* TRAFFIC LIGHTS */
     const trafficLights = []; s.trafficLights = trafficLights;
     function tl(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
@@ -411,7 +431,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     roadXs.forEach((x) => roadZs.forEach((z) => tl(x, z)));
 
-    /* AI CONTROLLER */
     const controller = new THREE.Group(); s.controller = controller;
     controller.position.set(0, 5, 0);
     const controllerBase = new THREE.Mesh(new THREE.CylinderGeometry(55, 62, 3, 24), mat(0x142f3b, 0.28, 0.4));
@@ -472,7 +491,6 @@ const SmartCity3D = forwardRef((props, ref) => {
           b.position.set(pos[0], 5, pos[1]);
           scene.add(b);
           clickable.push({ object: b, type, name: name || type });
-          /* ✅ Border har building ke liye — colorful */
           buildingBorder(pos[0], pos[1], size * 1.4, size * 1.4, borderColor || 0x22cfff);
         },
         undefined,
@@ -523,6 +541,9 @@ const SmartCity3D = forwardRef((props, ref) => {
       for (const rx of roadXs) if (Math.abs(x - rx) < clear) return true;
       return false;
     }
+    function isInsideCity(x, z) {
+      return Math.abs(x) < CITY_HALF - 100 && Math.abs(z) < CITY_HALF - 100;
+    }
 
     const occupiedSpots = [
       { x: -600, z: -600, r: 260 }, { x: 600, z: -600, r: 250 },
@@ -536,11 +557,8 @@ const SmartCity3D = forwardRef((props, ref) => {
       { x: -600, z: 600, r: 500 },
       { x: 750, z: 750, r: 200 }, { x: 1000, z: 400, r: 220 },
       { x: -1600, z: 800, r: 260 },
-      /* SCI-FI alag-alag jagah */
-      { x: -3000, z: -2400, r: 350 },
-      { x: -3000, z: -800, r: 400 },
-      { x: -3000, z: 800, r: 350 },
-      { x: -3000, z: 2400, r: 400 },
+      { x: -3000, z: -2400, r: 350 }, { x: -3000, z: -800, r: 400 },
+      { x: -3000, z: 800, r: 350 }, { x: -3000, z: 2400, r: 400 },
       { x: 900, z: 1400, r: 250 },
     ];
     function isOnBuilding(x, z) {
@@ -550,7 +568,9 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
       return false;
     }
-    function isFree(x, z) { return !isOnRoad(x, z) && !isOnBuilding(x, z); }
+    function isFree(x, z) {
+      return isInsideCity(x, z) && !isOnRoad(x, z) && !isOnBuilding(x, z);
+    }
 
     const TOWER_COLORS = [
       0x5b9bd5, 0x4a90e2, 0x7bb3e0, 0x6ba3d9, 0x82c0e8, 0x5090d0,
@@ -588,7 +608,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       scene.add(g);
     }
 
-    /* SOLAR PANEL */
     const solarPanelMat = new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.18, metalness: 0.7, emissive: 0x063b62, emissiveIntensity: 0.7 });
     const solarFrameMat = mat(0x2a2a35, 0.5, 0.6);
 
@@ -664,7 +683,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     clickable.push({ object: societyGroup, type: "society", name: "BSS Smart Society" });
 
     /* ═══════════════════════════════════════════
-       GLB BUILDINGS — with colorful borders
+       GLB BUILDINGS
        ═══════════════════════════════════════════ */
     bld("/american_high_school.glb", 300, [-600, -600], "school", "American High School", 0x1a5490);
     bld("/low_poly_hospital.glb", 280, [600, -600], "hospital", "Smart Hospital", 0xc0392b);
@@ -679,7 +698,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     bld("/commercial_building_concept.glb", 340, [1000, 400], "commercial", "Commercial Building", 0x3498db);
     bld("/power-suply-companey.glb", 380, [-1600, 800], "powerCompany", "City Power Supply Co.", 0xf1c40f);
 
-    /* SCI-FI — ALAG-ALAG jagah, apni colorful border ke saath */
+    /* SCI-FI */
     bld("/sci-fi_building_9.glb", 440, [-3000, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
     bld("/beautifultowerbuilding.glb", 520, [-3000, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
     bld("/sci-fi_building_10.glb", 440, [-3000, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
@@ -687,8 +706,7 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     /* WASTE COLLECTOR */
     const wcGroup = new THREE.Group();
-    wcGroup.position.set(900, 5, 1400);
-    scene.add(wcGroup);
+    wcGroup.position.set(900, 5, 1400); scene.add(wcGroup);
     const wcPad = new THREE.Mesh(new THREE.BoxGeometry(280, 0.8, 280), mat(0x2a3a2e, 0.95));
     wcPad.position.y = 0.4; wcGroup.add(wcPad);
     const wcBorderMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 2.5, metalness: 0.6, roughness: 0.2 });
@@ -943,7 +961,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const g3 = buildTruck(0xd8b3ff, 0x8e44ad, "AI FERTILIZER", "#8e44ad");
     const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
 
-    /* CARS — 50 total */
+    /* CARS — 50 */
     const cityCars = []; s.cityCars = cityCars;
     const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c];
     const V_LEN = 26, V_WID = 10, V_HGT = 5.5;
@@ -982,7 +1000,8 @@ const SmartCity3D = forwardRef((props, ref) => {
       return g;
     }
 
-    const outerRoute = [[-3600, -2400], [3600, -2400], [3600, 2400], [-3600, 2400]];
+    /* Routes — chhoti city ke andar */
+    const outerRoute = [[-3300, -2400], [3300, -2400], [3300, 2400], [-3300, 2400]];
     const innerRoute = [[-1200, -1200], [1200, -1200], [1200, 1200], [-1200, 1200]];
     const midRoute = [[-2400, -1200], [2400, -1200], [2400, 1200], [-2400, 1200]];
 
@@ -1009,7 +1028,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       cityCars.push({ car: c, route, progress, direction: dir, speed, baseSpeed: speed, laneOffset });
     }
 
-    /* 50 cars */
+    /* Cars sirf roads par — bounded routes */
     for (let i = 0; i < 12; i++) spawnCar(outerRoute, i / 12, 1, 0.32, -30);
     for (let i = 0; i < 12; i++) spawnCar(outerRoute, i / 12 + 0.5, -1, 0.32, 30);
     for (let i = 0; i < 8; i++) spawnCar(midRoute, i / 8, 1, 0.28, -28);
@@ -1059,13 +1078,12 @@ const SmartCity3D = forwardRef((props, ref) => {
     spawnPeople(600, 1800, 10, 220);
     spawnPeople(0, 0, 5, 130);
     spawnPeople(-1800, 1800, 12, 200);
-    /* People near Sci-Fi buildings */
     spawnPeople(-3000, -2400, 4, 200);
     spawnPeople(-3000, -800, 4, 200);
     spawnPeople(-3000, 800, 4, 200);
     spawnPeople(-3000, 2400, 4, 200);
 
-    /* TOURISTS in Sci-Fi area */
+    /* TOURISTS */
     const tourists = []; s.tourists = tourists;
     const touristShirtColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0x00cec9, 0xff9f43];
 
@@ -1104,7 +1122,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     spawnTourists(20);
 
-    /* Tourist message — 30 sec baad, 1 sec ke liye */
     let touristMsgShown = false;
     setTimeout(() => {
       if (!touristMsgShown) {
@@ -1113,15 +1130,15 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
     }, 30000);
 
-    /* NATURE — 400 trees */
+    /* NATURE — sirf city ke andar */
     for (let i = 0; i < 400; i++) {
-      const x = (Math.random() - 0.5) * 9000;
-      const z = (Math.random() - 0.5) * 9000;
+      const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
+      const z = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
       if (isFree(x, z)) tree(x, z, 0.8 + Math.random() * 0.6);
     }
     for (let i = 0; i < 150; i++) {
-      const x = (Math.random() - 0.5) * 9000;
-      const z = (Math.random() - 0.5) * 9000;
+      const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
+      const z = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
       if (isFree(x, z)) bush(x, z, 0.7 + Math.random() * 0.6);
     }
 
@@ -1129,14 +1146,14 @@ const SmartCity3D = forwardRef((props, ref) => {
     const sim = createCitySimulation({ onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason });
     s.sim = sim;
 
+    /* Truck routes — sirf city roads par */
     const garbageRoute = [
       [-1200, -1200], [0, -1200], [1200, -1200], [1200, 0], [1200, 1200],
       [900, 1400], [600, 1800], [600, 2400], [1200, 2400], [2400, 2400],
       [2400, 1200], [2400, 0], [2400, -1200], [1200, -1200], [0, -1200], [-1200, -1200],
       [-2400, -1200], [-2400, -2400], [-1200, -2400], [0, -2400],
-      [1200, -2400], [2400, -2400], [3600, -3600], [3600, -2400],
-      [3600, -1200], [3600, 0], [3600, 1200], [3600, 2400], [3600, 3600],
-      [2400, 3600], [1200, 2400], [0, 1200], [-1200, 0], [-1200, -1200],
+      [1200, -2400], [2400, -2400], [3300, -2400], [3300, 0],
+      [3300, 2400], [2400, 2400], [1200, 2400], [0, 1200], [-1200, 0], [-1200, -1200],
     ];
     const fertRoute1 = [
       [1800, -1200], [1200, -1200], [1200, 0], [1200, 1200], [0, 1200],
@@ -1184,10 +1201,10 @@ const SmartCity3D = forwardRef((props, ref) => {
           switch (item.type) {
             case "school": type = "EDUCATION"; text = "Modern high school."; break;
             case "hospital": type = "HEALTHCARE"; text = "Smart hospital."; break;
-            case "society": type = "RESIDENTIAL"; text = "BSS Smart Society — 12 towers, solar panels, green border."; break;
+            case "society": type = "RESIDENTIAL"; text = "BSS Smart Society."; break;
             case "bank": type = "FINANCIAL"; text = "Smart banking."; break;
             case "nearBank": type = "COMMERCIAL"; text = "Near bank building."; break;
-            case "commercial": type = "COMMERCIAL"; text = "Commercial building concept."; break;
+            case "commercial": type = "COMMERCIAL"; text = "Commercial building."; break;
             case "farm": type = "AGRICULTURE"; text = "Sustainable farming."; break;
             case "newHall": type = "EVENT VENUE"; text = "Liverpool Event Hall."; break;
             case "gasStation": type = "AUTOMOTIVE"; text = "Gas station + car wash."; break;
@@ -1195,11 +1212,11 @@ const SmartCity3D = forwardRef((props, ref) => {
             case "sewageCompany": type = "INDUSTRIAL"; text = "Sewage & gas company."; break;
             case "sewageCompanyOld": type = "INDUSTRIAL"; text = "Old office building."; break;
             case "cultureCenter": type = "CULTURAL"; text = "Culture Center."; break;
-            case "beautifulTower": type = "SKYLINE"; text = "Beautiful tower — sci-fi district."; break;
+            case "beautifulTower": type = "SKYLINE"; text = "Beautiful tower."; break;
             case "twinTowers": type = "SKYLINE"; text = "Twin sci-fi towers."; break;
             case "scifi9": type = "SCI-FI"; text = "Sci-Fi Building 9."; break;
             case "scifi10": type = "SCI-FI"; text = "Sci-Fi Building 10."; break;
-            case "wasteCollector": type = "MUNICIPAL"; text = "Waste collection point near Marriage Hall."; break;
+            case "wasteCollector": type = "MUNICIPAL"; text = "Waste collection point."; break;
             case "wasteBin": type = "WASTE"; text = "Waste container."; break;
           }
           onPanel({ title, type, text });
@@ -1355,4 +1372,3 @@ const SmartCity3D = forwardRef((props, ref) => {
 });
 
 export default SmartCity3D;
-without any comment clean code do and proper ui UX enhance + city look === Tokyo kr Dena plzz
