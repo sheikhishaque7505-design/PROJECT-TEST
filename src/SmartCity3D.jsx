@@ -89,27 +89,6 @@ function createCitySimulation(callbacks) {
   return { tick, getState: () => tState };
 }
 
-function makeWindowTexture(baseColor, litColor, density, cols, rows) {
-  const c = document.createElement("canvas");
-  c.width = 256; c.height = 512;
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = baseColor;
-  ctx.fillRect(0, 0, 256, 512);
-  const cw = 256 / cols, ch = 512 / rows;
-  for (let r = 0; r < rows; r++) {
-    for (let cc = 0; cc < cols; cc++) {
-      const lit = Math.random() < density;
-      ctx.fillStyle = lit ? litColor : "rgba(0,0,0,0.55)";
-      ctx.fillRect(cc * cw + cw * 0.15, r * ch + ch * 0.15, cw * 0.7, ch * 0.65);
-    }
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-}
-
 function makeNeonTexture(text, bgColor, textColor) {
   const c = document.createElement("canvas");
   c.width = 256; c.height = 1024;
@@ -148,9 +127,8 @@ const SmartCity3D = forwardRef((props, ref) => {
     controllerSig: null, garbageWarn: null, fertWarn1: null, fertWarn2: null,
     grassMaterial: null, roadMaterial: null, roadLaneMaterial: null,
     curbMaterial: null, sidewalkMat: null, ambient: null, sun: null,
-    skyLight: null, hemiLight: null, neonMats: [], windowMats: [], sakuraMats: [],
-    tokyoTower: null, tokyoTowerLights: [], sim: null, night: false,
-    sunset: null, moonLight: null, currentBg: null,
+    skyLight: null, moonLight: null, neonMats: [], windowMats: [], sakuraMats: [],
+    tokyoTowerLights: [], sim: null, night: false,
   }).current;
 
   useImperativeHandle(ref, () => ({
@@ -222,7 +200,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     if (!s.scene) return;
     s.night = night;
     const DAY_BG = new THREE.Color(0x9ecdf0);
-    const DUSK_BG = new THREE.Color(0x2a1a3a);
     const NIGHT_BG = new THREE.Color(0x04060d);
     if (night) {
       s.scene.background = NIGHT_BG.clone();
@@ -277,6 +254,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     controls.enableDamping = true; controls.dampingFactor = 0.15;
     controls.minDistance = 200; controls.maxDistance = 6000;
     controls.target.set(0, 5, 0); s.controls = controls;
+
+    const loader = new GLTFLoader();
+    const clickable = [];
+    s.clickable = clickable;
 
     const ambient = new THREE.HemisphereLight(0xf8fcff, 0x315c38, 3.4);
     scene.add(ambient); s.ambient = ambient;
@@ -479,7 +460,8 @@ const SmartCity3D = forwardRef((props, ref) => {
     const skylineGroup = new THREE.Group();
     scene.add(skylineGroup);
     const SKYLINE_COLORS = [0x2c3e50, 0x34495e, 0x3d3d4e, 0x4a4a5c, 0x5a5a6e, 0x2a3a4a, 0x1e2a35, 0x3a3a4a, 0x263545, 0x38475c];
-    const skyscraperWindowMats = [];
+    const windowMats = []; s.windowMats = windowMats;
+
     function makeSkylineTexture(color, density) {
       const c = document.createElement("canvas");
       c.width = 128; c.height = 256;
@@ -511,7 +493,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       const tex = makeSkylineTexture(colorHex, 0.45);
       const sideMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.35, metalness: 0.55, emissive: 0xfff3c4, emissiveIntensity: 0.18 });
       const plainMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4, metalness: 0.55 });
-      skyscraperWindowMats.push(sideMat);
+      windowMats.push(sideMat);
       const mats = [sideMat, sideMat, plainMat, plainMat, sideMat, sideMat];
       const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats);
       body.position.y = h / 2; g.add(body);
@@ -673,7 +655,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       neonCount++;
     }
 
-    const CONTROLLER_RADIUS = 60;
     const controller = new THREE.Group(); s.controller = controller;
     controller.position.set(0, 5, 0);
     const controllerBase = new THREE.Mesh(new THREE.CylinderGeometry(55, 62, 3, 24), mat(0x142f3b, 0.28, 0.4));
@@ -696,8 +677,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const controllerSig = new THREE.Mesh(new THREE.SphereGeometry(2.2, 12, 12), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 3.5 }));
     controllerSig.position.y = 68; controller.add(controllerSig); s.controllerSig = controllerSig;
     scene.add(controller);
-
-    const loader = new GLTFLoader(); const clickable = []; s.clickable = clickable;
 
     function removeGroundFromGLB(model) {
       const toRemove = [];
@@ -752,7 +731,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const treeTrunkGeo = new THREE.CylinderGeometry(2.2, 3.5, 28, 7);
     const treeLeafCone = new THREE.ConeGeometry(18, 42, 8);
     const treeLeafConeSmall = new THREE.ConeGeometry(14, 32, 7);
-    const treeLeafSphereBig = new THREE.SphereGeometry(18, 10, 9);
     const sakuraPuff = new THREE.SphereGeometry(15, 8, 7);
 
     function tree(x, z, sc = 1) {
