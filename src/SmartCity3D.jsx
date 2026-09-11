@@ -24,16 +24,16 @@ export const LOCATIONS = {
   wasteManagement: { key: "wasteManagement", label: "Waste Management", icon: "♻", type: "MUNICIPAL", position: [3600, 5, 3600], camHeight: 450, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   cultureCenter: { key: "cultureCenter", label: "Culture Center", icon: "🏛", type: "CULTURAL", position: [-1800, 5, 1800], camHeight: 450, camDistance: 450, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   sewageCompany: { key: "sewageCompany", label: "Sewage & Gas Co.", icon: "🏭", type: "INDUSTRIAL", position: [1800, 5, 600], camHeight: 400, camDistance: 400, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  scifi9: { key: "scifi9", label: "Sci-Fi Building 9", icon: "🛸", type: "SCI-FI", position: [-3600, 5, -2400], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  scifi9: { key: "scifi9", label: "Sci-Fi Building 9", icon: "🛸", type: "SCI-FI", position: [-3900, 5, -2400], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   beautifulTower: { key: "beautifulTower", label: "Beautiful Tower", icon: "🗼", type: "SKYLINE", position: [-3600, 5, -800], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3600, 5, 800], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  twinTowers: { key: "twinTowers", label: "Twin Sci-Fi Towers", icon: "🏙", type: "SKYLINE", position: [-3600, 5, 2400], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  twinTowers: { key: "twinTowers", label: "Twin Sci-Fi Towers", icon: "🏙", type: "SKYLINE", position: [-3900, 5, 2400], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   wasteCollector: { key: "wasteCollector", label: "Waste Collector Point", icon: "🗑", type: "MUNICIPAL", position: [900, 5, 1400], camHeight: 300, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   trafficController: { key: "trafficController", label: "AI Traffic Controller", icon: "🤖", type: "TRANSPORTATION", position: [0, 5, 0], camHeight: 320, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
 };
 
 function createAITrafficSystem(callbacks) {
-  const PHASE_DURATION = 10;
+  const PHASE_DURATION = 8;
   const YELLOW_DURATION = 2.5;
   let elapsed = 0;
   let phase = 1;
@@ -43,9 +43,9 @@ function createAITrafficSystem(callbacks) {
   let currentRedRoads = [3, 4];
 
   const stats = {
-    vehiclesDetected: 60,
-    vehiclesMoving: 30,
-    vehiclesWaiting: 30,
+    vehiclesDetected: 80,
+    vehiclesMoving: 40,
+    vehiclesWaiting: 40,
     density: "HIGH",
   };
 
@@ -73,14 +73,14 @@ function createAITrafficSystem(callbacks) {
       yellowElapsed = 0;
     }
 
-    const greenCount = 30;
-    const redCount = 30;
+    const greenCount = 40;
+    const redCount = 40;
     if (phase === 1) {
-      stats.vehiclesMoving = greenCount + Math.floor(Math.random() * 5);
-      stats.vehiclesWaiting = redCount + Math.floor(Math.random() * 5);
+      stats.vehiclesMoving = greenCount + Math.floor(Math.random() * 8);
+      stats.vehiclesWaiting = redCount + Math.floor(Math.random() * 8);
     } else {
-      stats.vehiclesMoving = redCount + Math.floor(Math.random() * 5);
-      stats.vehiclesWaiting = greenCount + Math.floor(Math.random() * 5);
+      stats.vehiclesMoving = redCount + Math.floor(Math.random() * 8);
+      stats.vehiclesWaiting = greenCount + Math.floor(Math.random() * 8);
     }
 
     const densityRoll = stats.vehiclesWaiting / (stats.vehiclesMoving + stats.vehiclesWaiting);
@@ -266,7 +266,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.savedCamPos = s.camera.position.clone();
     s.savedCamTarget = s.controls.target.clone();
     smoothCameraTo(
-      new THREE.Vector3(180, 180, 480),
+      new THREE.Vector3(260, 220, 620),
       new THREE.Vector3(0, 5, 0),
       2000
     );
@@ -583,7 +583,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b2.min.y;
     }
 
-    function bld(file, size, pos, type, name, borderColor, stripGround = true) {
+    function bld(file, size, pos, type, name, borderColor, stripGround = true, skipBorder = false) {
       const url = file.startsWith("/") ? file : "/" + file;
       loader.load(
         url,
@@ -593,7 +593,9 @@ const SmartCity3D = forwardRef((props, ref) => {
           b.position.set(pos[0], 5, pos[1]);
           scene.add(b);
           clickable.push({ object: b, type, name: name || type });
-          buildingBorder(pos[0], pos[1], size * 1.4, size * 1.4, borderColor || 0x22cfff);
+          if (!skipBorder) {
+            buildingBorder(pos[0], pos[1], size * 1.4, size * 1.4, borderColor || 0x22cfff);
+          }
         },
         undefined,
         (err) => console.warn("GLB load failed:", url, err)
@@ -658,8 +660,8 @@ const SmartCity3D = forwardRef((props, ref) => {
       { x: -600, z: 600, r: 500 },
       { x: 750, z: 750, r: 200 }, { x: 1000, z: 400, r: 220 },
       { x: -1600, z: 800, r: 260 },
-      { x: -3600, z: -2400, r: 350 }, { x: -3600, z: -800, r: 400 },
-      { x: -3600, z: 800, r: 350 }, { x: -3600, z: 2400, r: 400 },
+      { x: -3900, z: -2400, r: 350 }, { x: -3600, z: -800, r: 400 },
+      { x: -3600, z: 800, r: 350 }, { x: -3900, z: 2400, r: 400 },
       { x: 900, z: 1400, r: 250 },
     ];
     function isOnBuilding(x, z) {
@@ -789,13 +791,13 @@ const SmartCity3D = forwardRef((props, ref) => {
     bld("/office.glb", 380, [1800, 600], "sewageCompany", "Sewage & Gas Co.", 0x2ecc71);
     bld("/brutalist_building.glb", 300, [2200, 600], "sewageCompanyOld", "Old Office Building", 0x34495e);
     bld("/national_archives_research_center.glb", 480, [-1800, 1800], "cultureCenter", "Culture Center", 0xf39c12);
-    bld("/nearbank.glb", 240, [750, 750], "nearBank", "Near Bank Building", 0xf39c12);
-    bld("/commercial_building_concept.glb", 340, [1000, 400], "commercial", "Commercial Building", 0x3498db);
+    bld("/nearbank.glb", 240, [750, 750], "nearBank", "Near Bank Building", 0xf39c12, true, true);
+    bld("/commercial_building_concept.glb", 340, [1000, 400], "commercial", "Commercial Building", 0x3498db, true, true);
     bld("/power-suply-companey.glb", 380, [-1600, 800], "powerCompany", "City Power Supply Co.", 0xf1c40f);
-    bld("/sci-fi_building_9.glb", 440, [-3600, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
+    bld("/sci-fi_building_9.glb", 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
     bld("/beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
     bld("/sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-    bld("/twobuildingsneedspace.glb", 560, [-3600, 2400], "twinTowers", "Twin Sci-Fi Towers", 0xaa8ae0);
+    bld("/twobuildingsneedspace.glb", 560, [-3900, 2400], "twinTowers", "Twin Sci-Fi Towers", 0xaa8ae0);
 
     const wcGroup = new THREE.Group();
     wcGroup.position.set(900, 5, 1400); scene.add(wcGroup);
@@ -831,10 +833,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     board("CULTURE CENTER", -1800, 5, 2400, 260, 18, 0xf39c12);
     board("CITY POWER SUPPLY CO.", -1600, 5, 400, 300, 16, 0xf1c40f);
     board("AI TRAFFIC CONTROLLER", 0, 5, 300, 190, 14);
-    board("SCI-FI BUILDING 9", -3600, 5, -2400 + 320, 260, 16, 0x66ff99);
+    board("SCI-FI BUILDING 9", -3900, 5, -2400 + 320, 260, 16, 0x66ff99);
     board("BEAUTIFUL TOWER", -3600, 5, -800 + 320, 260, 16, 0x22cfff);
     board("SCI-FI BUILDING 10", -3600, 5, 800 + 320, 260, 16, 0xff66dd);
-    board("TWIN SCI-FI TOWERS", -3600, 5, 2400 + 320, 280, 16, 0xaa8ae0);
+    board("TWIN SCI-FI TOWERS", -3900, 5, 2400 + 320, 280, 16, 0xaa8ae0);
 
     function shop(x, z, scale = 1.4, name) {
       loader.load("/dagashiya_shop_japanese_old_snack_shop.glb", (g) => {
@@ -1193,10 +1195,10 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
     }
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 32; i++) {
       const roadId = (i % 4) + 1;
       const lane = ROAD_LANES[roadId - 1];
-      const startPos = lane.startPos + (i * 60) * Math.sign(lane.endPos - lane.startPos);
+      const startPos = lane.startPos + (i * 70) * Math.sign(lane.endPos - lane.startPos);
       spawnIntersectionCar(roadId, startPos, lane);
     }
 
@@ -1286,10 +1288,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     spawnPeople(600, 1800, 10, 220);
     spawnPeople(0, 0, 5, 130);
     spawnPeople(-1800, 1800, 12, 200);
-    spawnPeople(-3600, -2400, 4, 200);
+    spawnPeople(-3900, -2400, 4, 200);
     spawnPeople(-3600, -800, 4, 200);
     spawnPeople(-3600, 800, 4, 200);
-    spawnPeople(-3600, 2400, 4, 200);
+    spawnPeople(-3900, 2400, 4, 200);
 
     const tourists = []; s.tourists = tourists;
     const touristShirtColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0x00cec9, 0xff9f43];
@@ -1337,12 +1339,12 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
     }, 30000);
 
-    for (let i = 0; i < 400; i++) {
+    for (let i = 0; i < 650; i++) {
       const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
       const z = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
       if (isFree(x, z)) tree(x, z, 0.8 + Math.random() * 0.6);
     }
-    for (let i = 0; i < 150; i++) {
+    for (let i = 0; i < 280; i++) {
       const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
       const z = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
       if (isFree(x, z)) bush(x, z, 0.7 + Math.random() * 0.6);
@@ -1364,10 +1366,10 @@ const SmartCity3D = forwardRef((props, ref) => {
         { x: 750, z: 750, w: 400, d: 400, sidewalk: true, parking: false, trees: 4 },
         { x: 1000, z: 400, w: 460, d: 460, sidewalk: true, parking: true, trees: 5 },
         { x: -1600, z: 800, w: 480, d: 480, sidewalk: true, parking: true, trees: 5 },
-        { x: -3600, z: -2400, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
+        { x: -3900, z: -2400, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
         { x: -3600, z: -800, w: 720, d: 720, sidewalk: true, parking: false, trees: 10 },
         { x: -3600, z: 800, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
-        { x: -3600, z: 2400, w: 720, d: 720, sidewalk: true, parking: false, trees: 10 },
+        { x: -3900, z: 2400, w: 720, d: 720, sidewalk: true, parking: false, trees: 10 },
       ];
       buildingPlots.forEach(plot => {
         const grass = new THREE.Mesh(new THREE.BoxGeometry(plot.w + 60, 0.35, plot.d + 60), grassPatchMat);
@@ -1425,6 +1427,205 @@ const SmartCity3D = forwardRef((props, ref) => {
           scene.add(stripe);
         }
       });
+
+      const flowerBedMat = new THREE.MeshStandardMaterial({ color: 0x8b5a3c, roughness: 0.95 });
+      const flowerColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0xffffff];
+      const benchMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.85 });
+      const benchLegMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6, metalness: 0.5 });
+
+      function createPark(cx, cz, radius) {
+        const parkBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius, radius, 0.6, 32),
+          new THREE.MeshStandardMaterial({ color: 0x4a9d5a, roughness: 0.95 })
+        );
+        parkBase.position.set(cx, 4.55, cz);
+        scene.add(parkBase);
+
+        const bedRing = new THREE.Mesh(
+          new THREE.TorusGeometry(radius * 0.6, 4, 8, 32),
+          flowerBedMat
+        );
+        bedRing.rotation.x = Math.PI / 2;
+        bedRing.position.set(cx, 4.9, cz);
+        scene.add(bedRing);
+
+        for (let i = 0; i < 20; i++) {
+          const angle = (i / 20) * Math.PI * 2;
+          const r = radius * 0.6 + (Math.random() - 0.5) * 12;
+          const flower = new THREE.Mesh(
+            new THREE.SphereGeometry(1.2, 6, 6),
+            new THREE.MeshStandardMaterial({
+              color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+              emissive: 0x222222,
+              emissiveIntensity: 0.3,
+              roughness: 0.7,
+            })
+          );
+          flower.position.set(cx + Math.cos(angle) * r, 5.8, cz + Math.sin(angle) * r);
+          scene.add(flower);
+        }
+
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
+          const tx = cx + Math.cos(angle) * (radius * 0.85);
+          const tz = cz + Math.sin(angle) * (radius * 0.85);
+          tree(tx, tz, 0.7 + Math.random() * 0.3);
+        }
+
+        const fountainBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius * 0.25, radius * 0.3, 5, 24),
+          new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.6 })
+        );
+        fountainBase.position.set(cx, 6.5, cz);
+        scene.add(fountainBase);
+
+        const waterMat = new THREE.MeshStandardMaterial({
+          color: 0x22cfff,
+          emissive: 0x0a6a9a,
+          emissiveIntensity: 0.8,
+          transparent: true,
+          opacity: 0.75,
+          metalness: 0.4,
+          roughness: 0.1,
+        });
+        const water = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius * 0.22, radius * 0.22, 1, 24),
+          waterMat
+        );
+        water.position.set(cx, 8.8, cz);
+        scene.add(water);
+
+        for (let i = 0; i < 4; i++) {
+          const angle = (i / 4) * Math.PI * 2;
+          const bx = cx + Math.cos(angle) * (radius * 0.45);
+          const bz = cz + Math.sin(angle) * (radius * 0.45);
+          const bench = new THREE.Group();
+          bench.position.set(bx, 5, bz);
+          bench.rotation.y = -angle;
+
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 4), benchMat);
+          seat.position.y = 2.5;
+          bench.add(seat);
+
+          const back = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 0.5), benchMat);
+          back.position.set(0, 4.5, -1.8);
+          bench.add(back);
+
+          for (const lx of [-5, 5]) {
+            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), benchLegMat);
+            leg.position.set(lx, 1.25, 0);
+            bench.add(leg);
+          }
+
+          scene.add(bench);
+        }
+      }
+
+      createPark(-1800, -600, 180);
+      createPark(1200, 1800, 150);
+      createPark(-1500, 1300, 160);
+      createPark(300, -1800, 150);
+      createPark(-900, -1700, 140);
+      createPark(1800, -1500, 160);
+
+      function createPond(cx, cz, radius) {
+        const pondBase = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius, radius * 1.1, 0.4, 24),
+          new THREE.MeshStandardMaterial({ color: 0x3a7a3a, roughness: 0.95 })
+        );
+        pondBase.position.set(cx, 4.5, cz);
+        scene.add(pondBase);
+
+        const water = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius * 0.85, radius * 0.85, 0.6, 24),
+          new THREE.MeshStandardMaterial({
+            color: 0x2d8fb5,
+            emissive: 0x0a3a52,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.88,
+            metalness: 0.3,
+            roughness: 0.1,
+          })
+        );
+        water.position.set(cx, 4.8, cz);
+        scene.add(water);
+
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const r = radius + 15 + Math.random() * 20;
+          const tx = cx + Math.cos(angle) * r;
+          const tz = cz + Math.sin(angle) * r;
+          if (!isOnRoad(tx, tz)) tree(tx, tz, 0.6 + Math.random() * 0.3);
+        }
+      }
+
+      createPond(-2400, 2400, 90);
+      createPond(2700, 1300, 80);
+      createPond(-2200, -1800, 95);
+      createPond(2200, -2400, 85);
+
+      const pavilionMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.2, metalness: 0.7, roughness: 0.2 });
+      const pavilionGlass = new THREE.MeshStandardMaterial({ color: 0x9edcf5, transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.3 });
+
+      function createPavilion(cx, cz) {
+        const pavilion = new THREE.Group();
+        pavilion.position.set(cx, 5, cz);
+
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(28, 30, 2, 16), new THREE.MeshStandardMaterial({ color: 0xb8bcc0, roughness: 0.9 }));
+        base.position.y = 1;
+        pavilion.add(base);
+
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * Math.PI * 2;
+          const px = Math.cos(angle) * 22;
+          const pz = Math.sin(angle) * 22;
+          const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 22, 8), pavilionMat);
+          pillar.position.set(px, 12, pz);
+          pavilion.add(pillar);
+        }
+
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(32, 18, 16), pavilionMat);
+        roof.position.y = 32;
+        pavilion.add(roof);
+
+        const glassDome = new THREE.Mesh(new THREE.SphereGeometry(24, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), pavilionGlass);
+        glassDome.position.y = 22;
+        pavilion.add(glassDome);
+
+        scene.add(pavilion);
+      }
+
+      createPavilion(0, -1800);
+      createPavilion(1800, 0);
+      createPavilion(-1800, -1800);
+      createPavilion(0, 800);
+
+      const smartPoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.4, metalness: 0.7 });
+      const smartGlowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3 });
+
+      function smartPole(x, z) {
+        const g = new THREE.Group();
+        g.position.set(x, 5, z);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 18, 6), smartPoleMat);
+        pole.position.y = 9;
+        g.add(pole);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.4, 6, 16), smartGlowMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 18;
+        g.add(ring);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 10), smartGlowMat);
+        cap.position.y = 19;
+        g.add(cap);
+        scene.add(g);
+      }
+
+      for (let x = -3600; x <= 3600; x += 400) {
+        if (Math.abs(x) > 200) {
+          smartPole(x, -800);
+          smartPole(x, 800);
+        }
+      }
     }
 
     addLandscaping();
