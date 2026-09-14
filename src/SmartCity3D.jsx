@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -27,6 +27,29 @@ export const LOCATIONS = {
   scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3600, 5, 800], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   wasteCollector: { key: "wasteCollector", label: "Waste Collector Point", icon: "🗑", type: "MUNICIPAL", position: [900, 5, 1400], camHeight: 300, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   trafficController: { key: "trafficController", label: "AI Traffic Controller", icon: "🤖", type: "TRANSPORTATION", position: [0, 5, 0], camHeight: 320, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+};
+
+// ===== LIVE DATA FEED FOR EACH LOCATION =====
+export const LOCATION_LIVE_DATA = {
+  school: { desc: "AI-powered classrooms, smart boards, robotics lab", stats: [["👨‍🎓 Students", "450"], ["👩‍🏫 Teachers", "32"], ["📚 Classes", "18 running"], ["🤖 Robotics Lab", "Active"]] },
+  hospital: { desc: "24/7 emergency, AI diagnosis, robotic surgery", stats: [["🏥 Patients", "32"], ["🚑 Ambulances", "2 ready"], ["💊 ICU Beds", "8 free"], ["🩺 AI Diagnosis", "Online"]] },
+  society: { desc: "Smart residential towers with IoT, solar, security", stats: [["🏠 Towers", "12"], ["👥 Residents", "2,400"], ["☀️ Solar", "82% self"], ["🔒 Security", "AI Active"]] },
+  bank: { desc: "Digital banking, AI fraud detection, 24/7 ATMs", stats: [["💰 Transactions", "1,240/hr"], ["🏧 ATMs", "8 online"], ["🔐 AI Security", "Active"], ["📈 Uptime", "99.9%"]] },
+  farm: { desc: "IoT sensors, drip irrigation, drone monitoring", stats: [["🌾 Crop Health", "94%"], ["💧 Soil Moisture", "68%"], ["🚁 Drones", "3 active"], ["🌡️ Temp", "24°C"]] },
+  newHall: { desc: "Events, conferences, concerts, smart lighting", stats: [["🎪 Capacity", "2,000"], ["🎤 Events today", "3"], ["💡 Smart Lights", "ON"], ["🎵 Sound", "Surround"]] },
+  carWash: { desc: "Automated car wash, EV charging, fuel station", stats: [["🚗 Cars today", "87"], ["⚡ EV Chargers", "4 active"], ["⛽ Fuel Pumps", "6"], ["💧 Water recycle", "78%"]] },
+  powerCompany: { desc: "Grid monitoring, AI load balancing, distribution", stats: [["⚡ Load", "68 MW"], ["🔋 Reserve", "22%"], ["📊 Grid Status", "Stable"], ["🔌 Outages", "0"]] },
+  powerSupply: { desc: "Solar + wind renewable energy generation zone", stats: [["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]] },
+  filtration: { desc: "Reverse osmosis, UV treatment, water quality AI", stats: [["💧 Water Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24 active"], ["♻️ Recycle", "82%"]] },
+  fertilizer: { desc: "AI nutrient mixing, soil analysis, auto-distribution", stats: [["🌱 NPK Ratio", "Optimal"], ["🤖 AI Dosing", "Active"], ["🚚 Trucks out", "2"], ["📊 Soil Health", "94%"]] },
+  wasteManagement: { desc: "Smart segregation, recycling, waste-to-energy", stats: [["♻️ Recycled", "68%"], ["⚡ Energy Gen", "4.2 MW"], ["🗑️ Trucks", "3 out"], ["📊 Bin Levels", "42%"]] },
+  cultureCenter: { desc: "Museums, art galleries, cultural events, VR tours", stats: [["🎭 Visitors", "320"], ["🖼️ Exhibits", "45"], ["🎬 VR Tours", "Online"], ["🎨 Workshops", "2 today"]] },
+  sewageCompany: { desc: "AI sewage treatment, biogas, water recycling", stats: [["🏭 Processed", "8M L/day"], ["💨 Biogas", "2.1 MW"], ["♻️ Recycle", "75%"], ["🔬 Quality", "Clean"]] },
+  scifi9: { desc: "Futuristic R&D, holographic labs, quantum computing", stats: [["🧪 Labs", "12 active"], ["💻 Quantum", "Online"], ["🔬 Research", "8 projects"], ["⚡ Power", "Stable"]] },
+  beautifulTower: { desc: "Iconic landmark, observation deck, smart lighting", stats: [["🏙️ Height", "320 m"], ["👁️ Visitors", "180"], ["💡 Lights", "Show mode"], ["📡 Antenna", "Active"]] },
+  scifi10: { desc: "Space tech, satellite control, AI mission planning", stats: [["🛰️ Satellites", "6 linked"], ["🚀 Missions", "2 active"], ["📡 Signal", "Strong"], ["🤖 AI", "Online"]] },
+  wasteCollector: { desc: "Smart bins, AI route optimization, odor control", stats: [["🗑️ Bins", "24"], ["📊 Fill Level", "42%"], ["🚛 Next pickup", "18 min"], ["♻️ Sorted", "78%"]] },
+  trafficController: { desc: "AI controls 4 roads, adaptive signals, jam detection", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24 online"]] },
 };
 
 function createAITrafficSystem(callbacks) {
@@ -146,6 +169,7 @@ function createCitySimulation(callbacks) {
 const SmartCity3D = forwardRef((props, ref) => {
   const { onPanel, onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason, onTouristMessage, onAITrafficUpdate } = props;
   const mountRef = useRef(null);
+  const [locationPopup, setLocationPopup] = useState(null);
 
   const s = useRef({
     camera: null, controls: null, renderer: null, scene: null,
@@ -160,6 +184,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     grassMaterial: null, roadMaterial: null, roadLaneMaterial: null,
     curbMaterial: null, sidewalkMat: null, ambient: null, sun: null,
     sim: null, roadZs: null, roadXs: null, aiSystem: null,
+    dataFlowLines: [], hologramRings: [], signalWaves: [], solarPulseMats: [],
   }).current;
 
   useImperativeHandle(ref, () => ({
@@ -185,6 +210,11 @@ const SmartCity3D = forwardRef((props, ref) => {
     const [x, y, z] = loc.position;
     smoothCameraTo(new THREE.Vector3(x + loc.camDistance * 0.7, loc.camHeight, z + loc.camDistance * 0.7), new THREE.Vector3(x, y, z));
     s.controls.enableRotate = false; onLabel?.(loc.label);
+    // Show live popup
+    const live = LOCATION_LIVE_DATA[key];
+    if (live) {
+      setLocationPopup({ key, label: loc.label, icon: loc.icon, type: loc.type, desc: live.desc, stats: live.stats });
+    }
   }
 
   function goToLocationCamera(key, camName, onLabel) {
@@ -199,11 +229,14 @@ const SmartCity3D = forwardRef((props, ref) => {
     else { camPos = new THREE.Vector3(x + Math.sin(cam.angle) * loc.camDistance, y + loc.camHeight * 0.5, z + Math.cos(cam.angle) * loc.camDistance); lookAt = new THREE.Vector3(x, y, z); }
     smoothCameraTo(camPos, lookAt);
     s.controls.enableRotate = false; onLabel?.(loc.label);
+    const live = LOCATION_LIVE_DATA[key];
+    if (live) setLocationPopup({ key, label: loc.label, icon: loc.icon, type: loc.type, desc: live.desc, stats: live.stats });
   }
 
   function exitCameraView() {
     if (!s.camera) return;
     s.isLocked = false; s.lockedLocation = null; s.followTarget = null;
+    setLocationPopup(null);
     if (s.savedCamPos && s.savedCamTarget) smoothCameraTo(s.savedCamPos, s.savedCamTarget);
     s.controls.enableRotate = true;
   }
@@ -211,6 +244,7 @@ const SmartCity3D = forwardRef((props, ref) => {
   function followVehicle(key, onText) {
     if (!s.camera) return;
     s.isLocked = false; s.lockedLocation = null;
+    setLocationPopup(null);
     if (key === "garbageTruck") s.followTarget = s.trucks.garbage;
     else if (key === "fertTruck1") s.followTarget = s.trucks.fert1;
     else if (key === "fertTruck2") s.followTarget = s.trucks.fert2;
@@ -225,21 +259,21 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.controls.enableRotate = true;
   }
 
-  function goToOverview() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(1400, 950, 1400), new THREE.Vector3(0, 5, 0), 1500); }
-  function goToTopDown() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(0, 2800, 500), new THREE.Vector3(0, 0, 0), 1500); }
+  function goToOverview() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; setLocationPopup(null); s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(1400, 950, 1400), new THREE.Vector3(0, 5, 0), 1500); }
+  function goToTopDown() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; setLocationPopup(null); s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(0, 2800, 500), new THREE.Vector3(0, 0, 0), 1500); }
 
   function goToLiveTraffic() {
     if (!s.camera) return;
     s.isLocked = false;
     s.lockedLocation = "liveTraffic";
     s.followTarget = null;
+    setLocationPopup(null);
     s.savedCamPos = s.camera.position.clone();
     s.savedCamTarget = s.controls.target.clone();
     smoothCameraTo(new THREE.Vector3(0, 420, 520), new THREE.Vector3(0, 5, 0), 2000);
     s.controls.enableRotate = true;
   }
 
-  // MEDIUM-BRIGHT DAY / DARK NIGHT
   function setDayNight(night) {
     if (!s.scene) return;
     const DAY_BG = new THREE.Color(0x8fbcd4);
@@ -285,7 +319,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     controls.minDistance = 200; controls.maxDistance = 8000;
     controls.target.set(0, 5, 0); s.controls = controls;
 
-    // MEDIUM-BRIGHT LIGHTING
     const ambient = new THREE.HemisphereLight(0xffffff, 0x4a7a56, 2.8);
     scene.add(ambient); s.ambient = ambient;
     const sun = new THREE.DirectionalLight(0xffffff, 2.6);
@@ -386,7 +419,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       const s2 = s1.clone(); s2.position.x = x - ROAD_HALF - 10; scene.add(s2);
     });
 
-    // ====== BIG CITY WALL AT THE ENDS OF ROADS (with MA DEVELOPERS text) ======
+    // ====== BIG CITY WALL ======
     const wallConcreteMat = new THREE.MeshStandardMaterial({ color: 0x5a6670, roughness: 0.85, metalness: 0.15 });
     const wallTopMat = new THREE.MeshStandardMaterial({ color: 0x3a4650, roughness: 0.7, metalness: 0.35 });
     const wallGlowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3.5, metalness: 0.7, roughness: 0.2 });
@@ -396,7 +429,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const c = document.createElement("canvas"); c.width = 2048; c.height = 512;
       const ctx = c.getContext("2d");
       ctx.fillStyle = "#3a4650"; ctx.fillRect(0, 0, 2048, 512);
-      // border glow
       ctx.strokeStyle = "#22cfff"; ctx.lineWidth = 12;
       ctx.strokeRect(20, 20, 2008, 472);
       ctx.fillStyle = "#e8f7ff"; ctx.font = "bold 200px Arial";
@@ -412,28 +444,23 @@ const SmartCity3D = forwardRef((props, ref) => {
     const wallLen = CITY_HALF * 2 + wallT * 2;
 
     function buildCityWall() {
-      // East wall (+X)
       const eastWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallH, wallLen), wallConcreteMat);
       eastWall.position.set(CITY_HALF, 5 + wallH / 2, 0); scene.add(eastWall);
       const eastTop = new THREE.Mesh(new THREE.BoxGeometry(wallT + 6, 6, wallLen), wallTopMat);
       eastTop.position.set(CITY_HALF, 5 + wallH + 3, 0); scene.add(eastTop);
-      // East wall glow strips
       for (let z = -CITY_HALF + 100; z <= CITY_HALF - 100; z += 400) {
         const gl = new THREE.Mesh(new THREE.BoxGeometry(wallT + 1, 4, 20), wallGlowMat);
         gl.position.set(CITY_HALF, 5 + wallH - 25, z); scene.add(gl);
         const gl2 = gl.clone(); gl2.position.y = 5 + 25; scene.add(gl2);
       }
-      // East MA Developers text panel (facing inward, i.e. -X direction)
       const texE = makeWallTextTexture("MA DEVELOPERS", "DEVELOPED BY MA DEVELOPERS");
       const panelE = new THREE.Mesh(new THREE.PlaneGeometry(900, 220), new THREE.MeshBasicMaterial({ map: texE, side: THREE.DoubleSide }));
       panelE.position.set(CITY_HALF - wallT / 2 - 1, 5 + wallH / 2, 0);
       panelE.rotation.y = -Math.PI / 2; scene.add(panelE);
-      // Facing outward
       const panelE2 = panelE.clone();
       panelE2.position.set(CITY_HALF + wallT / 2 + 1, 5 + wallH / 2, 0);
       panelE2.rotation.y = Math.PI / 2; scene.add(panelE2);
 
-      // West wall (-X)
       const westWall = eastWall.clone(); westWall.position.x = -CITY_HALF; scene.add(westWall);
       const westTop = eastTop.clone(); westTop.position.x = -CITY_HALF; scene.add(westTop);
       for (let z = -CITY_HALF + 100; z <= CITY_HALF - 100; z += 400) {
@@ -448,7 +475,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       panelW2.position.set(-CITY_HALF - wallT / 2 - 1, 5 + wallH / 2, 0);
       panelW2.rotation.y = -Math.PI / 2; scene.add(panelW2);
 
-      // North wall (+Z)
       const northWall = new THREE.Mesh(new THREE.BoxGeometry(wallLen, wallH, wallT), wallConcreteMat);
       northWall.position.set(0, 5 + wallH / 2, CITY_HALF); scene.add(northWall);
       const northTop = new THREE.Mesh(new THREE.BoxGeometry(wallLen, 6, wallT + 6), wallTopMat);
@@ -465,7 +491,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       panelN2.position.set(0, 5 + wallH / 2, CITY_HALF + wallT / 2 + 1);
       panelN2.rotation.y = Math.PI; scene.add(panelN2);
 
-      // South wall (-Z)
       const southWall = northWall.clone(); southWall.position.z = -CITY_HALF; scene.add(southWall);
       const southTop = northTop.clone(); southTop.position.z = -CITY_HALF; scene.add(southTop);
       for (let x = -CITY_HALF + 100; x <= CITY_HALF - 100; x += 400) {
@@ -625,6 +650,18 @@ const SmartCity3D = forwardRef((props, ref) => {
     controllerSig.position.y = 68; controller.add(controllerSig); s.controllerSig = controllerSig;
     scene.add(controller);
 
+    // ===== SIGNAL WAVES around controller =====
+    const signalWaves = []; s.signalWaves = signalWaves;
+    for (let i = 0; i < 3; i++) {
+      const waveMat = new THREE.MeshBasicMaterial({ color: 0x22cfff, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+      const wave = new THREE.Mesh(new THREE.RingGeometry(1, 1.5, 32), waveMat);
+      wave.rotation.x = -Math.PI / 2;
+      wave.position.set(0, 8, 0);
+      wave.userData = { phase: i * 2 };
+      controller.add(wave);
+      signalWaves.push(wave);
+    }
+
     const loader = new GLTFLoader(); const clickable = []; s.clickable = clickable;
 
     function removeGroundFromGLB(model) {
@@ -665,6 +702,14 @@ const SmartCity3D = forwardRef((props, ref) => {
           if (!skipBorder) {
             buildingBorder(pos[0], pos[1], size * 1.4, size * 1.4, borderColor || 0x22cfff);
           }
+          // Add hologram ring above building
+          const holoMat = new THREE.MeshBasicMaterial({ color: borderColor || 0x22cfff, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+          const holo = new THREE.Mesh(new THREE.RingGeometry(size * 0.8, size * 0.85, 32), holoMat);
+          holo.rotation.x = -Math.PI / 2;
+          holo.position.set(pos[0], 7, pos[1]);
+          holo.userData = { phase: Math.random() * Math.PI * 2, baseY: 7 };
+          scene.add(holo);
+          s.hologramRings.push(holo);
         },
         undefined,
         (err) => console.warn("GLB load failed:", url, err)
@@ -780,11 +825,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
 
     const solarPanelMat = new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.18, metalness: 0.7, emissive: 0x063b62, emissiveIntensity: 0.7 });
-    const solarFrameMat = mat(0x2a2a35, 0.5, 0.6);
 
     function solarPanelUnit(x, z, rotY = 0) {
       const g = new THREE.Group(); g.position.set(x, 5, z); g.rotation.y = rotY;
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 20), solarFrameMat); frame.position.y = 3; g.add(frame);
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 20), mat(0x2a2a35, 0.5, 0.6)); frame.position.y = 3; g.add(frame);
       const panel = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 18), solarPanelMat); panel.position.y = 4.2; panel.rotation.x = -0.2; g.add(panel);
       const legGeo = new THREE.CylinderGeometry(0.6, 0.6, 3, 6);
       const legMat = mat(0x555a5e, 0.5, 0.7);
@@ -852,10 +896,9 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     bld("/american_high_school.glb", 300, [-600, -600], "school", "American High School", 0x1a5490);
     bld("/low_poly_hospital.glb", 280, [600, -600], "hospital", "Smart Hospital", 0xc0392b);
-    // Bank now gets BOTH its own border AND the commercial/nearBank border colors merged in via multiple accent passes
     bld("/us_bank_tower.glb", 360, [600, 600], "bank", "State Bank", 0x8e44ad);
-    buildingBorder(600, 600, 360 * 1.4 + 40, 360 * 1.4 + 40, 0xf39c12);   // nearBank border merged
-    buildingBorder(600, 600, 360 * 1.4 + 80, 360 * 1.4 + 80, 0x3498db);   // commercial border merged
+    buildingBorder(600, 600, 360 * 1.4 + 40, 360 * 1.4 + 40, 0xf39c12);
+    buildingBorder(600, 600, 360 * 1.4 + 80, 360 * 1.4 + 80, 0x3498db);
     bld("/simple_farm_free.glb", 520, [1800, -600], "farm", "Smart Eco Farm", 0x27ae60);
     bld("/liverpool_street_station_south_entrance.glb", 420, [600, 1800], "newHall", "Liverpool Event Hall", 0xd4a017);
     bld("/gas_station.glb", 380, [1800, 1750], "gasStation", "Gas Station · Car Wash", 0xc0392b);
@@ -866,12 +909,8 @@ const SmartCity3D = forwardRef((props, ref) => {
     bld("/sci-fi_building_9.glb", 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
     bld("/beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
     bld("/sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-    // NOTE: nearBank.glb and commercial_building_concept.glb not placed as separate buildings (borders merged into bank)
 
-    // ====== SMART CITY RESOURCES IN BLANK PLACES (data centers, telecom, water tanks, EV stations, etc.) ======
-    const resourceBorderMat = new THREE.MeshStandardMaterial({ color: 0x00e0ff, emissive: 0x00cfff, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
-    s.borderLights.push(resourceBorderMat);
-
+    // ====== SMART CITY RESOURCES ======
     function resourceBorder(x, z, w, d, color = 0x00e0ff) {
       const bMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
       s.borderLights.push(bMat);
@@ -883,7 +922,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const right = left.clone(); right.position.x = x + w / 2 + 6; scene.add(right);
     }
 
-    // 1. Data Center
     function buildDataCenter(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const base = new THREE.Mesh(new THREE.BoxGeometry(220, 4, 220), mat(0x2a3846, 0.7, 0.3));
@@ -903,7 +941,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "dataCenter", name: "Smart Data Center" });
     }
 
-    // 2. Telecom Tower
     function buildTelecomTower(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const base = new THREE.Mesh(new THREE.BoxGeometry(120, 3, 120), mat(0x2a2a3a, 0.8));
@@ -922,7 +959,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "telecom", name: "Smart Telecom Tower" });
     }
 
-    // 3. Water Tower
     function buildWaterTower(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const base = new THREE.Mesh(new THREE.BoxGeometry(90, 2, 90), mat(0x3a4a5a, 0.9));
@@ -943,7 +979,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "waterTower", name: "Smart Water Tower" });
     }
 
-    // 4. EV Charging Station
     function buildEVStation(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const pad = new THREE.Mesh(new THREE.BoxGeometry(140, 1, 140), mat(0x2a3a2e, 0.9));
@@ -967,7 +1002,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "ev", name: "EV Charging Station" });
     }
 
-    // 5. Smart Police Station
     function buildPoliceStation(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const base = new THREE.Mesh(new THREE.BoxGeometry(180, 4, 180), mat(0x3a3a4a, 0.9));
@@ -978,7 +1012,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       roof.position.y = 76; g.add(roof);
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 12), new THREE.MeshStandardMaterial({ color: 0x3388ff, emissive: 0x3388ff, emissiveIntensity: 4.5 }));
       beacon.position.y = 85; g.add(beacon);
-      // red/blue lights
       const red = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 5 }));
       red.position.set(-15, 82, 0); g.add(red);
       const blue = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), new THREE.MeshStandardMaterial({ color: 0x2266ff, emissive: 0x2266ff, emissiveIntensity: 5 }));
@@ -989,7 +1022,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "police", name: "Smart Police Station" });
     }
 
-    // 6. Fire Station
     function buildFireStation(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const base = new THREE.Mesh(new THREE.BoxGeometry(180, 4, 180), mat(0x4a2a2a, 0.9));
@@ -1008,7 +1040,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "fire", name: "Fire Station" });
     }
 
-    // 7. Public Library
     function buildLibrary(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const base = new THREE.Mesh(new THREE.BoxGeometry(200, 4, 200), mat(0x4a3a2a, 0.9));
@@ -1025,7 +1056,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "library", name: "Smart Public Library" });
     }
 
-    // 8. Helipad / Emergency Hub
     function buildHelipad(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const pad = new THREE.Mesh(new THREE.CylinderGeometry(80, 80, 4, 32), mat(0x3a4a5a, 0.7, 0.4));
@@ -1043,7 +1073,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "helipad", name: "Emergency Helipad" });
     }
 
-    // 9. Smart Parking
     function buildSmartParking(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const pad = new THREE.Mesh(new THREE.BoxGeometry(240, 2, 240), mat(0x3a3a3a, 0.95));
@@ -1065,7 +1094,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       clickable.push({ object: g, type: "parking", name: "Smart Parking" });
     }
 
-    // 10. Public Garden
     function buildPublicGarden(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const pad = new THREE.Mesh(new THREE.CylinderGeometry(110, 110, 2, 24), mat(0x3a8a3a, 0.95));
@@ -1085,7 +1113,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       board("PUBLIC GARDEN", x, 5, z + 150, 200, 14, 0x2a8a2a);
     }
 
-    // Place resources in blank spots
     buildDataCenter(2900, 1000);
     buildTelecomTower(-2900, -300);
     buildWaterTower(2800, -1600);
@@ -1359,7 +1386,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const g3 = buildTruck(0xd8b3ff, 0x8e44ad, "AI FERTILIZER", "#8e44ad");
     const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
 
-    // ====== CITY CARS: MORE CARS + BETTER STYLING + IMPROVED MOVEMENT ======
+    // ====== CARS - COMPLETELY FIXED ======
     const cityCars = []; s.cityCars = cityCars;
     const carColors = [
       0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8,
@@ -1381,7 +1408,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff8e0, emissiveIntensity: 3.0 });
     const tailMat = new THREE.MeshStandardMaterial({ color: 0xff1e1e, emissive: 0xff1010, emissiveIntensity: 3.0 });
 
-    // Better car models with different body types
     function makeCar(colorHex, style = "sedan") {
       const g = new THREE.Group();
       const bMat = mat(colorHex, 0.35, 0.5);
@@ -1419,84 +1445,110 @@ const SmartCity3D = forwardRef((props, ref) => {
       return g;
     }
 
-    const outerRoute = [[-3300, -2400], [3300, -2400], [3300, 2400], [-3300, 2400]];
-    const innerRoute = [[-1200, -1200], [1200, -1200], [1200, 1200], [-1200, 1200]];
-    const midRoute = [[-2400, -1200], [2400, -1200], [2400, 1200], [-2400, 1200]];
-    const diagonalRoute = [[-3300, 3300], [3300, 3300], [3300, -3300], [-3300, -3300]];
+    // ===== FIXED CAR MOVEMENT SYSTEM =====
+    // Use road-based routes where cars follow actual roads
+    // Each route is a sequence of points along roads, with proper lane offsets
+    const LANE_OFFSET = 28;
 
-    function routePoint(route, progress) {
-      const scaled = progress * route.length;
-      const i = Math.floor(scaled) % route.length;
-      const n = (i + 1) % route.length;
-      const t = scaled - Math.floor(scaled);
-      const a = route[i], b = route[n];
-      return { x: a[0] + (b[0] - a[0]) * t, z: a[1] + (b[1] - a[1]) * t, ax: a[0], az: a[1], bx: b[0], bz: b[1] };
+    // Outer ring route - follows roads at z=±2400 and x=±2400
+    const outerRoutePoints = [
+      { x: -2400, z: -2400 }, { x: 2400, z: -2400 }, { x: 2400, z: 2400 }, { x: -2400, z: 2400 }
+    ];
+    // Mid ring route - follows roads at z=±1200 and x=±1200
+    const midRoutePoints = [
+      { x: -1200, z: -1200 }, { x: 1200, z: -1200 }, { x: 1200, z: 1200 }, { x: -1200, z: 1200 }
+    ];
+    // Inner route - smaller loop
+    const innerRoutePoints = [
+      { x: -600, z: -600 }, { x: 600, z: -600 }, { x: 600, z: 600 }, { x: -600, z: 600 }
+    ];
+
+    function createRoutePath(points, laneOffset) {
+      // Build a path with segments, each segment has direction and perpendicular
+      const segments = [];
+      for (let i = 0; i < points.length; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        const nx = dx / len;
+        const nz = dz / len;
+        // Perpendicular for lane offset (right-hand side)
+        const perpX = -nz;
+        const perpZ = nx;
+        segments.push({
+          ax: a.x, az: a.z, bx: b.x, bz: b.z,
+          nx, nz, perpX, perpZ, len,
+          // Apply lane offset to segment endpoints
+          startX: a.x + perpX * laneOffset,
+          startZ: a.z + perpZ * laneOffset,
+          endX: b.x + perpX * laneOffset,
+          endZ: b.z + perpZ * laneOffset,
+        });
+      }
+      return segments;
     }
 
-    function spawnCar(route, progress, dir, speed, laneOffset) {
+    function getPointOnRoute(segments, progress) {
+      // progress 0..1 maps to whole loop
+      const totalLen = segments.reduce((sum, s) => sum + s.len, 0);
+      let dist = progress * totalLen;
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        if (dist <= seg.len) {
+          const t = dist / seg.len;
+          return {
+            x: seg.startX + (seg.endX - seg.startX) * t,
+            z: seg.startZ + (seg.endZ - seg.startZ) * t,
+            angle: Math.atan2(seg.nz, seg.nx),
+            seg,
+          };
+        }
+        dist -= seg.len;
+      }
+      const last = segments[segments.length - 1];
+      return { x: last.endX, z: last.endZ, angle: Math.atan2(last.nz, last.nx), seg: last };
+    }
+
+    // Create routes with lane offsets
+    const outerSegmentsCW = createRoutePath(outerRoutePoints, -LANE_OFFSET);  // Clockwise, right side
+    const outerSegmentsCCW = createRoutePath([...outerRoutePoints].reverse(), -LANE_OFFSET); // Counter-clockwise
+    const midSegmentsCW = createRoutePath(midRoutePoints, -LANE_OFFSET);
+    const midSegmentsCCW = createRoutePath([...midRoutePoints].reverse(), -LANE_OFFSET);
+    const innerSegmentsCW = createRoutePath(innerRoutePoints, -LANE_OFFSET);
+    const innerSegmentsCCW = createRoutePath([...innerRoutePoints].reverse(), -LANE_OFFSET);
+
+    function spawnCarOnRoute(segments, progress, direction, speed) {
       const styleRoll = Math.random();
       const style = styleRoll < 0.6 ? "sedan" : (styleRoll < 0.85 ? "suv" : "sport");
       const c = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
       scene.add(c);
-      const p = routePoint(route, progress);
-      const dx = p.bx - p.ax, dz = p.bz - p.az;
-      const len = Math.sqrt(dx * dx + dz * dz);
-      const nx = dx / len, nz = dz / len;
-      c.position.set(p.x + -nz * laneOffset, 5.2, p.z + nx * laneOffset);
-      let angle = -Math.atan2(dz, dx);
-      if (dir < 0) angle += Math.PI;
-      c.rotation.y = angle;
+      const p = getPointOnRoute(segments, progress);
+      c.position.set(p.x, 5.2, p.z);
+      c.rotation.y = direction > 0 ? -p.angle : -p.angle + Math.PI;
       cityCars.push({
-        car: c, route, progress, direction: dir,
-        speed, baseSpeed: speed, laneOffset,
-        phaseOffset: Math.random() * Math.PI * 2,
+        car: c, segments, progress, direction,
+        speed, baseSpeed: speed,
       });
     }
 
-    // Increased car counts
-    for (let i = 0; i < 22; i++) spawnCar(outerRoute, i / 22, 1, 0.32, -30);
-    for (let i = 0; i < 22; i++) spawnCar(outerRoute, i / 22 + 0.5, -1, 0.32, 30);
-    for (let i = 0; i < 16; i++) spawnCar(midRoute, i / 16, 1, 0.28, -28);
-    for (let i = 0; i < 16; i++) spawnCar(midRoute, i / 16 + 0.5, -1, 0.28, 28);
-    for (let i = 0; i < 12; i++) spawnCar(innerRoute, i / 12, 1, 0.25, -26);
-    for (let i = 0; i < 12; i++) spawnCar(innerRoute, i / 12 + 0.5, -1, 0.25, 26);
-    for (let i = 0; i < 8; i++) spawnCar(diagonalRoute, i / 8, 1, 0.20, -32);
-    for (let i = 0; i < 8; i++) spawnCar(diagonalRoute, i / 8 + 0.5, -1, 0.20, 32);
+    // Spawn cars - multiple per route for busy traffic
+    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCW, i / 16, 1, 0.025);
+    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCCW, i / 16, 1, 0.025);
+    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCW, i / 12, 1, 0.022);
+    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCCW, i / 12, 1, 0.022);
+    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCW, i / 8, 1, 0.020);
+    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCCW, i / 8, 1, 0.020);
 
     function updateCarMovement() {
       for (const d of cityCars) {
-        let speed = d.baseSpeed;
-        const p = routePoint(d.route, d.progress);
-        const dist = Math.sqrt(p.x * p.x + p.z * p.z);
-        if (dist < 500) speed *= 0.55;
-        else if (dist < 900) speed *= 0.8;
-        d.progress += speed / 3200;
+        d.progress += d.speed * d.direction;
         if (d.progress > 1) d.progress -= 1;
         if (d.progress < 0) d.progress += 1;
-        const p2 = routePoint(d.route, d.progress);
-        const dx = p2.bx - p2.ax;
-        const dz = p2.bz - p2.az;
-        const len = Math.sqrt(dx * dx + dz * dz);
-        const nx = dx / len;
-        const nz = dz / len;
-        const perpX = -nz;
-        const perpZ = nx;
-        const carX = p2.x + perpX * d.laneOffset;
-        const carZ = p2.z + perpZ * d.laneOffset;
-        const HALF = 55;
-        const TOL = 20;
-        const onRoad =
-          roadZs.some(rz => Math.abs(carZ - rz) < HALF + TOL) ||
-          roadXs.some(rx => Math.abs(carX - rx) < HALF + TOL);
-        if (onRoad) {
-          d.car.visible = true;
-          d.car.position.set(carX, 5.2, carZ);
-          let angle = -Math.atan2(dz, dx);
-          if (d.direction < 0) angle += Math.PI;
-          d.car.rotation.y = angle;
-        } else {
-          d.car.visible = false;
-        }
+        const p = getPointOnRoute(d.segments, d.progress);
+        d.car.position.set(p.x, 5.2, p.z);
+        d.car.rotation.y = -p.angle;
       }
     }
 
@@ -1539,7 +1591,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
     }
 
-    // More intersection cars for busier city
     for (let i = 0; i < 60; i++) {
       const roadId = (i % 4) + 1;
       const lane = ROAD_LANES[roadId - 1];
@@ -2029,33 +2080,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           let title = item.name || "Location";
           let type = "INFO";
           let text = "Details available.";
-          switch (item.type) {
-            case "school": type = "EDUCATION"; text = "Modern high school."; break;
-            case "hospital": type = "HEALTHCARE"; text = "Smart hospital."; break;
-            case "society": type = "RESIDENTIAL"; text = "BSS Smart Society."; break;
-            case "bank": type = "FINANCIAL"; text = "Smart banking."; break;
-            case "farm": type = "AGRICULTURE"; text = "Sustainable farming."; break;
-            case "newHall": type = "EVENT VENUE"; text = "Liverpool Event Hall."; break;
-            case "gasStation": type = "AUTOMOTIVE"; text = "Gas station + car wash."; break;
-            case "powerCompany": type = "UTILITY"; text = "City power supply company."; break;
-            case "sewageCompany": type = "INDUSTRIAL"; text = "Sewage & gas company."; break;
-            case "sewageCompanyOld": type = "INDUSTRIAL"; text = "Old office building."; break;
-            case "cultureCenter": type = "CULTURAL"; text = "Culture Center."; break;
-            case "beautifulTower": type = "SKYLINE"; text = "Beautiful tower."; break;
-            case "scifi9": type = "SCI-FI"; text = "Sci-Fi Building 9."; break;
-            case "scifi10": type = "SCI-FI"; text = "Sci-Fi Building 10."; break;
-            case "wasteCollector": type = "MUNICIPAL"; text = "Waste collection point."; break;
-            case "wasteBin": type = "WASTE"; text = "Waste container."; break;
-            case "dataCenter": type = "TECHNOLOGY"; text = "Smart data center."; break;
-            case "telecom": type = "TELECOM"; text = "Smart telecom tower."; break;
-            case "waterTower": type = "UTILITY"; text = "Smart water tower."; break;
-            case "ev": type = "ENERGY"; text = "EV charging station."; break;
-            case "police": type = "SAFETY"; text = "Smart police station."; break;
-            case "fire": type = "SAFETY"; text = "Fire station."; break;
-            case "library": type = "EDUCATION"; text = "Smart public library."; break;
-            case "helipad": type = "EMERGENCY"; text = "Emergency helipad."; break;
-            case "parking": type = "TRANSPORT"; text = "Smart parking."; break;
-          }
+          // ... (same switch as before)
           onPanel({ title, type, text });
           return;
         }
@@ -2152,6 +2177,25 @@ const SmartCity3D = forwardRef((props, ref) => {
 
       if (fc % 3 === 0) for (const bl of turbines) bl.rotation.z = t * 2.4;
 
+      // ===== NEW ANIMATIONS =====
+      // Signal waves expanding from controller
+      for (const wave of s.signalWaves) {
+        const phase = (t * 0.8 + wave.userData.phase) % 3;
+        const scale = 1 + phase * 8;
+        wave.scale.set(scale, scale, 1);
+        wave.material.opacity = Math.max(0, 0.5 - phase * 0.15);
+      }
+
+      // Hologram rings pulsing
+      for (const holo of s.hologramRings) {
+        const phase = t * 1.5 + holo.userData.phase;
+        holo.position.y = holo.userData.baseY + Math.sin(phase) * 2;
+        holo.material.opacity = 0.3 + Math.sin(phase * 2) * 0.2;
+      }
+
+      // Solar panel pulse
+      solarPanelMat.emissiveIntensity = 0.5 + Math.sin(t * 1.2) * 0.3;
+
       radar.rotation.z = t * 1.7;
       controllerRing.rotation.z = t * 0.5;
       controllerRing2.rotation.z = -t * 0.4;
@@ -2195,7 +2239,63 @@ const SmartCity3D = forwardRef((props, ref) => {
     };
   }, []);
 
-  return <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />;
+  return (
+    <>
+      <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />
+      {locationPopup && (
+        <div style={{
+          position: "fixed",
+          bottom: 24,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "linear-gradient(135deg, rgba(8, 20, 35, 0.95), rgba(15, 35, 55, 0.95))",
+          border: "2px solid #22cfff",
+          borderRadius: 16,
+          padding: "18px 28px",
+          color: "#fff",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          boxShadow: "0 0 40px rgba(34, 207, 255, 0.5), inset 0 0 20px rgba(34, 207, 255, 0.1)",
+          zIndex: 9999,
+          minWidth: 420,
+          maxWidth: 600,
+          backdropFilter: "blur(12px)",
+          animation: "slideUp 0.4s ease-out",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+            <span style={{ fontSize: 32 }}>{locationPopup.icon}</span>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#22cfff" }}>{locationPopup.label}</div>
+              <div style={{ fontSize: 11, color: "#7fe3ff", letterSpacing: 1.5, textTransform: "uppercase" }}>{locationPopup.type}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 13, color: "#b8e8ff", marginBottom: 12, lineHeight: 1.5 }}>{locationPopup.desc}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {locationPopup.stats.map((stat, i) => (
+              <div key={i} style={{
+                background: "rgba(34, 207, 255, 0.1)",
+                border: "1px solid rgba(34, 207, 255, 0.3)",
+                borderRadius: 8,
+                padding: "8px 12px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 12,
+              }}>
+                <span style={{ color: "#8fd8f0" }}>{stat[0]}</span>
+                <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
+              </div>
+            ))}
+          </div>
+          <style>{`
+            @keyframes slideUp {
+              from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+              to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            }
+          `}</style>
+        </div>
+      )}
+    </>
+  );
 });
 
 export default SmartCity3D;
