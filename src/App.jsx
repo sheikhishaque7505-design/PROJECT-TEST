@@ -20,21 +20,6 @@ export default function App() {
     incident: "<span>LIVE:</span> Traffic flowing normally",
   });
 
-  <SmartCity3D
-  ref={cityRef}
-  onPanel={setPanel}
-  onTrafficUpdate={setTraffic}
-  onSimTime={setSimTime}
-  onCycleUpdate={setCycle}
-  onAiMessage={setAiMsg}
-  onAiReason={setAiReason}
-  onTouristMessage={setTouristMsg}
-  onAITrafficUpdate={setAITraffic}
-  onFiltrationUpdate={({ stageIndex, stage, allStages, progress }) => {
-    setFiltrationStage({ stageIndex, stage, allStages, progress });
-  }}
-/>
-
   const [aiTraffic, setAiTraffic] = useState({
     phase: 1,
     inYellow: false,
@@ -60,6 +45,22 @@ export default function App() {
   const [showAiBtn, setShowAiBtn] = useState(false);
   const [touristMsg, setTouristMsg] = useState("");
   const [touristMsgVisible, setTouristMsgVisible] = useState(false);
+
+  // ===== FILTRATION & WASTE STATE =====
+  const [filtrationData, setFiltrationData] = useState({
+    stageIndex: 0,
+    stage: null,
+    allStages: [],
+    progress: 0,
+    purity: 0,
+  });
+
+  const [wasteStage, setWasteStage] = useState({
+    stageIndex: 0,
+    stage: null,
+    allStages: [],
+    progress: 0,
+  });
 
   const cityRef = useRef(null);
 
@@ -162,6 +163,23 @@ export default function App() {
     setAiTraffic(data);
   }, []);
 
+  const handleFiltrationUpdate = useCallback((data) => {
+    setFiltrationData((prev) => {
+      const stageIndex = data.stageIndex ?? prev.stageIndex;
+      const progress = data.progress ?? 0;
+      const purity = ((stageIndex + progress) / 9) * 100;
+      return {
+        ...prev,
+        ...data,
+        purity: Math.min(100, purity),
+      };
+    });
+  }, []);
+
+  const handleWasteUpdate = useCallback((data) => {
+    setWasteStage((prev) => ({ ...prev, ...data }));
+  }, []);
+
   const getRoadSignal = (roadId) => {
     if (aiTraffic.inYellow) {
       if (aiTraffic.currentGreenRoads.includes(roadId)) return "yellow";
@@ -196,6 +214,8 @@ export default function App() {
         }}
         onTouristMessage={showTouristMessage}
         onAITrafficUpdate={handleAITrafficUpdate}
+        onFiltrationUpdate={handleFiltrationUpdate}
+        onWasteUpdate={handleWasteUpdate}
       />
 
       <div className="ui-brand">
@@ -228,6 +248,114 @@ export default function App() {
           <span className="rec"></span>
           <span>{camIndicator.text}</span>
           <button className="cam-btn" onClick={handleExitCamera}>✕ EXIT</button>
+        </div>
+      )}
+
+      {/* ===== FILTRATION PANEL ===== */}
+      {filtrationData.stage && !liveTrafficMode && (
+        <div className="filtration-panel">
+          <div className="fp-title">💧 WATER FILTRATION</div>
+          <div className="fp-stage-label">CURRENT STAGE</div>
+          <div className="fp-stage-name">{filtrationData.stage.label}</div>
+
+          <div className="fp-meter-row">
+            <span>Water Purity</span>
+            <span
+              style={{
+                color:
+                  filtrationData.purity > 90
+                    ? "#2ecc71"
+                    : filtrationData.purity > 50
+                    ? "#ffdd57"
+                    : "#ff6b6b",
+                fontWeight: 700,
+              }}
+            >
+              {Math.round(filtrationData.purity)}%
+            </span>
+          </div>
+          <div className="fp-meter">
+            <div
+              className="fp-meter-fill"
+              style={{
+                width: `${filtrationData.purity}%`,
+                background:
+                  filtrationData.purity > 90
+                    ? "linear-gradient(90deg, #22cfff, #2ecc71)"
+                    : "linear-gradient(90deg, #ff6b6b, #ffdd57)",
+              }}
+            />
+          </div>
+
+          <div className="fp-meter-row" style={{ marginTop: 10 }}>
+            <span>Stage Progress</span>
+            <span>{Math.round((filtrationData.progress || 0) * 100)}%</span>
+          </div>
+          <div className="fp-meter">
+            <div
+              className="fp-meter-fill"
+              style={{
+                width: `${(filtrationData.progress || 0) * 100}%`,
+                background: "#22cfff",
+              }}
+            />
+          </div>
+
+          <div className="fp-stages-list">
+            {filtrationData.allStages?.map((stage, i) => (
+              <div
+                key={stage.id}
+                className={`fp-stage-item ${
+                  i < filtrationData.stageIndex
+                    ? "done"
+                    : i === filtrationData.stageIndex
+                    ? "active"
+                    : ""
+                }`}
+              >
+                <span className="fp-dot" />
+                <span>{stage.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== WASTE PANEL ===== */}
+      {wasteStage.stage && !liveTrafficMode && (
+        <div className="waste-panel">
+          <div className="wp-title">♻️ WASTE MANAGEMENT</div>
+          <div className="wp-stage-label">CURRENT PROCESS</div>
+          <div className="wp-stage-name">{wasteStage.stage.label}</div>
+
+          <div className="wp-meter-row">
+            <span>Process Progress</span>
+            <span>{Math.round((wasteStage.progress || 0) * 100)}%</span>
+          </div>
+          <div className="wp-meter">
+            <div
+              className="wp-meter-fill"
+              style={{ width: `${(wasteStage.progress || 0) * 100}%` }}
+            />
+          </div>
+
+          <div className="wp-stages-list">
+            {wasteStage.allStages?.map((stage, i) => (
+              <div
+                key={stage.id}
+                className={`wp-stage-item ${
+                  i < wasteStage.stageIndex
+                    ? "done"
+                    : i === wasteStage.stageIndex
+                    ? "active"
+                    : ""
+                }`}
+              >
+                <span className="wp-dot" />
+                <span>{stage.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
