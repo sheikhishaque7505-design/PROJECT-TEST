@@ -13,7 +13,7 @@ export default function App() {
   const [traffic, setTraffic] = useState({
     state: "TRAFFIC NORMAL",
     stateColor: "#63ddff",
-    reason: "4-SITE NETWORK OPERATING NORMALLY",
+    reason: "ALL ROUTES FLOWING NORMALLY",
     level: "NORMAL",
     flow: "92%",
     mode: "MONITORING",
@@ -36,12 +36,12 @@ export default function App() {
   });
 
   const [simTime, setSimTime] = useState("00:00");
-  const [cycleLabel, setCycleLabel] = useState("NEXT TRAFFIC EVENT IN");
+  const [cycleLabel, setCycleLabel] = useState("");
   const [cyclePct, setCyclePct] = useState(0);
   const [cycleVisible, setCycleVisible] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
   const [aiMsgVisible, setAiMsgVisible] = useState(false);
-  const [aiReason, setAiReason] = useState({ visible: false, title: "AI ACTION LOG", text: "", result: "" });
+  const [aiReason, setAiReason] = useState({ visible: false, title: "", text: "", result: "" });
   const [showAiBtn, setShowAiBtn] = useState(false);
   const [touristMsg, setTouristMsg] = useState("");
   const [touristMsgVisible, setTouristMsgVisible] = useState(false);
@@ -449,19 +449,13 @@ export default function App() {
               <span className="ltp-stat-label">DETECTED</span>
             </div>
             <div className="ltp-stat">
-              <span
-                className="ltp-stat-value"
-                style={{ color: "#22ff66" }}
-              >
+              <span className="ltp-stat-value" style={{ color: "#22ff66" }}>
                 {aiTraffic.stats.vehiclesMoving}
               </span>
               <span className="ltp-stat-label">MOVING</span>
             </div>
             <div className="ltp-stat">
-              <span
-                className="ltp-stat-value"
-                style={{ color: "#ff2222" }}
-              >
+              <span className="ltp-stat-value" style={{ color: "#ff2222" }}>
                 {aiTraffic.stats.vehiclesWaiting}
               </span>
               <span className="ltp-stat-label">WAITING</span>
@@ -523,15 +517,15 @@ export default function App() {
         />
       )}
 
-      {/* ===== CYCLE BAR ===== */}
-      {cycleVisible && !liveTrafficMode && (
+      {/* ===== CYCLE BAR — DISABLED (traffic event removed) ===== */}
+      {/* {cycleVisible && !liveTrafficMode && (
         <div className="cycle-bar">
           <div className="label">{cycleLabel}</div>
           <div className="bar">
             <div className="fill" style={{ width: `${cyclePct}%` }} />
           </div>
         </div>
-      )}
+      )} */}
 
       {/* ===== AI REASON ===== */}
       {aiReason.visible && !liveTrafficMode && (
