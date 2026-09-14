@@ -83,7 +83,7 @@ export default function App() {
   const showTouristMessage = useCallback((msg) => {
     setTouristMsg(msg);
     setTouristMsgVisible(true);
-    setTimeout(() => setTouristMsgVisible(false), 1000);
+    setTimeout(() => setTouristMsgVisible(false), 3000);
   }, []);
 
   const handleToggleMenu = () => setMenuOpen((v) => !v);
@@ -218,11 +218,13 @@ export default function App() {
         onWasteUpdate={handleWasteUpdate}
       />
 
+      {/* ===== BRAND ===== */}
       <div className="ui-brand">
         <div className="title">BSS WORLD</div>
         <div className="sub">3D SMART CITY • AI TRAFFIC CONTROL</div>
       </div>
 
+      {/* ===== DAY / NIGHT TOGGLE ===== */}
       <button
         className={`day-night-btn ${isNight ? "night" : ""}`}
         onClick={handleToggleDayNight}
@@ -230,6 +232,7 @@ export default function App() {
         {isNight ? "🌙 NIGHT" : "☀ DAY"}
       </button>
 
+      {/* ===== LIVE TRAFFIC BUTTON ===== */}
       {!liveTrafficMode && (
         <button className="live-traffic-btn" onClick={handleViewLiveTraffic}>
           <span className="live-dot"></span>
@@ -243,6 +246,7 @@ export default function App() {
         </button>
       )}
 
+      {/* ===== CAMERA INDICATOR ===== */}
       {camIndicator && !liveTrafficMode && (
         <div className="cam-indicator show">
           <span className="rec"></span>
@@ -359,13 +363,16 @@ export default function App() {
         </div>
       )}
 
+      {/* ===== LIVE TRAFFIC PANEL ===== */}
       {liveTrafficMode && (
         <div className="live-traffic-panel">
           <div className="ltp-header">
             <div className="ai-dot"></div>
             <div>
               <div className="ltp-title">AI TRAFFIC MONITORING</div>
-              <div className="ltp-status">SYSTEM STATUS: <span className="active-txt">ACTIVE</span></div>
+              <div className="ltp-status">
+                SYSTEM STATUS: <span className="active-txt">ACTIVE</span>
+              </div>
             </div>
           </div>
 
@@ -378,10 +385,26 @@ export default function App() {
               const isYellow = sig === "yellow";
               const isRed = sig === "red";
               return (
-                <div key={roadId} className={`ltp-signal-box ${isGreen ? "green" : ""} ${isRed ? "red" : ""} ${isYellow ? "yellow" : ""}`}>
+                <div
+                  key={roadId}
+                  className={`ltp-signal-box ${isGreen ? "green" : ""} ${
+                    isRed ? "red" : ""
+                  } ${isYellow ? "yellow" : ""}`}
+                >
                   <div className="ltp-road-name">ROAD {roadId}</div>
-                  <div className="ltp-light" style={{ background: getSignalColor(sig), boxShadow: `0 0 20px ${getSignalColor(sig)}` }}></div>
-                  <div className="ltp-state" style={{ color: getSignalColor(sig) }}>{sig.toUpperCase()}</div>
+                  <div
+                    className="ltp-light"
+                    style={{
+                      background: getSignalColor(sig),
+                      boxShadow: `0 0 20px ${getSignalColor(sig)}`,
+                    }}
+                  ></div>
+                  <div
+                    className="ltp-state"
+                    style={{ color: getSignalColor(sig) }}
+                  >
+                    {sig.toUpperCase()}
+                  </div>
                 </div>
               );
             })}
@@ -389,84 +412,167 @@ export default function App() {
 
           <div className="ltp-phase-bar">
             <div className="ltp-phase-label">
-              {aiTraffic.inYellow ? "🟡 YELLOW — SWITCHING" : `🟢 PHASE ${aiTraffic.phase} — ${aiTraffic.currentGreenRoads.map(r => "ROAD " + r).join(" + ")} GREEN`}
+              {aiTraffic.inYellow
+                ? "🟡 YELLOW — SWITCHING"
+                : `🟢 PHASE ${aiTraffic.phase} — ${aiTraffic.currentGreenRoads
+                    .map((r) => "ROAD " + r)
+                    .join(" + ")} GREEN`}
             </div>
-            <div className="ltp-track"><div className="ltp-fill" style={{ width: `${aiTraffic.phaseProgress * 100}%` }}></div></div>
+            <div className="ltp-track">
+              <div
+                className="ltp-fill"
+                style={{ width: `${aiTraffic.phaseProgress * 100}%` }}
+              ></div>
+            </div>
           </div>
 
           <div className="ltp-signal-summary">
             <div className="ltp-summary-green">
               <span className="ltp-summary-label">GREEN</span>
-              <span className="ltp-summary-value">{aiTraffic.currentGreenRoads.map(r => "ROAD " + r).join(" + ")}</span>
+              <span className="ltp-summary-value">
+                {aiTraffic.currentGreenRoads.map((r) => "ROAD " + r).join(" + ")}
+              </span>
             </div>
             <div className="ltp-summary-red">
               <span className="ltp-summary-label">RED</span>
-              <span className="ltp-summary-value">{aiTraffic.currentRedRoads.map(r => "ROAD " + r).join(" + ")}</span>
+              <span className="ltp-summary-value">
+                {aiTraffic.currentRedRoads.map((r) => "ROAD " + r).join(" + ")}
+              </span>
             </div>
           </div>
 
           <div className="ltp-stats-grid">
-            <div className="ltp-stat"><span className="ltp-stat-value">{aiTraffic.stats.vehiclesDetected}</span><span className="ltp-stat-label">DETECTED</span></div>
-            <div className="ltp-stat"><span className="ltp-stat-value" style={{ color: "#22ff66" }}>{aiTraffic.stats.vehiclesMoving}</span><span className="ltp-stat-label">MOVING</span></div>
-            <div className="ltp-stat"><span className="ltp-stat-value" style={{ color: "#ff2222" }}>{aiTraffic.stats.vehiclesWaiting}</span><span className="ltp-stat-label">WAITING</span></div>
-            <div className="ltp-stat"><span className={`ltp-stat-value density-${aiTraffic.stats.density.toLowerCase()}`}>{aiTraffic.stats.density}</span><span className="ltp-stat-label">DENSITY</span></div>
+            <div className="ltp-stat">
+              <span className="ltp-stat-value">
+                {aiTraffic.stats.vehiclesDetected}
+              </span>
+              <span className="ltp-stat-label">DETECTED</span>
+            </div>
+            <div className="ltp-stat">
+              <span
+                className="ltp-stat-value"
+                style={{ color: "#22ff66" }}
+              >
+                {aiTraffic.stats.vehiclesMoving}
+              </span>
+              <span className="ltp-stat-label">MOVING</span>
+            </div>
+            <div className="ltp-stat">
+              <span
+                className="ltp-stat-value"
+                style={{ color: "#ff2222" }}
+              >
+                {aiTraffic.stats.vehiclesWaiting}
+              </span>
+              <span className="ltp-stat-label">WAITING</span>
+            </div>
+            <div className="ltp-stat">
+              <span
+                className={`ltp-stat-value density-${aiTraffic.stats.density.toLowerCase()}`}
+              >
+                {aiTraffic.stats.density}
+              </span>
+              <span className="ltp-stat-label">DENSITY</span>
+            </div>
           </div>
         </div>
       )}
 
+      {/* ===== TRAFFIC STATUS (normal mode) ===== */}
       {!liveTrafficMode && (
         <div className="traffic-status">
           <div className="heading">AI TRAFFIC MANAGEMENT</div>
-          <div className="state" style={{ color: traffic.stateColor }}>{traffic.state}</div>
+          <div className="state" style={{ color: traffic.stateColor }}>
+            {traffic.state}
+          </div>
           <div className="incident-reason">{traffic.reason}</div>
           <div className="traffic-info">
-            <div className="info-box"><span>SIMULATION</span><strong>{simTime}</strong></div>
-            <div className="info-box"><span>TRAFFIC</span><strong>{traffic.level}</strong></div>
-            <div className="info-box"><span>FLOW</span><strong>{traffic.flow}</strong></div>
-            <div className="info-box"><span>AI MODE</span><strong>{traffic.mode}</strong></div>
+            <div className="info-box">
+              <span>SIMULATION</span>
+              <strong>{simTime}</strong>
+            </div>
+            <div className="info-box">
+              <span>TRAFFIC</span>
+              <strong>{traffic.level}</strong>
+            </div>
+            <div className="info-box">
+              <span>FLOW</span>
+              <strong>{traffic.flow}</strong>
+            </div>
+            <div className="info-box">
+              <span>AI MODE</span>
+              <strong>{traffic.mode}</strong>
+            </div>
           </div>
         </div>
       )}
 
+      {/* ===== AI MESSAGE ===== */}
       <div className={`ai-message ${aiMsgVisible ? "show" : ""}`}>{aiMsg}</div>
 
+      {/* ===== TOURIST MESSAGE ===== */}
       {touristMsgVisible && (
         <div className="tourist-message">{touristMsg}</div>
       )}
 
+      {/* ===== INCIDENT BAR ===== */}
       {!liveTrafficMode && (
-        <div className="incident-bar" dangerouslySetInnerHTML={{ __html: traffic.incident }} />
+        <div
+          className="incident-bar"
+          dangerouslySetInnerHTML={{ __html: traffic.incident }}
+        />
       )}
 
+      {/* ===== CYCLE BAR ===== */}
       {cycleVisible && !liveTrafficMode && (
         <div className="cycle-bar">
           <div className="label">{cycleLabel}</div>
-          <div className="bar"><div className="fill" style={{ width: `${cyclePct}%` }} /></div>
+          <div className="bar">
+            <div className="fill" style={{ width: `${cyclePct}%` }} />
+          </div>
         </div>
       )}
 
+      {/* ===== AI REASON ===== */}
       {aiReason.visible && !liveTrafficMode && (
         <div className="ai-reason">
-          <button className="close-reason" onClick={closeAiReason}>×</button>
-          <div className="title"><span className="dot"></span><span>{aiReason.title}</span></div>
-          <div className="reason" dangerouslySetInnerHTML={{ __html: aiReason.text }} />
-          <div className="result" dangerouslySetInnerHTML={{ __html: aiReason.result }} />
+          <button className="close-reason" onClick={closeAiReason}>
+            ×
+          </button>
+          <div className="title">
+            <span className="dot"></span>
+            <span>{aiReason.title}</span>
+          </div>
+          <div
+            className="reason"
+            dangerouslySetInnerHTML={{ __html: aiReason.text }}
+          />
+          <div
+            className="result"
+            dangerouslySetInnerHTML={{ __html: aiReason.result }}
+          />
         </div>
       )}
 
       {showAiBtn && !liveTrafficMode && (
-        <button className="show-ai-btn" onClick={reopenAiReason}>👁 SHOW AI LOG</button>
+        <button className="show-ai-btn" onClick={reopenAiReason}>
+          👁 SHOW AI LOG
+        </button>
       )}
 
+      {/* ===== MENU BUTTON ===== */}
       <button className="menu-btn" onClick={handleToggleMenu}>
         <span className="icon">☰</span>
         <span>SMART CITY MENU</span>
       </button>
 
+      {/* ===== MAIN MENU ===== */}
       <div className={`main-menu ${menuOpen ? "open" : ""}`}>
         <div className="menu-header">
           <div className="menu-title">🏙 SMART CITY</div>
-          <button className="close-btn" onClick={handleToggleMenu}>×</button>
+          <button className="close-btn" onClick={handleToggleMenu}>
+            ×
+          </button>
         </div>
 
         <div className="menu-sub">🏛 LOCATIONS</div>
@@ -496,7 +602,11 @@ export default function App() {
             { key: "fertTruck1", label: "Fertilizer Truck 1", icon: "🌱" },
             { key: "fertTruck2", label: "Fertilizer Truck 2", icon: "🌱" },
           ].map((v) => (
-            <div key={v.key} className="menu-item" onClick={() => handleFollowVehicle(v.key)}>
+            <div
+              key={v.key}
+              className="menu-item"
+              onClick={() => handleFollowVehicle(v.key)}
+            >
               <span className="m-icon">{v.icon}</span>
               <span className="m-label">{v.label}</span>
             </div>
@@ -520,18 +630,23 @@ export default function App() {
         </div>
       </div>
 
+      {/* ===== INFO PANEL (Click popup) ===== */}
       {panel && (
         <div className="panel">
-          <button className="close" onClick={() => setPanel(null)}>×</button>
+          <button className="close" onClick={() => setPanel(null)}>
+            ×
+          </button>
           <h2>{panel.title}</h2>
           <div className="type">{panel.type}</div>
           <p>{panel.text}</p>
         </div>
       )}
 
+      {/* ===== HINT ===== */}
       {!liveTrafficMode && (
         <div className="hint">
-          Drag = Rotate &nbsp;|&nbsp; Wheel = Zoom &nbsp;|&nbsp; Click buildings &nbsp;|&nbsp; ☰ Menu
+          Drag = Rotate &nbsp;|&nbsp; Wheel = Zoom &nbsp;|&nbsp; Click buildings
+          &nbsp;|&nbsp; ☰ Menu
         </div>
       )}
     </div>
@@ -547,7 +662,10 @@ function LocationItem({ loc, onCameraClick, onLocationClick }) {
   };
   return (
     <>
-      <div className={`menu-item ${open ? "active" : ""}`} onClick={handleClick}>
+      <div
+        className={`menu-item ${open ? "active" : ""}`}
+        onClick={handleClick}
+      >
         <span className="m-icon">{loc.icon}</span>
         <span className="m-label">{loc.label}</span>
         <span className="arrow">{open ? "▲" : "▼"}</span>
@@ -555,9 +673,17 @@ function LocationItem({ loc, onCameraClick, onLocationClick }) {
       {open && (
         <div className="camera-options">
           {loc.cameras.map((cam) => (
-            <div key={cam.name} className="cam-option"
-              onClick={(e) => { e.stopPropagation(); onCameraClick(loc.key, cam.name); }}>
-              <span className="cam-icon">{cam.inside ? "🎯" : cam.top ? "🔭" : "📹"}</span>
+            <div
+              key={cam.name}
+              className="cam-option"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCameraClick(loc.key, cam.name);
+              }}
+            >
+              <span className="cam-icon">
+                {cam.inside ? "🎯" : cam.top ? "🔭" : "📹"}
+              </span>
               <span>{cam.name}</span>
             </div>
           ))}
