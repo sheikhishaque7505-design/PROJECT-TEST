@@ -7,6 +7,13 @@ const CITY_HALF = 3900;
 const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
 
+// ===== FIX: Car Y position (road ke barabar) =====
+const CAR_Y = 5.0;
+const CAR_SPEED_OUTER = 0.0025;
+const CAR_SPEED_MID = 0.0022;
+const CAR_SPEED_INNER = 0.0020;
+const LANE_OFFSET = 15;
+
 export const LOCATIONS = {
   school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   hospital: { key: "hospital", label: "Smart Hospital", icon: "🏥", type: "HEALTHCARE", position: [600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
@@ -213,28 +220,15 @@ const SmartCity3D = forwardRef((props, ref) => {
     grassMaterial: null, roadMaterial: null, roadLaneMaterial: null,
     curbMaterial: null, sidewalkMat: null, ambient: null, sun: null,
     sim: null, roadZs: null, roadXs: null, aiSystem: null,
-    filtrationStageIndex: 0,
-    filtrationStageElapsed: 0,
-    filtrationStageMeshes: [],
-    filtrationFlowMeshes: [],
-    filtrationTankWater: null,
-    filtrationUVLight: null,
-    filtrationUVBulb: null,
-    filtrationUVRays: [],
-    filtrationCleanReservoir: null,
-    filtrationPumpRings: [],
-    filtrationBubbles: [],
-    dirtyWaterParticles: [],
-    cleanWaterParticles: [],
-    wasteStageIndex: 0,
-    wasteStageElapsed: 0,
-    wasteConveyorItems: [],
-    wasteSmokeParticles: [],
-    wasteSteamParticles: [],
-    wasteBiogasFlame: null,
-    wasteGeneratorCoil: null,
-    wasteRecycleGears: [],
-    wasteBins3D: [],
+    filtrationStageIndex: 0, filtrationStageElapsed: 0,
+    filtrationStageMeshes: [], filtrationFlowMeshes: [],
+    filtrationTankWater: null, filtrationUVLight: null, filtrationUVBulb: null,
+    filtrationUVRays: [], filtrationCleanReservoir: null,
+    filtrationPumpRings: [], filtrationBubbles: [],
+    dirtyWaterParticles: [], cleanWaterParticles: [],
+    wasteStageIndex: 0, wasteStageElapsed: 0,
+    wasteConveyorItems: [], wasteSmokeParticles: [], wasteSteamParticles: [],
+    wasteBiogasFlame: null, wasteGeneratorCoil: null, wasteRecycleGears: [], wasteBins3D: [],
   }).current;
 
   useImperativeHandle(ref, () => ({
@@ -311,9 +305,7 @@ const SmartCity3D = forwardRef((props, ref) => {
 
   function goToLiveTraffic() {
     if (!s.camera) return;
-    s.isLocked = false;
-    s.lockedLocation = "liveTraffic";
-    s.followTarget = null;
+    s.isLocked = false; s.lockedLocation = "liveTraffic"; s.followTarget = null;
     setLocationPopup(null);
     s.savedCamPos = s.camera.position.clone();
     s.savedCamTarget = s.controls.target.clone();
@@ -1150,15 +1142,12 @@ const SmartCity3D = forwardRef((props, ref) => {
     const powerZone = new THREE.Group();
     powerZone.position.set(-5400, 0, 3600); scene.add(powerZone);
     board("POWER SUPPLY (OUT-OF-CITY)", -5400, 5, 4600, 460, 22, 0x0a4d5c);
-
     const powerBasePad = new THREE.Mesh(new THREE.BoxGeometry(2400, 0.8, 1800), mat(0x2a3238, 0.92));
     powerBasePad.position.set(0, 4.3, 0); powerZone.add(powerBasePad);
-
     const powerLinkRoad = new THREE.Mesh(new THREE.BoxGeometry(1900, 0.45, 90), roadMaterial);
     powerLinkRoad.position.set(1250, 4.7, -1800); powerZone.add(powerLinkRoad);
     const powerLinkLine = new THREE.Mesh(new THREE.BoxGeometry(1900, 0.1, 2), yellowLineMaterial);
     powerLinkLine.position.set(1250, 5, -1800); powerZone.add(powerLinkLine);
-
     const powerPad = new THREE.Mesh(new THREE.BoxGeometry(1600, 1, 1300), mat(0x1d3a2e, 0.92));
     powerPad.position.y = 4.2; powerZone.add(powerPad);
     const powerBorderMat = new THREE.MeshStandardMaterial({ color: 0x00e0ff, emissive: 0x00cfff, emissiveIntensity: 2.5, metalness: 0.7, roughness: 0.2 });
@@ -1167,14 +1156,12 @@ const SmartCity3D = forwardRef((props, ref) => {
     const pbB = pbF.clone(); pbB.position.z = 650; powerZone.add(pbB);
     const pbL = new THREE.Mesh(new THREE.BoxGeometry(5, 1.6, 1300), powerBorderMat); pbL.position.set(-800, 6.5, 0); powerZone.add(pbL);
     const pbR = pbL.clone(); pbR.position.x = 800; powerZone.add(pbR);
-
     for (const cx of [-800, 800]) for (const cz of [-650, 650]) {
       const p = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5.5, 32, 10), powerBorderMat);
       p.position.set(cx, 20, cz); powerZone.add(p);
       const cap = new THREE.Mesh(new THREE.SphereGeometry(3.6, 10, 10), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 3 }));
       cap.position.set(cx, 38, cz); powerZone.add(cap);
     }
-
     loader.load("/old_antenna.glb", (g) => { const a = g.scene; prep(a, 360); a.position.set(-550, 5, 0); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Old Antenna" }); }, undefined, () => {});
     loader.load("/antena.glb", (g) => { const a = g.scene; prep(a, 270); a.position.set(-280, 5, -100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 1" }); }, undefined, () => {});
     loader.load("/antena.glb", (g) => { const a = g.scene; prep(a, 230); a.position.set(-720, 5, 100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 2" }); }, undefined, () => {});
@@ -1233,7 +1220,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     });
 
     /* =====================================================================
-       FILTRATION SYSTEM — WITH ANIMATED PROCESS FLOW
+       FILTRATION SYSTEM — 9 STAGES
        ===================================================================== */
     const filtZone = new THREE.Group();
     filtZone.position.set(3600, 0, -3600); scene.add(filtZone);
@@ -1288,6 +1275,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       const waterFill = new THREE.Mesh(new THREE.CylinderGeometry(19, 19, 1, 16), waterMat);
       waterFill.position.set(tx, 8, tz); tankGroup.add(waterFill);
       s.filtrationStageMeshes.push({ tankBody, tankCap, waterFill, baseY: 8, stageIndex: i });
+      clickable.push({ object: tankBody, type: "filtrationStage", name: FILTRATION_STAGES[i].label, stageIndex: i });
     }
 
     const flowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.5, metalness: 0.6, roughness: 0.2 });
@@ -1357,7 +1345,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     recyclePipe.rotation.z = Math.PI / 2; recyclePipe.rotation.y = 0.35;
     recyclePipe.position.set(-180, 14, -20); filtZone.add(recyclePipe);
 
-    // Input pipe (ganda paani)
     const inputPipe = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 200, 12), new THREE.MeshStandardMaterial({ color: 0x4a2a1a, emissive: 0x2a1a0a, emissiveIntensity: 1, metalness: 0.5, roughness: 0.3 }));
     inputPipe.rotation.z = Math.PI / 2; inputPipe.position.set(-550, 14, 0); filtZone.add(inputPipe);
     s.dirtyWaterParticles = [];
@@ -1368,7 +1355,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       filtZone.add(p); s.dirtyWaterParticles.push(p);
     }
 
-    // Output pipe (saaf paani)
     const outputPipe = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 200, 12), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.5, metalness: 0.5, roughness: 0.2 }));
     outputPipe.rotation.z = Math.PI / 2; outputPipe.position.set(550, 14, 0); filtZone.add(outputPipe);
     s.cleanWaterParticles = [];
@@ -1440,7 +1426,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const wbL = new THREE.Mesh(new THREE.BoxGeometry(5, 1.4, 950), wasteBorderMat); wbL.position.set(-475, 6.5, 0); wasteZone.add(wbL);
     const wbR = wbL.clone(); wbR.position.x = 475; wasteZone.add(wbR);
 
-    // 1. SEGREGATION CONVEYOR BELTS (4 categories)
     const segregationGroup = new THREE.Group();
     segregationGroup.position.set(0, 5, 220);
     wasteZone.add(segregationGroup);
@@ -1463,7 +1448,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       board(cat.name, 3600 + cat.x, 5, 3600 + 280, 120, 8, cat.color);
     });
 
-    // 2. RECYCLING MACHINE
     const recycleMachineGroup = new THREE.Group();
     recycleMachineGroup.position.set(0, 5, -80);
     wasteZone.add(recycleMachineGroup);
@@ -1485,7 +1469,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     board("RECYCLING PLANT", 3600, 5, 3600 - 180, 200, 14, 0x2ecc71);
 
-    // 3. BIOGAS PLANT
     const biogasGroup = new THREE.Group();
     biogasGroup.position.set(-280, 5, -80);
     wasteZone.add(biogasGroup);
@@ -1503,7 +1486,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     biogasGroup.add(genCoil); s.wasteGeneratorCoil = genCoil;
     board("BIOGAS PLANT", 3600 - 280, 5, 3600 - 180, 180, 14, 0x4a7a3a);
 
-    // 4. COMPOSTING PITS
     const compostGroup = new THREE.Group();
     compostGroup.position.set(280, 5, -80);
     wasteZone.add(compostGroup);
@@ -1518,7 +1500,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     board("COMPOSTING", 3600 + 280, 5, 3600 - 180, 160, 12, 0x5a3a1a);
 
-    // 5. INCINERATOR (Safe Disposal)
     const incineratorGroup = new THREE.Group();
     incineratorGroup.position.set(0, 5, -280);
     wasteZone.add(incineratorGroup);
@@ -1569,7 +1550,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const g3 = buildTruck(0xd8b3ff, 0x8e44ad, "AI FERTILIZER", "#8e44ad");
     const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
 
-    /* ===== CITY CARS ===== */
+    /* ===== CITY CARS (FIXED) ===== */
     const cityCars = []; s.cityCars = cityCars;
     const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c, 0x1abc9c, 0x3498db, 0xe91e63, 0x9b59b6, 0xff5722, 0x00bcd4, 0x795548, 0x607d8b, 0xff9800, 0x3f51b5];
     const V_LEN = 26, V_WID = 10, V_HGT = 5.5;
@@ -1621,7 +1602,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       return g;
     }
 
-    const LANE_OFFSET = 28;
     const outerRoutePoints = [{ x: -2400, z: -2400 }, { x: 2400, z: -2400 }, { x: 2400, z: 2400 }, { x: -2400, z: 2400 }];
     const midRoutePoints = [{ x: -1200, z: -1200 }, { x: 1200, z: -1200 }, { x: 1200, z: 1200 }, { x: -1200, z: 1200 }];
     const innerRoutePoints = [{ x: -600, z: -600 }, { x: 600, z: -600 }, { x: 600, z: 600 }, { x: -600, z: 600 }];
@@ -1655,11 +1635,11 @@ const SmartCity3D = forwardRef((props, ref) => {
       return { x: last.endX, z: last.endZ, angle: Math.atan2(last.nz, last.nx), seg: last };
     }
 
-    const outerSegmentsCW = createRoutePath(outerRoutePoints, -LANE_OFFSET);
+    const outerSegmentsCW = createRoutePath(outerRoutePoints, LANE_OFFSET);
     const outerSegmentsCCW = createRoutePath([...outerRoutePoints].reverse(), -LANE_OFFSET);
-    const midSegmentsCW = createRoutePath(midRoutePoints, -LANE_OFFSET);
+    const midSegmentsCW = createRoutePath(midRoutePoints, LANE_OFFSET);
     const midSegmentsCCW = createRoutePath([...midRoutePoints].reverse(), -LANE_OFFSET);
-    const innerSegmentsCW = createRoutePath(innerRoutePoints, -LANE_OFFSET);
+    const innerSegmentsCW = createRoutePath(innerRoutePoints, LANE_OFFSET);
     const innerSegmentsCCW = createRoutePath([...innerRoutePoints].reverse(), -LANE_OFFSET);
 
     function spawnCarOnRoute(segments, progress, direction, speed) {
@@ -1668,17 +1648,18 @@ const SmartCity3D = forwardRef((props, ref) => {
       const c = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
       scene.add(c);
       const p = getPointOnRoute(segments, progress);
-      c.position.set(p.x, 5.2, p.z);
+      c.position.set(p.x, CAR_Y, p.z);
       c.rotation.y = direction > 0 ? -p.angle : -p.angle + Math.PI;
       cityCars.push({ car: c, segments, progress, direction, speed, baseSpeed: speed });
     }
 
-    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCW, i / 16, 1, 0.025);
-    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCCW, i / 16, 1, 0.025);
-    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCW, i / 12, 1, 0.022);
-    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCCW, i / 12, 1, 0.022);
-    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCW, i / 8, 1, 0.020);
-    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCCW, i / 8, 1, 0.020);
+    // FIXED SPEEDS — slow aur smooth
+    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCW, i / 16, 1, CAR_SPEED_OUTER);
+    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCCW, i / 16, 1, CAR_SPEED_OUTER);
+    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCW, i / 12, 1, CAR_SPEED_MID);
+    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCCW, i / 12, 1, CAR_SPEED_MID);
+    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCW, i / 8, 1, CAR_SPEED_INNER);
+    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCCW, i / 8, 1, CAR_SPEED_INNER);
 
     function updateCarMovement() {
       for (const d of cityCars) {
@@ -1686,7 +1667,7 @@ const SmartCity3D = forwardRef((props, ref) => {
         if (d.progress > 1) d.progress -= 1;
         if (d.progress < 0) d.progress += 1;
         const p = getPointOnRoute(d.segments, d.progress);
-        d.car.position.set(p.x, 5.2, p.z);
+        d.car.position.set(p.x, CAR_Y, p.z);
         d.car.rotation.y = -p.angle;
       }
     }
@@ -1704,17 +1685,19 @@ const SmartCity3D = forwardRef((props, ref) => {
       const style = styleRoll < 0.6 ? "sedan" : (styleRoll < 0.85 ? "suv" : "sport");
       const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
       scene.add(car);
-      const carObj = { car, roadId, axis: lane.axis, sign: lane.sign, xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0, pos: startPos, speed: 0.4 + Math.random() * 0.3, baseSpeed: 0.4 + Math.random() * 0.3, waiting: false };
+      // FIXED SPEED — slow
+      const spd = 0.15 + Math.random() * 0.1;
+      const carObj = { car, roadId, axis: lane.axis, sign: lane.sign, xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0, pos: startPos, speed: spd, baseSpeed: spd, waiting: false };
       intersectionCars.push(carObj);
       updateIntersectionCarTransform(carObj);
     }
 
     function updateIntersectionCarTransform(c) {
       if (c.axis === "z") {
-        c.car.position.set(c.xOffset, 5.2, c.pos);
+        c.car.position.set(c.xOffset, CAR_Y, c.pos);
         c.car.rotation.y = c.sign < 0 ? 0 : Math.PI;
       } else {
-        c.car.position.set(c.pos, 5.2, c.zOffset);
+        c.car.position.set(c.pos, CAR_Y, c.zOffset);
         c.car.rotation.y = c.sign < 0 ? Math.PI : 0;
       }
     }
@@ -1740,7 +1723,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           else { targetSpeed = c.baseSpeed * 0.7; c.waiting = false; }
         } else c.waiting = false;
         c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 4);
-        c.pos += c.sign * c.speed * delta * 60;
+        c.pos += c.sign * c.speed * delta * 30; // FIXED: 60 -> 30
         const range = 1200;
         if (c.sign < 0 && c.pos < -range) c.pos = range;
         else if (c.sign > 0 && c.pos > range) c.pos = -range;
@@ -1883,17 +1866,6 @@ const SmartCity3D = forwardRef((props, ref) => {
           const f3 = new THREE.Mesh(new THREE.BoxGeometry(swW, 0.5, plot.d + 60), sidewalkPatchMat);
           f3.position.set(plot.x - plot.w / 2 - 30 - swW / 2, 4.7, plot.z); scene.add(f3);
           const f4 = f3.clone(); f4.position.x = plot.x + plot.w / 2 + 30 + swW / 2; scene.add(f4);
-        }
-        if (plot.parking) {
-          const pW = 120, pD = 60;
-          const parking = new THREE.Mesh(new THREE.BoxGeometry(pW, 0.55, pD), parkingMat);
-          parking.position.set(plot.x + plot.w / 2 - pW / 2 - 10, 4.75, plot.z + plot.d / 2 + 60); scene.add(parking);
-          const parkingLineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
-          for (let i = 0; i < 5; i++) {
-            const line = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, pD - 8), parkingLineMat);
-            line.position.set(plot.x + plot.w / 2 - pW / 2 - 10 - pW / 2 + 12 + i * ((pW - 24) / 4), 5.1, plot.z + plot.d / 2 + 60);
-            scene.add(line);
-          }
         }
         for (let i = 0; i < plot.trees; i++) {
           const angle = (i / plot.trees) * Math.PI * 2;
@@ -2056,6 +2028,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const fert1State = { idx: 0, prog: 0 };
     const fert2State = { idx: 0, prog: 0 };
 
+    // FIXED TRUCK SPEED — slow
     function moveTruck(truck, route, state, delta, speed) {
       const from = route[state.idx];
       const to = route[(state.idx + 1) % route.length];
@@ -2063,7 +2036,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       if (state.prog >= 1) { state.prog = 0; state.idx = (state.idx + 1) % route.length; }
       const x = from[0] + (to[0] - from[0]) * state.prog;
       const z = from[1] + (to[1] - from[1]) * state.prog;
-      truck.position.set(x, 5.2, z);
+      truck.position.set(x, CAR_Y, z);
       const dx = to[0] - from[0], dz = to[1] - from[1];
       if (Math.abs(dx) + Math.abs(dz) > 0.1) truck.rotation.y = -Math.atan2(dz, dx);
     }
@@ -2131,10 +2104,8 @@ const SmartCity3D = forwardRef((props, ref) => {
         p.obj.position.z = p.cz + Math.sin(p.angle) * p.r;
         p.obj.rotation.y = p.angle + (p.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
         const swing = Math.sin(t * 6 + p.phase) * 0.4;
-        p.legL.rotation.x = swing;
-        p.legR.rotation.x = -swing;
-        p.armL.rotation.x = -swing * 0.7;
-        p.armR.rotation.x = swing * 0.7;
+        p.legL.rotation.x = swing; p.legR.rotation.x = -swing;
+        p.armL.rotation.x = -swing * 0.7; p.armR.rotation.x = swing * 0.7;
       }
 
       for (const p of tourists) {
@@ -2145,10 +2116,8 @@ const SmartCity3D = forwardRef((props, ref) => {
         p.obj.position.z = p.cz + Math.sin(p.angle) * p.r;
         p.obj.rotation.y = p.angle + (p.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
         const swing = Math.sin(t * 6 + p.phase) * 0.5;
-        p.legL.rotation.x = swing;
-        p.legR.rotation.x = -swing;
-        p.armL.rotation.x = -swing * 0.8;
-        p.armR.rotation.x = swing * 0.8;
+        p.legL.rotation.x = swing; p.legR.rotation.x = -swing;
+        p.armL.rotation.x = -swing * 0.8; p.armR.rotation.x = swing * 0.8;
       }
 
       for (const wp of waterParticles) {
@@ -2170,9 +2139,10 @@ const SmartCity3D = forwardRef((props, ref) => {
         else l.gr.material.emissiveIntensity = 4;
       }
 
-      moveTruck(garbageTruck, garbageRoute, garbageState, delta, 0.18);
-      moveTruck(fertTruck1, fertRoute1, fert1State, delta, 0.16);
-      moveTruck(fertTruck2, fertRoute2, fert2State, delta, 0.15);
+      // FIXED TRUCK SPEEDS — slow aur smooth
+      moveTruck(garbageTruck, garbageRoute, garbageState, delta, 0.05);
+      moveTruck(fertTruck1, fertRoute1, fert1State, delta, 0.045);
+      moveTruck(fertTruck2, fertRoute2, fert2State, delta, 0.04);
       const blink = Math.floor(t * 2) % 2 === 0 ? 3 : 0.5;
       if (s.garbageWarn) s.garbageWarn.material.emissiveIntensity = blink;
       if (s.fertWarn1) s.fertWarn1.material.emissiveIntensity = blink;
@@ -2185,7 +2155,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       controllerRing2.rotation.z = -t * 0.4;
       controllerSig.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
 
-      /* ===== FILTRATION ANIMATION ===== */
+      /* FILTRATION ANIMATION */
       s.filtrationStageElapsed += delta;
       const currentStage = FILTRATION_STAGES[s.filtrationStageIndex];
       if (s.filtrationStageElapsed >= currentStage.duration) {
@@ -2283,7 +2253,7 @@ const SmartCity3D = forwardRef((props, ref) => {
         ring.material.opacity = Math.max(0, 0.7 - phase * 0.35);
       }
 
-      /* ===== WASTE ANIMATION ===== */
+      /* WASTE ANIMATION */
       s.wasteStageElapsed += delta;
       const currentWasteStage = WASTE_STAGES[s.wasteStageIndex];
       if (s.wasteStageElapsed >= currentWasteStage.duration) {
