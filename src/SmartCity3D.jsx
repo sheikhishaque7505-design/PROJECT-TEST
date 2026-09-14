@@ -51,9 +51,6 @@ export const LOCATION_LIVE_DATA = {
   trafficController: { desc: "AI controls 4 roads, adaptive signals, jam detection", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24 online"]] },
 };
 
-/* =====================================================================
-   WATER FILTRATION ANIMATION STAGES (visual process flow)
-   ===================================================================== */
 const FILTRATION_STAGES = [
   { id: "wastewater", label: "WASTEWATER COLLECTION", color: 0x6b4a2f, duration: 4 },
   { id: "primary", label: "PRIMARY FILTRATION", color: 0x8a7a4a, duration: 4 },
@@ -64,6 +61,20 @@ const FILTRATION_STAGES = [
   { id: "uv", label: "UV PURIFICATION", color: 0x9a6aff, duration: 4 },
   { id: "storage", label: "CLEAN WATER STORAGE", color: 0x22cfff, duration: 4 },
   { id: "recycling", label: "WATER RECYCLING", color: 0x2ecc71, duration: 4 },
+];
+
+const WASTE_STAGES = [
+  { id: "collection", label: "WASTE COLLECTION", color: 0x8a6a3a, duration: 4 },
+  { id: "segregation", label: "SEGREGATION", color: 0x3498db, duration: 4 },
+  { id: "recycling", label: "RECYCLING", color: 0x2ecc71, duration: 4 },
+  { id: "biogas", label: "BIOGAS GENERATION", color: 0x4a7a3a, duration: 4 },
+  { id: "composting", label: "COMPOSTING", color: 0x5a3a1a, duration: 4 },
+  { id: "incineration", label: "SAFE DISPOSAL", color: 0x8a3a3a, duration: 4 },
+];
+
+const STAGE_WATER_COLORS = [
+  0x4a2a1a, 0x6a4a2a, 0x4a6a3a, 0x3a8aaa,
+  0x5a9aba, 0x3a9aca, 0x8a6aff, 0x22cfff, 0x2ecc71,
 ];
 
 function createAITrafficSystem(callbacks) {
@@ -180,14 +191,11 @@ function createCitySimulation(callbacks) {
   return { tick, getState: () => tState };
 }
 
-/* =====================================================================
-   SMART CITY 3D COMPONENT
-   ===================================================================== */
 const SmartCity3D = forwardRef((props, ref) => {
   const {
     onPanel, onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage,
     onAiReason, onTouristMessage, onAITrafficUpdate,
-    onFiltrationUpdate,
+    onFiltrationUpdate, onWasteUpdate,
   } = props;
   const mountRef = useRef(null);
   const [locationPopup, setLocationPopup] = useState(null);
@@ -211,8 +219,22 @@ const SmartCity3D = forwardRef((props, ref) => {
     filtrationFlowMeshes: [],
     filtrationTankWater: null,
     filtrationUVLight: null,
+    filtrationUVBulb: null,
+    filtrationUVRays: [],
     filtrationCleanReservoir: null,
     filtrationPumpRings: [],
+    filtrationBubbles: [],
+    dirtyWaterParticles: [],
+    cleanWaterParticles: [],
+    wasteStageIndex: 0,
+    wasteStageElapsed: 0,
+    wasteConveyorItems: [],
+    wasteSmokeParticles: [],
+    wasteSteamParticles: [],
+    wasteBiogasFlame: null,
+    wasteGeneratorCoil: null,
+    wasteRecycleGears: [],
+    wasteBins3D: [],
   }).current;
 
   useImperativeHandle(ref, () => ({
@@ -322,14 +344,11 @@ const SmartCity3D = forwardRef((props, ref) => {
 
   useEffect(() => {
     const container = mountRef.current; if (!container) return;
-
     const scene = new THREE.Scene();
     s.scene = scene;
     scene.background = new THREE.Color(0x8fbcd4);
-
     const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 5, 15000);
     camera.position.set(1400, 950, 1400); s.camera = camera;
-
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
@@ -338,19 +357,16 @@ const SmartCity3D = forwardRef((props, ref) => {
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = false;
     container.appendChild(renderer.domElement); s.renderer = renderer;
-
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.15;
     controls.minDistance = 200; controls.maxDistance = 8000;
     controls.target.set(0, 5, 0); s.controls = controls;
-
     const ambient = new THREE.HemisphereLight(0xffffff, 0x4a7a56, 2.8);
     scene.add(ambient); s.ambient = ambient;
     const sun = new THREE.DirectionalLight(0xffffff, 2.6);
     sun.position.set(-800, 1400, 500); scene.add(sun); s.sun = sun;
     const fillLight = new THREE.DirectionalLight(0xd0e8ff, 1.2);
     fillLight.position.set(800, 1000, -500); scene.add(fillLight);
-
     const mat = (c, r = 0.8, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
     const grassMaterial = mat(0x4d8f50, 0.98);
     const roadMaterial = mat(0x2a3238, 0.96);
@@ -364,10 +380,8 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.grassMaterial = grassMaterial; s.roadMaterial = roadMaterial;
     s.roadLaneMaterial = roadLaneMaterial; s.curbMaterial = curbMaterial;
     s.sidewalkMat = sidewalkMat;
-
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE), grassMaterial);
     ground.rotation.x = -Math.PI / 2; scene.add(ground);
-
     const cityBoundMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
     s.borderLights.push(cityBoundMat);
     const boundThick = 20, boundY = 6;
@@ -377,7 +391,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const boundLeft = new THREE.Mesh(new THREE.BoxGeometry(boundThick, 2, CITY_HALF * 2 + boundThick), cityBoundMat);
     boundLeft.position.set(-CITY_HALF, boundY, 0); scene.add(boundLeft);
     const boundRight = boundLeft.clone(); boundRight.position.x = CITY_HALF; scene.add(boundRight);
-
     for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
       const cx = dx * CITY_HALF, cz = dz * CITY_HALF;
       const p = new THREE.Mesh(new THREE.CylinderGeometry(6, 8, 30, 12), cityBoundMat);
@@ -386,14 +399,11 @@ const SmartCity3D = forwardRef((props, ref) => {
       s.borderLights.push(cap.material);
       cap.position.set(cx, 37, cz); scene.add(cap);
     }
-
     const ROAD_W = 110, ROAD_HALF = ROAD_W / 2;
     const ROAD_LEN = ROAD_HALF_LEN * 2;
     const roadZs = [-2400, -1200, 0, 1200, 2400];
     const roadXs = [-2400, -1200, 0, 1200, 2400];
-    s.roadZs = roadZs;
-    s.roadXs = roadXs;
-
+    s.roadZs = roadZs; s.roadXs = roadXs;
     function makeRoadE(x, z, length) {
       const shoulder = new THREE.Mesh(new THREE.BoxGeometry(length, 0.25, ROAD_W + 20), roadLaneMaterial);
       shoulder.position.set(x, 4.55, z); scene.add(shoulder);
@@ -411,7 +421,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         const d2 = d1.clone(); d2.position.z = z - 30; scene.add(d2);
       }
     }
-
     function makeRoadN(x, z, length) {
       const shoulder = new THREE.Mesh(new THREE.BoxGeometry(ROAD_W + 20, 0.25, length), roadLaneMaterial);
       shoulder.position.set(x, 4.55, z); scene.add(shoulder);
@@ -429,10 +438,8 @@ const SmartCity3D = forwardRef((props, ref) => {
         const d2 = d1.clone(); d2.position.x = x - 30; scene.add(d2);
       }
     }
-
     roadZs.forEach((z) => makeRoadE(0, z, ROAD_LEN));
     roadXs.forEach((x) => makeRoadN(x, 0, ROAD_LEN));
-
     roadZs.forEach((z) => {
       const s1 = new THREE.Mesh(new THREE.BoxGeometry(ROAD_LEN, 0.3, 10), sidewalkMat);
       s1.position.set(0, 5.05, z + ROAD_HALF + 10); scene.add(s1);
@@ -443,13 +450,10 @@ const SmartCity3D = forwardRef((props, ref) => {
       s1.position.set(x + ROAD_HALF + 10, 5.05, 0); scene.add(s1);
       const s2 = s1.clone(); s2.position.x = x - ROAD_HALF - 10; scene.add(s2);
     });
-
-    /* ===== CITY WALL ===== */
     const wallConcreteMat = new THREE.MeshStandardMaterial({ color: 0x5a6670, roughness: 0.85, metalness: 0.15 });
     const wallTopMat = new THREE.MeshStandardMaterial({ color: 0x3a4650, roughness: 0.7, metalness: 0.35 });
     const wallGlowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3.5, metalness: 0.7, roughness: 0.2 });
     s.borderLights.push(wallGlowMat);
-
     function makeWallTextTexture(text, sub) {
       const c = document.createElement("canvas"); c.width = 2048; c.height = 512;
       const ctx = c.getContext("2d");
@@ -464,10 +468,8 @@ const SmartCity3D = forwardRef((props, ref) => {
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
     }
-
     const wallH = 140, wallT = 30;
     const wallLen = CITY_HALF * 2 + wallT * 2;
-
     function buildCityWall() {
       const eastWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallH, wallLen), wallConcreteMat);
       eastWall.position.set(CITY_HALF, 5 + wallH / 2, 0); scene.add(eastWall);
@@ -485,7 +487,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const panelE2 = panelE.clone();
       panelE2.position.set(CITY_HALF + wallT / 2 + 1, 5 + wallH / 2, 0);
       panelE2.rotation.y = Math.PI / 2; scene.add(panelE2);
-
       const westWall = eastWall.clone(); westWall.position.x = -CITY_HALF; scene.add(westWall);
       const westTop = eastTop.clone(); westTop.position.x = -CITY_HALF; scene.add(westTop);
       for (let z = -CITY_HALF + 100; z <= CITY_HALF - 100; z += 400) {
@@ -499,7 +500,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const panelW2 = panelE.clone();
       panelW2.position.set(-CITY_HALF - wallT / 2 - 1, 5 + wallH / 2, 0);
       panelW2.rotation.y = -Math.PI / 2; scene.add(panelW2);
-
       const northWall = new THREE.Mesh(new THREE.BoxGeometry(wallLen, wallH, wallT), wallConcreteMat);
       northWall.position.set(0, 5 + wallH / 2, CITY_HALF); scene.add(northWall);
       const northTop = new THREE.Mesh(new THREE.BoxGeometry(wallLen, 6, wallT + 6), wallTopMat);
@@ -515,7 +515,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const panelN2 = panelE.clone();
       panelN2.position.set(0, 5 + wallH / 2, CITY_HALF + wallT / 2 + 1);
       panelN2.rotation.y = Math.PI; scene.add(panelN2);
-
       const southWall = northWall.clone(); southWall.position.z = -CITY_HALF; scene.add(southWall);
       const southTop = northTop.clone(); southTop.position.z = -CITY_HALF; scene.add(southTop);
       for (let x = -CITY_HALF + 100; x <= CITY_HALF - 100; x += 400) {
@@ -631,7 +630,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       scene.add(g);
       intersectionLights.push({ r, y: yL, gr, road });
     }
-
     makeIntersectionLight(-INTERSECTION_LIGHT_OFFSET, -INTERSECTION_LIGHT_OFFSET, 1);
     makeIntersectionLight(INTERSECTION_LIGHT_OFFSET, INTERSECTION_LIGHT_OFFSET, 2);
     makeIntersectionLight(INTERSECTION_LIGHT_OFFSET, -INTERSECTION_LIGHT_OFFSET, 3);
@@ -827,12 +825,10 @@ const SmartCity3D = forwardRef((props, ref) => {
       const SOCIETY_GREEN = 0x2ecc71;
       const societyBorderMat = new THREE.MeshStandardMaterial({ color: SOCIETY_GREEN, emissive: SOCIETY_GREEN, emissiveIntensity: 2.4, metalness: 0.6, roughness: 0.25 });
       s.borderLights.push(societyBorderMat);
-
       const innerGround = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W - 30, 0.6, SOCIETY_D - 30), mat(0xb8bcc0, 0.92));
       innerGround.position.set(centerX, 4.85, centerZ); scene.add(innerGround);
       const grassPad = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 50, 0.4, SOCIETY_D + 50), grassMaterial);
       grassPad.position.set(centerX, 4.6, centerZ); scene.add(grassPad);
-
       const WALL_H = 14, WALL_T = 6;
       const wallF = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 12, WALL_H, WALL_T), societyBorderMat);
       wallF.position.set(centerX, 5 + WALL_H / 2, centerZ + HALF_D + 6); scene.add(wallF);
@@ -840,7 +836,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const wallL = new THREE.Mesh(new THREE.BoxGeometry(WALL_T, WALL_H, SOCIETY_D + 12), societyBorderMat);
       wallL.position.set(centerX - HALF_W - 6, 5 + WALL_H / 2, centerZ); scene.add(wallL);
       const wallR = wallL.clone(); wallR.position.x = centerX + HALF_W + 6; scene.add(wallR);
-
       for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
         const cx = centerX + dx * (HALF_W + 6), cz = centerZ + dz * (HALF_D + 6);
         const p = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 40, 12), societyBorderMat);
@@ -848,13 +843,11 @@ const SmartCity3D = forwardRef((props, ref) => {
         const cap = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: SOCIETY_GREEN, emissiveIntensity: 3.5 }));
         cap.position.set(cx, 48, cz); scene.add(cap);
       }
-
       const gateLeft = new THREE.Mesh(new THREE.BoxGeometry(10, 30, 12), societyBorderMat);
       gateLeft.position.set(centerX - 50, 20, centerZ + HALF_D + 6); scene.add(gateLeft);
       const gateRight = gateLeft.clone(); gateRight.position.x = centerX + 50; scene.add(gateRight);
       const gateTop = new THREE.Mesh(new THREE.BoxGeometry(120, 8, 12), societyBorderMat);
       gateTop.position.set(centerX, 34, centerZ + HALF_D + 6); scene.add(gateTop);
-
       const towerRows = 4, towerCols = 3, innerMargin = 100;
       const usableW = SOCIETY_W - innerMargin * 2, usableD = SOCIETY_D - innerMargin * 2;
       for (let r = 0; r < towerRows; r++) {
@@ -865,7 +858,6 @@ const SmartCity3D = forwardRef((props, ref) => {
           tallTower(tx, tz, w, h, d, TOWER_COLORS[Math.floor(Math.random() * TOWER_COLORS.length)]);
         }
       }
-
       for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ + HALF_D - 60, 0);
       for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ - HALF_D + 60, Math.PI);
       board("BSS SMART SOCIETY", centerX, 5, centerZ + HALF_D + 100, 280, 18, SOCIETY_GREEN);
@@ -892,8 +884,9 @@ const SmartCity3D = forwardRef((props, ref) => {
     bld("/sci-fi_building_9.glb", 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
     bld("/beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
     bld("/sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-
-    /* ===== SMART CITY RESOURCES ===== */
+        /* =====================================================================
+       SMART CITY RESOURCES
+       ===================================================================== */
     function resourceBorder(x, z, w, d, color = 0x00e0ff) {
       const bMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
       s.borderLights.push(bMat);
@@ -1254,7 +1247,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const fzL = new THREE.Mesh(new THREE.BoxGeometry(6, 1.8, 950), filtBorderMat); fzL.position.set(-475, 6.5, 0); filtZone.add(fzL);
     const fzR = fzL.clone(); fzR.position.x = 475; filtZone.add(fzR);
 
-    /* --- Main processing building --- */
     const filtBoxGroup = new THREE.Group(); filtBoxGroup.position.set(0, 5, 0); filtZone.add(filtBoxGroup);
     const filtBase = new THREE.Mesh(new THREE.BoxGeometry(260, 4, 260), mat(0x2c3e50, 0.7, 0.3));
     filtBase.position.y = 2; filtBoxGroup.add(filtBase);
@@ -1266,18 +1258,13 @@ const SmartCity3D = forwardRef((props, ref) => {
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, emissive: 0x22cfff, emissiveIntensity: 0.3, metalness: 0.6, roughness: 0.25, transparent: true, opacity: 0.6 });
     const roof = new THREE.Mesh(new THREE.BoxGeometry(270, 3, 270), roofMat); roof.position.y = 124; filtBoxGroup.add(roof);
 
-    /* --- Filtration machine (GLB preserved) --- */
     loader.load("/skid_filtration_system.glb", (g) => {
       const m = g.scene; prep(m, 170); m.position.set(0, 6, 0); filtBoxGroup.add(m);
       clickable.push({ object: m, type: "filtrationMachine", name: "Filtration Machine" });
     }, undefined, () => {});
 
-    /* --- Stage-based animated tanks (visual process flow) --- */
-    const stageColors = FILTRATION_STAGES.map(s => s.color);
     const tankGroup = new THREE.Group(); tankGroup.position.set(0, 5, 0); filtZone.add(tankGroup);
     s.filtrationStageMeshes = [];
-
-    // Place 9 small tanks in a 3x3 grid inside the big building footprint
     const TANK_GRID = 3;
     const TANK_SPACING = 75;
     for (let i = 0; i < FILTRATION_STAGES.length; i++) {
@@ -1287,34 +1274,22 @@ const SmartCity3D = forwardRef((props, ref) => {
       const tz = (row - 1) * TANK_SPACING;
       const tankColor = FILTRATION_STAGES[i].color;
       const tankMat = new THREE.MeshStandardMaterial({
-        color: tankColor,
-        emissive: tankColor,
-        emissiveIntensity: 0.4,
-        metalness: 0.3,
-        roughness: 0.3,
-        transparent: true,
-        opacity: 0.75,
+        color: tankColor, emissive: tankColor, emissiveIntensity: 0.4,
+        metalness: 0.3, roughness: 0.3, transparent: true, opacity: 0.75,
       });
       const tankBody = new THREE.Mesh(new THREE.CylinderGeometry(22, 24, 40, 16), tankMat);
       tankBody.position.set(tx, 22, tz); tankGroup.add(tankBody);
       const tankCap = new THREE.Mesh(new THREE.SphereGeometry(22, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), tankMat);
       tankCap.position.set(tx, 42, tz); tankGroup.add(tankCap);
-      // Inner water fill mesh (animated)
       const waterMat = new THREE.MeshStandardMaterial({
-        color: 0x22cfff,
-        emissive: 0x22cfff,
-        emissiveIntensity: 1.2,
-        transparent: true,
-        opacity: 0.75,
-        metalness: 0.4,
-        roughness: 0.1,
+        color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.2,
+        transparent: true, opacity: 0.75, metalness: 0.4, roughness: 0.1,
       });
       const waterFill = new THREE.Mesh(new THREE.CylinderGeometry(19, 19, 1, 16), waterMat);
       waterFill.position.set(tx, 8, tz); tankGroup.add(waterFill);
       s.filtrationStageMeshes.push({ tankBody, tankCap, waterFill, baseY: 8, stageIndex: i });
     }
 
-    /* --- Flow pipes connecting the 9 tanks in sequence --- */
     const flowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.5, metalness: 0.6, roughness: 0.2 });
     s.filtrationFlowMeshes = [];
     for (let i = 0; i < FILTRATION_STAGES.length - 1; i++) {
@@ -1330,22 +1305,43 @@ const SmartCity3D = forwardRef((props, ref) => {
       pipe.rotation.z = Math.PI / 2;
       pipe.rotation.y = -Math.atan2(dz, dx);
       tankGroup.add(pipe);
-      // Small glowing dot that travels along the pipe
       const flowDot = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x22cfff, emissiveIntensity: 4 }));
       flowDot.position.set(ax, 14, az);
       tankGroup.add(flowDot);
       s.filtrationFlowMeshes.push({ pipe, dot: flowDot, from: { x: ax, z: az }, to: { x: bx, z: bz }, phase: i * 0.11 });
     }
 
-    /* --- UV purification light --- */
     const uvLight = new THREE.PointLight(0x9a6aff, 2, 250);
-    uvLight.position.set(0, 60, 0);
-    tankGroup.add(uvLight);
+    uvLight.position.set(0, 60, 0); tankGroup.add(uvLight);
     s.filtrationUVLight = uvLight;
     const uvBulb = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 12), new THREE.MeshStandardMaterial({ color: 0x9a6aff, emissive: 0x9a6aff, emissiveIntensity: 5 }));
     uvBulb.position.set(0, 60, 0); tankGroup.add(uvBulb);
+    s.filtrationUVBulb = uvBulb;
 
-    /* --- Clean water storage reservoir outside main building --- */
+    s.filtrationUVRays = [];
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 35, 4), new THREE.MeshStandardMaterial({ color: 0x9a6aff, emissive: 0x9a6aff, emissiveIntensity: 3, transparent: true, opacity: 0.6 }));
+      ray.position.set(Math.cos(angle) * 15, 40, Math.sin(angle) * 15);
+      tankGroup.add(ray); s.filtrationUVRays.push(ray);
+    }
+
+    s.filtrationBubbles = [];
+    for (let i = 0; i < s.filtrationStageMeshes.length; i++) {
+      const sm = s.filtrationStageMeshes[i];
+      const tankX = sm.tankBody.position.x;
+      const tankZ = sm.tankBody.position.z;
+      const bubbles = [];
+      const bubbleCount = i === 3 ? 15 : (i === 2 ? 10 : 5);
+      for (let b = 0; b < bubbleCount; b++) {
+        const bubble = new THREE.Mesh(new THREE.SphereGeometry(1 + Math.random() * 1.2, 6, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x22cfff, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 }));
+        bubble.position.set(tankX + (Math.random() - 0.5) * 25, 10 + Math.random() * 25, tankZ + (Math.random() - 0.5) * 25);
+        bubble.userData = { speed: 4 + Math.random() * 8, baseX: tankX, baseZ: tankZ };
+        tankGroup.add(bubble); bubbles.push(bubble);
+      }
+      s.filtrationBubbles.push({ stageIndex: i, bubbles });
+    }
+
     const reservoirMat = new THREE.MeshStandardMaterial({ color: 0x0a4a6a, roughness: 0.3, metalness: 0.5, emissive: 0x0a2a4a, emissiveIntensity: 0.6 });
     const reservoir = new THREE.Mesh(new THREE.CylinderGeometry(50, 55, 40, 24), reservoirMat);
     reservoir.position.set(-320, 25, 0); filtZone.add(reservoir);
@@ -1356,15 +1352,33 @@ const SmartCity3D = forwardRef((props, ref) => {
     resCap.position.set(-320, 45, 0); filtZone.add(resCap);
     s.filtrationCleanReservoir = { reservoir, resWater, resCap };
 
-    /* --- Recycling pipe back toward the eco-farm direction --- */
     const recyclePipeMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 1.5, metalness: 0.6, roughness: 0.25 });
     const recyclePipe = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 280, 10), recyclePipeMat);
-    recyclePipe.rotation.z = Math.PI / 2;
-    recyclePipe.rotation.y = 0.35;
-    recyclePipe.position.set(-180, 14, -20);
-    filtZone.add(recyclePipe);
+    recyclePipe.rotation.z = Math.PI / 2; recyclePipe.rotation.y = 0.35;
+    recyclePipe.position.set(-180, 14, -20); filtZone.add(recyclePipe);
 
-    /* --- Animated water particles inside main building (existing behavior preserved) --- */
+    // Input pipe (ganda paani)
+    const inputPipe = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 200, 12), new THREE.MeshStandardMaterial({ color: 0x4a2a1a, emissive: 0x2a1a0a, emissiveIntensity: 1, metalness: 0.5, roughness: 0.3 }));
+    inputPipe.rotation.z = Math.PI / 2; inputPipe.position.set(-550, 14, 0); filtZone.add(inputPipe);
+    s.dirtyWaterParticles = [];
+    for (let i = 0; i < 15; i++) {
+      const p = new THREE.Mesh(new THREE.SphereGeometry(2, 6, 6), new THREE.MeshStandardMaterial({ color: 0x6a4a2a, emissive: 0x4a2a1a, emissiveIntensity: 1.5 }));
+      p.position.set(-550 + Math.random() * 200, 14, (Math.random() - 0.5) * 10);
+      p.userData = { speed: 30 + Math.random() * 20 };
+      filtZone.add(p); s.dirtyWaterParticles.push(p);
+    }
+
+    // Output pipe (saaf paani)
+    const outputPipe = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 200, 12), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.5, metalness: 0.5, roughness: 0.2 }));
+    outputPipe.rotation.z = Math.PI / 2; outputPipe.position.set(550, 14, 0); filtZone.add(outputPipe);
+    s.cleanWaterParticles = [];
+    for (let i = 0; i < 15; i++) {
+      const p = new THREE.Mesh(new THREE.SphereGeometry(2, 6, 6), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3 }));
+      p.position.set(350 + Math.random() * 200, 14, (Math.random() - 0.5) * 10);
+      p.userData = { speed: 30 + Math.random() * 20 };
+      filtZone.add(p); s.cleanWaterParticles.push(p);
+    }
+
     const waterParticles = []; s.waterParticles = waterParticles;
     for (let i = 0; i < 24; i++) {
       const p = new THREE.Mesh(new THREE.SphereGeometry(1.4, 6, 6), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5 }));
@@ -1373,20 +1387,17 @@ const SmartCity3D = forwardRef((props, ref) => {
       waterParticles.push({ mesh: p, speed: 0.4 + Math.random() * 0.6, baseY: 18 + Math.random() * 80 });
     }
 
-    /* --- Pulsing indicator rings around the filtration zone --- */
     const pumpRings = []; s.filtrationPumpRings = pumpRings;
     for (let i = 0; i < 3; i++) {
       const ringMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5, transparent: true, opacity: 0.7 });
       const ring = new THREE.Mesh(new THREE.TorusGeometry(90 + i * 22, 1.2, 8, 48), ringMat);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.set(0, 7 + i * 2, 0);
+      ring.rotation.x = Math.PI / 2; ring.position.set(0, 7 + i * 2, 0);
       ring.userData = { phase: i * 0.4, baseScale: 1 };
-      filtZone.add(ring);
-      pumpRings.push(ring);
+      filtZone.add(ring); pumpRings.push(ring);
     }
 
     /* =====================================================================
-       FERTILIZER SYSTEM (preserved)
+       FERTILIZER SYSTEM
        ===================================================================== */
     const fertZone = new THREE.Group();
     fertZone.position.set(-3600, 0, -3600); scene.add(fertZone);
@@ -1415,7 +1426,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
 
     /* =====================================================================
-       WASTE MANAGEMENT (preserved)
+       WASTE MANAGEMENT — 6 STAGE CLEANING PROCESS
        ===================================================================== */
     const wasteZone = new THREE.Group();
     wasteZone.position.set(3600, 0, 3600); scene.add(wasteZone);
@@ -1429,27 +1440,98 @@ const SmartCity3D = forwardRef((props, ref) => {
     const wbL = new THREE.Mesh(new THREE.BoxGeometry(5, 1.4, 950), wasteBorderMat); wbL.position.set(-475, 6.5, 0); wasteZone.add(wbL);
     const wbR = wbL.clone(); wbR.position.x = 475; wasteZone.add(wbR);
 
-    function wasteDumpster(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const body = new THREE.Mesh(new THREE.BoxGeometry(38, 22, 26), mat(0x2ecc71, 0.5, 0.5));
-      body.position.y = 11; g.add(body);
-      const lid = new THREE.Mesh(new THREE.BoxGeometry(40, 2, 28), mat(0x1a1a1a, 0.6, 0.3));
-      lid.position.set(0, 23, -3); lid.rotation.x = -0.15; g.add(lid);
-      const glowMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 2.5 });
-      const glow = new THREE.Mesh(new THREE.BoxGeometry(38, 1.5, 26.5), glowMat);
-      glow.position.y = 22; g.add(glow);
-      wasteZone.add(g);
-      clickable.push({ object: g, type: "wasteBin", name: "Waste Container" });
-    }
-    for (let row = 0; row < 3; row++) for (let col = 0; col < 4; col++)
-      wasteDumpster(-280 + col * 190, -300 + row * 220);
+    // 1. SEGREGATION CONVEYOR BELTS (4 categories)
+    const segregationGroup = new THREE.Group();
+    segregationGroup.position.set(0, 5, 220);
+    wasteZone.add(segregationGroup);
+    const SEGREGATION_CATS = [
+      { name: "ORGANIC", color: 0x2ecc71, x: -240 },
+      { name: "RECYCLABLE", color: 0x3498db, x: -80 },
+      { name: "HAZARDOUS", color: 0xe74c3c, x: 80 },
+      { name: "GENERAL", color: 0x34495e, x: 240 },
+    ];
+    SEGREGATION_CATS.forEach((cat) => {
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(140, 2, 30), new THREE.MeshStandardMaterial({ color: cat.color, emissive: cat.color, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.3 }));
+      belt.position.set(cat.x, 12, 0); segregationGroup.add(belt);
+      for (let i = 0; i < 4; i++) {
+        const item = new THREE.Mesh(new THREE.BoxGeometry(7, 7, 7), new THREE.MeshStandardMaterial({ color: cat.color, emissive: cat.color, emissiveIntensity: 1.5 }));
+        item.position.set(cat.x - 55 + i * 35, 18, 0);
+        item.userData = { beltX: cat.x, speed: 0.4 + Math.random() * 0.3, offset: i * 35 };
+        segregationGroup.add(item);
+        s.wasteConveyorItems.push(item);
+      }
+      board(cat.name, 3600 + cat.x, 5, 3600 + 280, 120, 8, cat.color);
+    });
 
-    const recycleMachine = new THREE.Mesh(new THREE.BoxGeometry(120, 100, 120), mat(0x1a8a4e, 0.4, 0.5));
-    recycleMachine.position.set(0, 55, 0); wasteZone.add(recycleMachine);
-    const recycleTop = new THREE.Mesh(new THREE.BoxGeometry(100, 20, 100), new THREE.MeshStandardMaterial({ color: 0x0a5a2e, emissive: 0x2ecc71, emissiveIntensity: 1.5, metalness: 0.5, roughness: 0.2 }));
-    recycleTop.position.set(0, 115, 0); wasteZone.add(recycleTop);
-    const recycleRing = new THREE.Mesh(new THREE.TorusGeometry(80, 2, 8, 32), new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 2.5 }));
-    recycleRing.rotation.x = Math.PI / 2; recycleRing.position.set(0, 10, 0); wasteZone.add(recycleRing);
+    // 2. RECYCLING MACHINE
+    const recycleMachineGroup = new THREE.Group();
+    recycleMachineGroup.position.set(0, 5, -80);
+    wasteZone.add(recycleMachineGroup);
+    const recycleBody = new THREE.Mesh(new THREE.BoxGeometry(100, 90, 100), mat(0x1a8a4e, 0.4, 0.5));
+    recycleBody.position.y = 50; recycleMachineGroup.add(recycleBody);
+    const recycleHopper = new THREE.Mesh(new THREE.CylinderGeometry(35, 22, 25, 8), mat(0x2ecc71, 0.5, 0.4));
+    recycleHopper.position.y = 108; recycleMachineGroup.add(recycleHopper);
+    s.wasteRecycleGears = [];
+    for (let i = 0; i < 3; i++) {
+      const gear = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 4, 8), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.8, roughness: 0.2 }));
+      gear.rotation.x = Math.PI / 2; gear.position.set(-25 + i * 25, 50, 0);
+      recycleMachineGroup.add(gear); s.wasteRecycleGears.push(gear);
+    }
+    const outputBelt = new THREE.Mesh(new THREE.BoxGeometry(120, 2, 25), mat(0x2ecc71, 0.5, 0.4));
+    outputBelt.position.set(0, 10, 70); recycleMachineGroup.add(outputBelt);
+    for (let i = 0; i < 4; i++) {
+      const block = new THREE.Mesh(new THREE.BoxGeometry(12, 12, 12), new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 1.5 }));
+      block.position.set(-40 + i * 28, 18, 70); recycleMachineGroup.add(block);
+    }
+    board("RECYCLING PLANT", 3600, 5, 3600 - 180, 200, 14, 0x2ecc71);
+
+    // 3. BIOGAS PLANT
+    const biogasGroup = new THREE.Group();
+    biogasGroup.position.set(-280, 5, -80);
+    wasteZone.add(biogasGroup);
+    const digester = new THREE.Mesh(new THREE.SphereGeometry(50, 16, 12), mat(0x4a7a3a, 0.6, 0.3));
+    digester.position.y = 50; biogasGroup.add(digester);
+    const digesterCap = new THREE.Mesh(new THREE.CylinderGeometry(25, 32, 15, 12), mat(0x2a5a2a, 0.5, 0.4));
+    digesterCap.position.y = 100; biogasGroup.add(digesterCap);
+    const biogasFlame = new THREE.Mesh(new THREE.ConeGeometry(7, 22, 8), new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 5, transparent: true, opacity: 0.85 }));
+    biogasFlame.position.y = 122; biogasGroup.add(biogasFlame);
+    s.wasteBiogasFlame = biogasFlame;
+    const generator = new THREE.Mesh(new THREE.BoxGeometry(60, 45, 50), mat(0x5a5a6a, 0.4, 0.5));
+    generator.position.set(100, 27, 0); biogasGroup.add(generator);
+    const genCoil = new THREE.Mesh(new THREE.TorusGeometry(16, 2.5, 8, 16), new THREE.MeshStandardMaterial({ color: 0xffdd00, emissive: 0xffdd00, emissiveIntensity: 2 }));
+    genCoil.rotation.x = Math.PI / 2; genCoil.position.set(100, 52, 0);
+    biogasGroup.add(genCoil); s.wasteGeneratorCoil = genCoil;
+    board("BIOGAS PLANT", 3600 - 280, 5, 3600 - 180, 180, 14, 0x4a7a3a);
+
+    // 4. COMPOSTING PITS
+    const compostGroup = new THREE.Group();
+    compostGroup.position.set(280, 5, -80);
+    wasteZone.add(compostGroup);
+    for (let i = 0; i < 3; i++) {
+      const pit = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 10, 16), mat(0x5a3a1a, 0.9));
+      pit.position.set(-60 + i * 60, 8, 0); compostGroup.add(pit);
+      const compost = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, 6, 16), new THREE.MeshStandardMaterial({ color: 0x4a2a0a, roughness: 0.95 }));
+      compost.position.set(-60 + i * 60, 14, 0); compostGroup.add(compost);
+      const steam = new THREE.Mesh(new THREE.SphereGeometry(7, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }));
+      steam.position.set(-60 + i * 60, 28, 0);
+      compostGroup.add(steam); s.wasteSteamParticles.push(steam);
+    }
+    board("COMPOSTING", 3600 + 280, 5, 3600 - 180, 160, 12, 0x5a3a1a);
+
+    // 5. INCINERATOR (Safe Disposal)
+    const incineratorGroup = new THREE.Group();
+    incineratorGroup.position.set(0, 5, -280);
+    wasteZone.add(incineratorGroup);
+    const incBody = new THREE.Mesh(new THREE.CylinderGeometry(35, 35, 90, 16), mat(0x8a3a3a, 0.5, 0.4));
+    incBody.position.y = 50; incineratorGroup.add(incBody);
+    const incChimney = new THREE.Mesh(new THREE.CylinderGeometry(10, 13, 110, 12), mat(0x5a5a5a, 0.6, 0.3));
+    incChimney.position.set(0, 160, 0); incineratorGroup.add(incChimney);
+    for (let i = 0; i < 10; i++) {
+      const smoke = new THREE.Mesh(new THREE.SphereGeometry(7 + Math.random() * 4, 6, 6), new THREE.MeshStandardMaterial({ color: 0xcccccc, transparent: true, opacity: 0.4 }));
+      smoke.position.set((Math.random() - 0.5) * 15, 220 + i * 15, (Math.random() - 0.5) * 15);
+      incineratorGroup.add(smoke); s.wasteSmokeParticles.push(smoke);
+    }
+    board("SAFE DISPOSAL", 3600, 5, 3600 - 420, 180, 14, 0x8a3a3a);
 
     /* ===== TRUCKS ===== */
     function buildTruck(c1, c2, label, txtColor) {
@@ -1489,12 +1571,7 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     /* ===== CITY CARS ===== */
     const cityCars = []; s.cityCars = cityCars;
-    const carColors = [
-      0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8,
-      0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c,
-      0x1abc9c, 0x3498db, 0xe91e63, 0x9b59b6, 0xff5722, 0x00bcd4,
-      0x795548, 0x607d8b, 0xff9800, 0x3f51b5,
-    ];
+    const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c, 0x1abc9c, 0x3498db, 0xe91e63, 0x9b59b6, 0xff5722, 0x00bcd4, 0x795548, 0x607d8b, 0xff9800, 0x3f51b5];
     const V_LEN = 26, V_WID = 10, V_HGT = 5.5;
     const carBodyGeo = new THREE.BoxGeometry(V_LEN, V_HGT, V_WID);
     const carHoodGeo = new THREE.BoxGeometry(V_LEN * 0.25, V_HGT * 0.55, V_WID * 0.95);
@@ -1513,7 +1590,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const g = new THREE.Group();
       const bMat = mat(colorHex, 0.35, 0.5);
       const roofColor = [0x1a1a1a, 0x2a2a2a, 0x3a3a3a][Math.floor(Math.random() * 3)];
-
       if (style === "suv") {
         const body = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 1.1, V_HGT * 1.1, V_WID * 1.05), bMat); body.position.y = 4.4; g.add(body);
         const cabin = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.6, V_HGT * 1.1, V_WID * 0.92), carGlassMat); cabin.position.set(-1, 10, 0); g.add(cabin);
@@ -1534,7 +1610,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         const roof = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.35, 0.4, V_WID * 0.6), mat(roofColor, 0.5, 0.3));
         roof.position.set(-1, 12, 0); g.add(roof);
       }
-
       for (const wp of [[V_LEN * 0.32, V_WID * 0.48], [V_LEN * 0.32, -V_WID * 0.48], [-V_LEN * 0.32, V_WID * 0.48], [-V_LEN * 0.32, -V_WID * 0.48]]) {
         const w = new THREE.Mesh(carWheelGeo, wheelMat); w.rotation.x = Math.PI / 2; w.position.set(wp[0], 2.8, wp[1]); g.add(w);
         const h = new THREE.Mesh(carWheelHubGeo, hubMat); h.rotation.x = Math.PI / 2; h.position.set(wp[0], 2.8, wp[1]); g.add(h);
@@ -1547,36 +1622,20 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
 
     const LANE_OFFSET = 28;
-    const outerRoutePoints = [
-      { x: -2400, z: -2400 }, { x: 2400, z: -2400 }, { x: 2400, z: 2400 }, { x: -2400, z: 2400 }
-    ];
-    const midRoutePoints = [
-      { x: -1200, z: -1200 }, { x: 1200, z: -1200 }, { x: 1200, z: 1200 }, { x: -1200, z: 1200 }
-    ];
-    const innerRoutePoints = [
-      { x: -600, z: -600 }, { x: 600, z: -600 }, { x: 600, z: 600 }, { x: -600, z: 600 }
-    ];
+    const outerRoutePoints = [{ x: -2400, z: -2400 }, { x: 2400, z: -2400 }, { x: 2400, z: 2400 }, { x: -2400, z: 2400 }];
+    const midRoutePoints = [{ x: -1200, z: -1200 }, { x: 1200, z: -1200 }, { x: 1200, z: 1200 }, { x: -1200, z: 1200 }];
+    const innerRoutePoints = [{ x: -600, z: -600 }, { x: 600, z: -600 }, { x: 600, z: 600 }, { x: -600, z: 600 }];
 
     function createRoutePath(points, laneOffset) {
       const segments = [];
       for (let i = 0; i < points.length; i++) {
         const a = points[i];
         const b = points[(i + 1) % points.length];
-        const dx = b.x - a.x;
-        const dz = b.z - a.z;
+        const dx = b.x - a.x, dz = b.z - a.z;
         const len = Math.sqrt(dx * dx + dz * dz);
-        const nx = dx / len;
-        const nz = dz / len;
-        const perpX = -nz;
-        const perpZ = nx;
-        segments.push({
-          ax: a.x, az: a.z, bx: b.x, bz: b.z,
-          nx, nz, perpX, perpZ, len,
-          startX: a.x + perpX * laneOffset,
-          startZ: a.z + perpZ * laneOffset,
-          endX: b.x + perpX * laneOffset,
-          endZ: b.z + perpZ * laneOffset,
-        });
+        const nx = dx / len, nz = dz / len;
+        const perpX = -nz, perpZ = nx;
+        segments.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, nx, nz, perpX, perpZ, len, startX: a.x + perpX * laneOffset, startZ: a.z + perpZ * laneOffset, endX: b.x + perpX * laneOffset, endZ: b.z + perpZ * laneOffset });
       }
       return segments;
     }
@@ -1588,12 +1647,7 @@ const SmartCity3D = forwardRef((props, ref) => {
         const seg = segments[i];
         if (dist <= seg.len) {
           const t = dist / seg.len;
-          return {
-            x: seg.startX + (seg.endX - seg.startX) * t,
-            z: seg.startZ + (seg.endZ - seg.startZ) * t,
-            angle: Math.atan2(seg.nz, seg.nx),
-            seg,
-          };
+          return { x: seg.startX + (seg.endX - seg.startX) * t, z: seg.startZ + (seg.endZ - seg.startZ) * t, angle: Math.atan2(seg.nz, seg.nx), seg };
         }
         dist -= seg.len;
       }
@@ -1616,10 +1670,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       const p = getPointOnRoute(segments, progress);
       c.position.set(p.x, 5.2, p.z);
       c.rotation.y = direction > 0 ? -p.angle : -p.angle + Math.PI;
-      cityCars.push({
-        car: c, segments, progress, direction,
-        speed, baseSpeed: speed,
-      });
+      cityCars.push({ car: c, segments, progress, direction, speed, baseSpeed: speed });
     }
 
     for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCW, i / 16, 1, 0.025);
@@ -1641,7 +1692,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
 
     const intersectionCars = []; s.intersectionCars = intersectionCars;
-
     const ROAD_LANES = [
       { id: 1, dir: "north", axis: "z", sign: -1, xOffset: -30, startPos: -1000, endPos: 400 },
       { id: 2, dir: "south", axis: "z", sign: 1, xOffset: 30, startPos: 1000, endPos: -400 },
@@ -1654,17 +1704,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       const style = styleRoll < 0.6 ? "sedan" : (styleRoll < 0.85 ? "suv" : "sport");
       const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
       scene.add(car);
-      const carObj = {
-        car, roadId,
-        axis: lane.axis,
-        sign: lane.sign,
-        xOffset: lane.xOffset || 0,
-        zOffset: lane.zOffset || 0,
-        pos: startPos,
-        speed: 0.4 + Math.random() * 0.3,
-        baseSpeed: 0.4 + Math.random() * 0.3,
-        waiting: false,
-      };
+      const carObj = { car, roadId, axis: lane.axis, sign: lane.sign, xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0, pos: startPos, speed: 0.4 + Math.random() * 0.3, baseSpeed: 0.4 + Math.random() * 0.3, waiting: false };
       intersectionCars.push(carObj);
       updateIntersectionCarTransform(carObj);
     }
@@ -1690,39 +1730,20 @@ const SmartCity3D = forwardRef((props, ref) => {
       for (const c of intersectionCars) {
         const isGreen = aiSystem.isGreen(c.roadId);
         const isYellow = aiSystem.isYellowRoad(c.roadId);
-
-        const stopLinePos = c.axis === "z"
-          ? (c.sign < 0 ? 180 : -180)
-          : (c.sign < 0 ? -180 : 180);
-
+        const stopLinePos = c.axis === "z" ? (c.sign < 0 ? 180 : -180) : (c.sign < 0 ? -180 : 180);
         const distToStop = Math.abs(c.pos - stopLinePos);
-
         let targetSpeed = c.baseSpeed;
-
-        if (isYellow) {
-          targetSpeed = c.baseSpeed * 0.6;
-        } else if (!isGreen) {
-          if (distToStop < 60) {
-            targetSpeed = 0;
-            c.waiting = true;
-          } else if (distToStop < 180) {
-            targetSpeed = c.baseSpeed * 0.3;
-            c.waiting = false;
-          } else {
-            targetSpeed = c.baseSpeed * 0.7;
-            c.waiting = false;
-          }
-        } else {
-          c.waiting = false;
-        }
-
+        if (isYellow) targetSpeed = c.baseSpeed * 0.6;
+        else if (!isGreen) {
+          if (distToStop < 60) { targetSpeed = 0; c.waiting = true; }
+          else if (distToStop < 180) { targetSpeed = c.baseSpeed * 0.3; c.waiting = false; }
+          else { targetSpeed = c.baseSpeed * 0.7; c.waiting = false; }
+        } else c.waiting = false;
         c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 4);
         c.pos += c.sign * c.speed * delta * 60;
-
         const range = 1200;
         if (c.sign < 0 && c.pos < -range) c.pos = range;
         else if (c.sign > 0 && c.pos > range) c.pos = -range;
-
         updateIntersectionCarTransform(c);
       }
     }
@@ -1897,140 +1918,64 @@ const SmartCity3D = forwardRef((props, ref) => {
       ];
       crosswalks.forEach(cw => {
         for (let i = 0; i < 6; i++) {
-          const stripe = new THREE.Mesh(
-            new THREE.BoxGeometry(cw.horizontal ? 6 : cw.w - 10, 0.55, cw.horizontal ? cw.d - 10 : 6),
-            walkwayMat
-          );
+          const stripe = new THREE.Mesh(new THREE.BoxGeometry(cw.horizontal ? 6 : cw.w - 10, 0.55, cw.horizontal ? cw.d - 10 : 6), walkwayMat);
           const offset = (i - 2.5) * 10;
           if (cw.horizontal) stripe.position.set(cw.x + offset, 5.15, cw.z);
           else stripe.position.set(cw.x, 5.15, cw.z + offset);
           scene.add(stripe);
         }
       });
-
       const flowerBedMat = new THREE.MeshStandardMaterial({ color: 0x8b5a3c, roughness: 0.95 });
       const flowerColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0xffffff];
       const benchMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.85 });
       const benchLegMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6, metalness: 0.5 });
-
       function createPark(cx, cz, radius) {
-        const parkBase = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius, radius, 0.6, 32),
-          new THREE.MeshStandardMaterial({ color: 0x4a9d5a, roughness: 0.95 })
-        );
-        parkBase.position.set(cx, 4.55, cz);
-        scene.add(parkBase);
-
-        const bedRing = new THREE.Mesh(
-          new THREE.TorusGeometry(radius * 0.6, 4, 8, 32),
-          flowerBedMat
-        );
-        bedRing.rotation.x = Math.PI / 2;
-        bedRing.position.set(cx, 4.9, cz);
-        scene.add(bedRing);
-
+        const parkBase = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.6, 32), new THREE.MeshStandardMaterial({ color: 0x4a9d5a, roughness: 0.95 }));
+        parkBase.position.set(cx, 4.55, cz); scene.add(parkBase);
+        const bedRing = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.6, 4, 8, 32), flowerBedMat);
+        bedRing.rotation.x = Math.PI / 2; bedRing.position.set(cx, 4.9, cz); scene.add(bedRing);
         for (let i = 0; i < 20; i++) {
           const angle = (i / 20) * Math.PI * 2;
           const r = radius * 0.6 + (Math.random() - 0.5) * 12;
-          const flower = new THREE.Mesh(
-            new THREE.SphereGeometry(1.2, 6, 6),
-            new THREE.MeshStandardMaterial({
-              color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
-              emissive: 0x222222,
-              emissiveIntensity: 0.3,
-              roughness: 0.7,
-            })
-          );
-          flower.position.set(cx + Math.cos(angle) * r, 5.8, cz + Math.sin(angle) * r);
-          scene.add(flower);
+          const flower = new THREE.Mesh(new THREE.SphereGeometry(1.2, 6, 6), new THREE.MeshStandardMaterial({ color: flowerColors[Math.floor(Math.random() * flowerColors.length)], emissive: 0x222222, emissiveIntensity: 0.3, roughness: 0.7 }));
+          flower.position.set(cx + Math.cos(angle) * r, 5.8, cz + Math.sin(angle) * r); scene.add(flower);
         }
-
         for (let i = 0; i < 6; i++) {
           const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
           const tx = cx + Math.cos(angle) * (radius * 0.85);
           const tz = cz + Math.sin(angle) * (radius * 0.85);
           tree(tx, tz, 0.7 + Math.random() * 0.3);
         }
-
-        const fountainBase = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius * 0.25, radius * 0.3, 5, 24),
-          new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.6 })
-        );
-        fountainBase.position.set(cx, 6.5, cz);
-        scene.add(fountainBase);
-
-        const waterMat = new THREE.MeshStandardMaterial({
-          color: 0x22cfff,
-          emissive: 0x0a6a9a,
-          emissiveIntensity: 0.8,
-          transparent: true,
-          opacity: 0.75,
-          metalness: 0.4,
-          roughness: 0.1,
-        });
-        const water = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius * 0.22, radius * 0.22, 1, 24),
-          waterMat
-        );
-        water.position.set(cx, 8.8, cz);
-        scene.add(water);
-
+        const fountainBase = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.25, radius * 0.3, 5, 24), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.6 }));
+        fountainBase.position.set(cx, 6.5, cz); scene.add(fountainBase);
+        const waterMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x0a6a9a, emissiveIntensity: 0.8, transparent: true, opacity: 0.75, metalness: 0.4, roughness: 0.1 });
+        const water = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.22, radius * 0.22, 1, 24), waterMat);
+        water.position.set(cx, 8.8, cz); scene.add(water);
         for (let i = 0; i < 4; i++) {
           const angle = (i / 4) * Math.PI * 2;
           const bx = cx + Math.cos(angle) * (radius * 0.45);
           const bz = cz + Math.sin(angle) * (radius * 0.45);
           const bench = new THREE.Group();
-          bench.position.set(bx, 5, bz);
-          bench.rotation.y = -angle;
-
-          const seat = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 4), benchMat);
-          seat.position.y = 2.5;
-          bench.add(seat);
-
-          const back = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 0.5), benchMat);
-          back.position.set(0, 4.5, -1.8);
-          bench.add(back);
-
+          bench.position.set(bx, 5, bz); bench.rotation.y = -angle;
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 4), benchMat); seat.position.y = 2.5; bench.add(seat);
+          const back = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 0.5), benchMat); back.position.set(0, 4.5, -1.8); bench.add(back);
           for (const lx of [-5, 5]) {
-            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), benchLegMat);
-            leg.position.set(lx, 1.25, 0);
-            bench.add(leg);
+            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), benchLegMat); leg.position.set(lx, 1.25, 0); bench.add(leg);
           }
-
           scene.add(bench);
         }
       }
-
       createPark(-1800, -600, 180);
       createPark(1200, 1800, 150);
       createPark(-1500, 1300, 160);
       createPark(300, -1800, 150);
       createPark(-900, -1700, 140);
       createPark(1800, -1500, 160);
-
       function createPond(cx, cz, radius) {
-        const pondBase = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius, radius * 1.1, 0.4, 24),
-          new THREE.MeshStandardMaterial({ color: 0x3a7a3a, roughness: 0.95 })
-        );
-        pondBase.position.set(cx, 4.5, cz);
-        scene.add(pondBase);
-
-        const water = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius * 0.85, radius * 0.85, 0.6, 24),
-          new THREE.MeshStandardMaterial({
-            color: 0x2d8fb5,
-            emissive: 0x0a3a52,
-            emissiveIntensity: 0.5,
-            transparent: true,
-            opacity: 0.88,
-            metalness: 0.3,
-            roughness: 0.1,
-          })
-        );
-        water.position.set(cx, 4.8, cz);
-        scene.add(water);
-
+        const pondBase = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.1, 0.4, 24), new THREE.MeshStandardMaterial({ color: 0x3a7a3a, roughness: 0.95 }));
+        pondBase.position.set(cx, 4.5, cz); scene.add(pondBase);
+        const water = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.85, radius * 0.85, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0x2d8fb5, emissive: 0x0a3a52, emissiveIntensity: 0.5, transparent: true, opacity: 0.88, metalness: 0.3, roughness: 0.1 }));
+        water.position.set(cx, 4.8, cz); scene.add(water);
         for (let i = 0; i < 8; i++) {
           const angle = (i / 8) * Math.PI * 2;
           const r = radius + 15 + Math.random() * 20;
@@ -2039,86 +1984,53 @@ const SmartCity3D = forwardRef((props, ref) => {
           if (!isOnRoad(tx, tz)) tree(tx, tz, 0.6 + Math.random() * 0.3);
         }
       }
-
       createPond(-2400, 2400, 90);
       createPond(2700, 1300, 80);
       createPond(-2200, -1800, 95);
       createPond(2200, -2400, 85);
-
       const pavilionMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.2, metalness: 0.7, roughness: 0.2 });
       const pavilionGlass = new THREE.MeshStandardMaterial({ color: 0x9edcf5, transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.3 });
-
       function createPavilion(cx, cz) {
         const pavilion = new THREE.Group();
         pavilion.position.set(cx, 5, cz);
-
         const base = new THREE.Mesh(new THREE.CylinderGeometry(28, 30, 2, 16), new THREE.MeshStandardMaterial({ color: 0xb8bcc0, roughness: 0.9 }));
-        base.position.y = 1;
-        pavilion.add(base);
-
+        base.position.y = 1; pavilion.add(base);
         for (let i = 0; i < 6; i++) {
           const angle = (i / 6) * Math.PI * 2;
           const px = Math.cos(angle) * 22;
           const pz = Math.sin(angle) * 22;
           const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 22, 8), pavilionMat);
-          pillar.position.set(px, 12, pz);
-          pavilion.add(pillar);
+          pillar.position.set(px, 12, pz); pavilion.add(pillar);
         }
-
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(32, 18, 16), pavilionMat);
-        roof.position.y = 32;
-        pavilion.add(roof);
-
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(32, 18, 16), pavilionMat); roof.position.y = 32; pavilion.add(roof);
         const glassDome = new THREE.Mesh(new THREE.SphereGeometry(24, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), pavilionGlass);
-        glassDome.position.y = 22;
-        pavilion.add(glassDome);
-
+        glassDome.position.y = 22; pavilion.add(glassDome);
         scene.add(pavilion);
       }
-
       createPavilion(0, -1800);
       createPavilion(1800, 0);
       createPavilion(-1800, -1800);
       createPavilion(0, 800);
-
       const smartPoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.4, metalness: 0.7 });
       const smartGlowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3 });
-
       function smartPole(x, z) {
-        const g = new THREE.Group();
-        g.position.set(x, 5, z);
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 18, 6), smartPoleMat);
-        pole.position.y = 9;
-        g.add(pole);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.4, 6, 16), smartGlowMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = 18;
-        g.add(ring);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 10), smartGlowMat);
-        cap.position.y = 19;
-        g.add(cap);
+        const g = new THREE.Group(); g.position.set(x, 5, z);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 18, 6), smartPoleMat); pole.position.y = 9; g.add(pole);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.4, 6, 16), smartGlowMat); ring.rotation.x = Math.PI / 2; ring.position.y = 18; g.add(ring);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 10), smartGlowMat); cap.position.y = 19; g.add(cap);
         scene.add(g);
       }
-
       for (let x = -3600; x <= 3600; x += 400) {
-        if (Math.abs(x) > 200) {
-          smartPole(x, -800);
-          smartPole(x, 800);
-        }
+        if (Math.abs(x) > 200) { smartPole(x, -800); smartPole(x, 800); }
       }
     }
-
     addLandscaping();
 
     const sim = createCitySimulation({ onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason });
     s.sim = sim;
-
-    const aiSystem = createAITrafficSystem({
-      onTrafficUpdate: (data) => onAITrafficUpdate?.(data),
-    });
+    const aiSystem = createAITrafficSystem({ onTrafficUpdate: (data) => onAITrafficUpdate?.(data) });
     s.aiSystem = aiSystem;
 
-    /* ===== TRUCK ROUTES ===== */
     const garbageRoute = [
       [-1200, -1200], [0, -1200], [1200, -1200], [1200, 0], [1200, 1200],
       [900, 1400], [600, 1800], [600, 2400], [1200, 2400], [2400, 2400],
@@ -2170,6 +2082,12 @@ const SmartCity3D = forwardRef((props, ref) => {
           let title = item.name || "Location";
           let type = "INFO";
           let text = "Details available.";
+          if (item.type === "filtrationStage") {
+            const stage = FILTRATION_STAGES[item.stageIndex];
+            const purityAtStage = ((item.stageIndex + 1) / FILTRATION_STAGES.length) * 100;
+            text = `Water purity at this stage: ${Math.round(purityAtStage)}%. Duration: ${stage.duration}s.`;
+            type = `STAGE ${item.stageIndex + 1} OF 9`;
+          }
           onPanel({ title, type, text });
           return;
         }
@@ -2200,13 +2118,9 @@ const SmartCity3D = forwardRef((props, ref) => {
         l.r.material.emissiveIntensity = 0;
         l.y.material.emissiveIntensity = 0;
         l.gr.material.emissiveIntensity = 0;
-        if (aiSystem.isGreen(l.road)) {
-          l.gr.material.emissiveIntensity = 4.5;
-        } else if (aiSystem.isYellowRoad(l.road)) {
-          l.y.material.emissiveIntensity = 5;
-        } else {
-          l.r.material.emissiveIntensity = 4.5;
-        }
+        if (aiSystem.isGreen(l.road)) l.gr.material.emissiveIntensity = 4.5;
+        else if (aiSystem.isYellowRoad(l.road)) l.y.material.emissiveIntensity = 5;
+        else l.r.material.emissiveIntensity = 4.5;
       }
 
       for (const p of people) {
@@ -2271,55 +2185,49 @@ const SmartCity3D = forwardRef((props, ref) => {
       controllerRing2.rotation.z = -t * 0.4;
       controllerSig.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
 
-      /* =====================================================================
-         FILTRATION ANIMATION (staged sequence)
-         ===================================================================== */
+      /* ===== FILTRATION ANIMATION ===== */
       s.filtrationStageElapsed += delta;
       const currentStage = FILTRATION_STAGES[s.filtrationStageIndex];
       if (s.filtrationStageElapsed >= currentStage.duration) {
         s.filtrationStageElapsed = 0;
         s.filtrationStageIndex = (s.filtrationStageIndex + 1) % FILTRATION_STAGES.length;
-        onFiltrationUpdate?.({
-          stageIndex: s.filtrationStageIndex,
-          stage: FILTRATION_STAGES[s.filtrationStageIndex],
-          allStages: FILTRATION_STAGES,
-        });
-      } else {
-        // Emit progress on each frame (throttled by parent if needed)
-        if (fc % 4 === 0) {
-          onFiltrationUpdate?.({
-            stageIndex: s.filtrationStageIndex,
-            stage: currentStage,
-            allStages: FILTRATION_STAGES,
-            progress: s.filtrationStageElapsed / currentStage.duration,
-          });
-        }
+        onFiltrationUpdate?.({ stageIndex: s.filtrationStageIndex, stage: FILTRATION_STAGES[s.filtrationStageIndex], allStages: FILTRATION_STAGES, progress: 0 });
+      } else if (fc % 4 === 0) {
+        onFiltrationUpdate?.({ stageIndex: s.filtrationStageIndex, stage: currentStage, allStages: FILTRATION_STAGES, progress: s.filtrationStageElapsed / currentStage.duration });
       }
 
-      // Animate stage meshes: active stage pulses & fills, others dim
       for (let i = 0; i < s.filtrationStageMeshes.length; i++) {
         const sm = s.filtrationStageMeshes[i];
         const isActive = i === s.filtrationStageIndex;
-        const stageColor = FILTRATION_STAGES[i].color;
+        const isPast = i < s.filtrationStageIndex;
         if (isActive) {
           sm.tankBody.material.emissiveIntensity = 1.2 + Math.sin(t * 4) * 0.6;
           sm.tankCap.material.emissiveIntensity = 1.2 + Math.sin(t * 4) * 0.6;
-          sm.waterFill.material.color.setHex(0x22cfff);
-          sm.waterFill.material.emissive.setHex(0x22cfff);
+          sm.waterFill.material.color.setHex(STAGE_WATER_COLORS[i]);
+          sm.waterFill.material.emissive.setHex(STAGE_WATER_COLORS[i]);
           sm.waterFill.material.emissiveIntensity = 2.0 + Math.sin(t * 5) * 0.8;
           const fillH = 30 + Math.sin(t * 2.5) * 10;
-          sm.waterFill.scale.y = fillH / 1;
+          sm.waterFill.scale.y = fillH;
           sm.waterFill.position.y = sm.baseY + fillH / 2;
+        } else if (isPast) {
+          sm.tankBody.material.emissiveIntensity = 0.4;
+          sm.tankCap.material.emissiveIntensity = 0.4;
+          sm.waterFill.material.color.setHex(0x22cfff);
+          sm.waterFill.material.emissive.setHex(0x22cfff);
+          sm.waterFill.material.emissiveIntensity = 1.5;
+          sm.waterFill.scale.y = 8;
+          sm.waterFill.position.y = sm.baseY + 4;
         } else {
           sm.tankBody.material.emissiveIntensity = 0.25;
           sm.tankCap.material.emissiveIntensity = 0.25;
-          sm.waterFill.material.emissiveIntensity = 0.5;
+          sm.waterFill.material.color.setHex(0x4a2a1a);
+          sm.waterFill.material.emissive.setHex(0x2a1a0a);
+          sm.waterFill.material.emissiveIntensity = 0.3;
           sm.waterFill.scale.y = 8;
           sm.waterFill.position.y = sm.baseY + 4;
         }
       }
 
-      // Animate flow dots along pipes
       for (const flow of s.filtrationFlowMeshes) {
         const phase = (t * 0.6 + flow.phase) % 1;
         const fx = flow.from.x + (flow.to.x - flow.from.x) * phase;
@@ -2329,13 +2237,38 @@ const SmartCity3D = forwardRef((props, ref) => {
         flow.dot.material.emissiveIntensity = active ? 4 : 1;
       }
 
-      // UV light pulse
-      if (s.filtrationUVLight) {
-        const uvActive = FILTRATION_STAGES[s.filtrationStageIndex]?.id === "uv";
-        s.filtrationUVLight.intensity = uvActive ? 4 + Math.sin(t * 8) * 2 : 0.5;
+      for (const stageBubbles of s.filtrationBubbles) {
+        const isActive = stageBubbles.stageIndex === s.filtrationStageIndex;
+        for (const bubble of stageBubbles.bubbles) {
+          bubble.visible = isActive;
+          if (isActive) {
+            bubble.position.y += bubble.userData.speed * delta;
+            if (bubble.position.y > 45) {
+              bubble.position.y = 8;
+              bubble.position.x = bubble.userData.baseX + (Math.random() - 0.5) * 10;
+              bubble.position.z = bubble.userData.baseZ + (Math.random() - 0.5) * 10;
+            }
+          }
+        }
       }
 
-      // Reservoir water level rises during storage/recycling stages
+      const isUVStage = FILTRATION_STAGES[s.filtrationStageIndex]?.id === "uv";
+      if (s.filtrationUVLight) s.filtrationUVLight.intensity = isUVStage ? 4 + Math.sin(t * 8) * 2 : 0;
+      if (s.filtrationUVBulb) s.filtrationUVBulb.material.emissiveIntensity = isUVStage ? 5 + Math.sin(t * 10) * 2 : 0.5;
+      for (const ray of s.filtrationUVRays) {
+        ray.rotation.y += delta * 2;
+        ray.material.opacity = isUVStage ? 0.6 : 0.1;
+      }
+
+      for (const p of s.dirtyWaterParticles) {
+        p.position.x += p.userData.speed * delta;
+        if (p.position.x > -350) { p.position.x = -550; p.position.z = (Math.random() - 0.5) * 10; }
+      }
+      for (const p of s.cleanWaterParticles) {
+        p.position.x += p.userData.speed * delta;
+        if (p.position.x > 550) { p.position.x = 350; p.position.z = (Math.random() - 0.5) * 10; }
+      }
+
       if (s.filtrationCleanReservoir) {
         const stageId = FILTRATION_STAGES[s.filtrationStageIndex]?.id;
         const isFilling = stageId === "storage" || stageId === "recycling";
@@ -2344,12 +2277,45 @@ const SmartCity3D = forwardRef((props, ref) => {
         s.filtrationCleanReservoir.resWater.material.emissiveIntensity = isFilling ? 2.2 + Math.sin(t * 4) * 0.6 : 1.2;
       }
 
-      // Pulsing rings around filtration zone
       for (const ring of s.filtrationPumpRings) {
         const phase = (t * 0.5 + ring.userData.phase) % 2;
-        const scale = 1 + phase * 0.4;
-        ring.scale.setScalar(scale);
+        ring.scale.setScalar(1 + phase * 0.4);
         ring.material.opacity = Math.max(0, 0.7 - phase * 0.35);
+      }
+
+      /* ===== WASTE ANIMATION ===== */
+      s.wasteStageElapsed += delta;
+      const currentWasteStage = WASTE_STAGES[s.wasteStageIndex];
+      if (s.wasteStageElapsed >= currentWasteStage.duration) {
+        s.wasteStageElapsed = 0;
+        s.wasteStageIndex = (s.wasteStageIndex + 1) % WASTE_STAGES.length;
+        onWasteUpdate?.({ stageIndex: s.wasteStageIndex, stage: WASTE_STAGES[s.wasteStageIndex], allStages: WASTE_STAGES, progress: 0 });
+      } else if (fc % 4 === 0) {
+        onWasteUpdate?.({ stageIndex: s.wasteStageIndex, stage: currentWasteStage, allStages: WASTE_STAGES, progress: s.wasteStageElapsed / currentWasteStage.duration });
+      }
+
+      for (const item of s.wasteConveyorItems) {
+        item.position.x += item.userData.speed * delta * 30;
+        if (item.position.x > item.userData.beltX + 70) item.position.x = item.userData.beltX - 70;
+        item.position.y = 18 + Math.sin(t * 5 + item.userData.offset) * 2;
+      }
+      for (const gear of s.wasteRecycleGears) gear.rotation.z += delta * 2;
+      if (s.wasteBiogasFlame) {
+        s.wasteBiogasFlame.scale.y = 1 + Math.sin(t * 8) * 0.3;
+        s.wasteBiogasFlame.material.emissiveIntensity = 4 + Math.sin(t * 8) * 2;
+      }
+      if (s.wasteGeneratorCoil) s.wasteGeneratorCoil.rotation.z += delta * 5;
+      for (const steam of s.wasteSteamParticles) {
+        steam.position.y += delta * 5;
+        steam.scale.setScalar(1 + (steam.position.y - 28) * 0.02);
+        steam.material.opacity = Math.max(0, 0.3 - (steam.position.y - 28) * 0.005);
+        if (steam.position.y > 50) { steam.position.y = 28; steam.scale.setScalar(1); steam.material.opacity = 0.3; }
+      }
+      for (const smoke of s.wasteSmokeParticles) {
+        smoke.position.y += delta * 8;
+        smoke.scale.setScalar(1 + (smoke.position.y - 220) * 0.01);
+        smoke.material.opacity = Math.max(0, 0.4 - (smoke.position.y - 220) * 0.003);
+        if (smoke.position.y > 400) { smoke.position.y = 220; smoke.scale.setScalar(1); smoke.material.opacity = 0.4; }
       }
 
       if (s.camTransition) {
@@ -2395,21 +2361,12 @@ const SmartCity3D = forwardRef((props, ref) => {
       <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />
       {locationPopup && (
         <div style={{
-          position: "fixed",
-          bottom: 24,
-          left: "50%",
-          transform: "translateX(-50%)",
+          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
           background: "linear-gradient(135deg, rgba(8, 20, 35, 0.95), rgba(15, 35, 55, 0.95))",
-          border: "2px solid #22cfff",
-          borderRadius: 16,
-          padding: "18px 28px",
-          color: "#fff",
-          fontFamily: "system-ui, -apple-system, sans-serif",
+          border: "2px solid #22cfff", borderRadius: 16, padding: "18px 28px",
+          color: "#fff", fontFamily: "system-ui, -apple-system, sans-serif",
           boxShadow: "0 0 40px rgba(34, 207, 255, 0.5), inset 0 0 20px rgba(34, 207, 255, 0.1)",
-          zIndex: 9999,
-          minWidth: 420,
-          maxWidth: 600,
-          backdropFilter: "blur(12px)",
+          zIndex: 9999, minWidth: 420, maxWidth: 600, backdropFilter: "blur(12px)",
           animation: "slideUp 0.4s ease-out",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
@@ -2423,14 +2380,9 @@ const SmartCity3D = forwardRef((props, ref) => {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {locationPopup.stats.map((stat, i) => (
               <div key={i} style={{
-                background: "rgba(34, 207, 255, 0.1)",
-                border: "1px solid rgba(34, 207, 255, 0.3)",
-                borderRadius: 8,
-                padding: "8px 12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                fontSize: 12,
+                background: "rgba(34, 207, 255, 0.1)", border: "1px solid rgba(34, 207, 255, 0.3)",
+                borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between",
+                alignItems: "center", fontSize: 12,
               }}>
                 <span style={{ color: "#8fd8f0" }}>{stat[0]}</span>
                 <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
