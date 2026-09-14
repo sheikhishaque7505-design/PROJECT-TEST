@@ -20,6 +20,21 @@ export default function App() {
     incident: "<span>LIVE:</span> Traffic flowing normally",
   });
 
+  <SmartCity3D
+  ref={cityRef}
+  onPanel={setPanel}
+  onTrafficUpdate={setTraffic}
+  onSimTime={setSimTime}
+  onCycleUpdate={setCycle}
+  onAiMessage={setAiMsg}
+  onAiReason={setAiReason}
+  onTouristMessage={setTouristMsg}
+  onAITrafficUpdate={setAITraffic}
+  onFiltrationUpdate={({ stageIndex, stage, allStages, progress }) => {
+    setFiltrationStage({ stageIndex, stage, allStages, progress });
+  }}
+/>
+
   const [aiTraffic, setAiTraffic] = useState({
     phase: 1,
     inYellow: false,
