@@ -238,7 +238,7 @@ export default function App() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PANEL
+   PANEL — Detailed popup
    ═══════════════════════════════════════════════════════════════ */
 function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }) {
   const content = getPanelContent(data, aiTraffic, powerData, filtrationData, foodData);
@@ -250,7 +250,10 @@ function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }
         onClick={(e) => e.stopPropagation()}
         style={{ "--accent": content.color }}
       >
-        <div className="panel-header" style={{ background: content.headerBg }}>
+        <div
+          className="panel-header"
+          style={{ background: content.headerBg }}
+        >
           <div className="panel-icon">{content.icon}</div>
           <div className="panel-title-group">
             <div className="panel-title">{content.title}</div>
@@ -481,6 +484,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
       { name: "Water Recycling", color: "#2ecc71", desc: "82% returned to city" },
     ];
     const current = filtrationData?.stage;
+    const stageIdx = filtrationData?.stageIndex ?? 0;
 
     return {
       icon: "💧",
@@ -520,8 +524,8 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             <div className="p-label">PURIFICATION PIPELINE</div>
             <div className="pipeline">
               {stages.map((s, i) => {
-                const isCurrent = current && i === filtrationData.stageIndex;
-                const isPast = current && i < filtrationData.stageIndex;
+                const isCurrent = i === stageIdx;
+                const isPast = i < stageIdx;
                 return (
                   <div key={i} className="pipe-stage">
                     <div
@@ -567,7 +571,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     };
   }
 
-  /* ═══════════════ FOOD — DETAILED (AI Traffic jaise) ═══════════════ */
+  /* ═══════════════ FOOD — DETAILED ═══════════════ */
   if (type === "food") {
     const currentStage = foodData?.stage;
     const stageIdx = foodData?.stageIndex ?? 0;
@@ -575,21 +579,21 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
 
     const stages = [
       { id: "planting", label: "Smart Planting", color: "#2ecc71", icon: "🌱", desc: "9 fields · AI seed placement" },
-      { id: "irrigation", label: "Smart Irrigation", color: "#22cfff", icon: "💧", desc: "Sprinklers active · 68% moisture" },
-      { id: "monitoring", label: "Drone Monitoring", color: "#ffcc22", icon: "🛸", desc: "3 drones scanning · 94% health" },
+      { id: "irrigation", label: "Smart Irrigation", color: "#22cfff", icon: "💧", desc: "Sprinklers · 68% moisture" },
+      { id: "monitoring", label: "Drone Monitoring", color: "#ffcc22", icon: "🛸", desc: "3 drones · 94% crop health" },
       { id: "harvest", label: "Robotic Harvest", color: "#e67e22", icon: "🚜", desc: "Auto-harvesters collecting" },
       { id: "processing", label: "Food Processing", color: "#9b59b6", icon: "🏭", desc: "Washing · cutting · packing" },
       { id: "distribution", label: "City Distribution", color: "#ff6b6b", icon: "🚚", desc: "48 deliveries daily" },
     ];
 
-    // Live stats that change per stage
+    // Live stats per stage
     const stageStats = {
-      planting: { fields: "9", seeds: "720", aiScore: "98%", temp: "24°C" },
-      irrigation: { moisture: "68%", waterUse: "12K L", pressure: "2.4 bar", temp: "23°C" },
-      monitoring: { drones: "3", cropHealth: "94%", coverage: "100%", temp: "25°C" },
-      harvest: { yield: "2.4 T", efficiency: "91%", trucks: "2", temp: "22°C" },
-      processing: { items: "1,240", quality: "98%", speed: "180/min", temp: "18°C" },
-      distribution: { deliveries: "48", cities: "12", onTime: "99%", temp: "4°C" },
+      planting: { Fields: "9", Seeds: "720", "AI Score": "98%", Temp: "24°C" },
+      irrigation: { Moisture: "68%", "Water Use": "12K L", Pressure: "2.4 bar", Temp: "23°C" },
+      monitoring: { Drones: "3", "Crop Health": "94%", Coverage: "100%", Temp: "25°C" },
+      harvest: { Yield: "2.4 T", Efficiency: "91%", Trucks: "2", Temp: "22°C" },
+      processing: { Items: "1,240", Quality: "98%", Speed: "180/min", Temp: "18°C" },
+      distribution: { Deliveries: "48", Cities: "12", "On Time": "99%", Temp: "4°C" },
     };
     const stats = stageStats[currentStage?.id] || stageStats.planting;
 
@@ -601,7 +605,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
       headerBg: "linear-gradient(135deg, #0a3a1e, #041a0e)",
       body: (
         <>
-          {/* CURRENT STAGE */}
           <div className="p-section">
             <div className="p-label">CURRENT STAGE</div>
             <div className="p-big" style={{ color: "#2ecc71" }}>
@@ -623,7 +626,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             </div>
           </div>
 
-          {/* PIPELINE */}
           <div className="p-section">
             <div className="p-label">PRODUCTION PIPELINE</div>
             <div className="pipeline">
@@ -667,22 +669,15 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             </div>
           </div>
 
-          {/* LIVE STAGE STATS */}
           <div className="p-section">
             <div className="p-label">LIVE STAGE METRICS</div>
             <div className="stats-grid">
               {Object.entries(stats).map(([k, v]) => (
-                <StatCard
-                  key={k}
-                  label={k.replace(/([A-Z])/g, " $1").trim()}
-                  value={v}
-                  color="#2ecc71"
-                />
+                <StatCard key={k} label={k} value={v} color="#2ecc71" />
               ))}
             </div>
           </div>
 
-          {/* FIELD STATUS (9 fields) */}
           <div className="p-section">
             <div className="p-label">FIELD STATUS — 9 FIELDS</div>
             <div className="field-grid">
@@ -707,7 +702,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             </div>
           </div>
 
-          {/* MACHINERY STATUS */}
           <div className="p-section">
             <div className="p-label">MACHINERY STATUS</div>
             <div className="machinery-list">
@@ -744,7 +738,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             </div>
           </div>
 
-          {/* SENSOR READINGS */}
           <div className="p-section">
             <div className="p-label">ENVIRONMENTAL SENSORS</div>
             <div className="sensor-row">
@@ -767,7 +760,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             </div>
           </div>
 
-          {/* DAILY TOTALS */}
           <div className="p-section">
             <div className="p-label">DAILY TOTALS</div>
             <div className="stats-grid">
