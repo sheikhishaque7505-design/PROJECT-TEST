@@ -8,7 +8,7 @@ const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
 const CAR_Y = 5.0;
 
-/* ===================== FILTRATION / POWER / FOOD STAGES ===================== */
+/* ===================== STAGES ===================== */
 const FILTRATION_STAGES = [
   { id: "wastewater", label: "Wastewater Collection", color: 0x6b4a2f, duration: 5, desc: "Raw sewage intake" },
   { id: "primary", label: "Primary Filtration", color: 0x8a7a4a, duration: 5, desc: "Screens remove solids" },
@@ -228,7 +228,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const container = mountRef.current;
     if (!container) return;
 
-    /* ---------- SCENE / CAMERA / RENDERER ---------- */
+    /* ---------- SCENE ---------- */
     const scene = new THREE.Scene();
     s.scene = scene;
     scene.background = new THREE.Color(0x8fbcd4);
@@ -266,7 +266,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     fill.position.set(800, 1000, -500);
     scene.add(fill);
 
-    /* ---------- MATERIAL HELPERS ---------- */
+    /* ---------- MATERIALS ---------- */
     const mat = (c, r = 0.8, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
     const grassMaterial = mat(0x4d8f50, 0.98);
     const roadMaterial = mat(0x2a3238, 0.96);
@@ -341,7 +341,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       const s2 = s1.clone(); s2.position.z = z - ROAD_HALF - 10; scene.add(s2);
     });
 
-    /* ---------- CITY WALL ---------- */
+    /* ---------- WALL ---------- */
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a6670, roughness: 0.85, metalness: 0.15 });
     const wallH = 100, wallT = 25;
     const wallLen = CITY_HALF * 2 + wallT * 2;
@@ -372,7 +372,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
     });
 
-    /* ---------- TRAFFIC LIGHTS (BLINKING) ---------- */
+    /* ---------- TRAFFIC LIGHTS ---------- */
     s.intersectionLights = [];
     function makeTrafficLight(x, z, road, faceAngle) {
       const g = new THREE.Group();
@@ -425,7 +425,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     makeTrafficLight(110, -110, 3, Math.PI * 3 / 4);
     makeTrafficLight(-110, 110, 4, -Math.PI / 4);
 
-    /* ---------- AI CONTROL TOWER ---------- */
+    /* ---------- AI TOWER ---------- */
     s.controller = new THREE.Group();
     s.controller.position.set(0, 5, 0);
 
@@ -482,7 +482,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     scene.add(s.controller);
     s.clickable.push({ object: s.controller, type: "traffic", name: "AI Traffic Control Center" });
 
-    /* ---------- BUILDING OCCUPANCY ---------- */
+    /* ---------- OCCUPANCY ---------- */
     const occupied = [
       { x: -600, z: -600, r: 260 }, { x: 600, z: -600, r: 250 },
       { x: 600, z: 600, r: 300 }, { x: 1800, z: -600, r: 400 },
@@ -525,7 +525,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       tree(x, z, 0.8 + Math.random() * 0.6);
     }
 
-    /* ---------- GLB BUILDINGS ---------- */
+    /* ---------- BUILDINGS ---------- */
     const loader = new GLTFLoader();
 
     function prep(obj, size) {
@@ -709,7 +709,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       s.powerRings.push(r);
     });
 
-    /* ---------- FILTRATION ZONE ---------- */
+    /* ---------- FILTRATION ---------- */
     const filtZone = new THREE.Group();
     filtZone.position.set(3600, 5, -3600);
     scene.add(filtZone);
@@ -834,7 +834,14 @@ const SmartCity3D = forwardRef((props, ref) => {
       s.foodConveyorItems.push(box);
     }
 
-    /* ---------- CARS — LIMITED, STRAIGHT, NO OVERLAP ---------- */
+    /* ============================================================
+       CARS — FIXED DIRECTION
+       Model faces +X by default.
+       +X (East)  → rotation.y = 0
+       -X (West)  → rotation.y = π
+       +Z (North) → rotation.y = -π/2
+       -Z (South) → rotation.y = +π/2
+       ============================================================ */
     s.cars = [];
     const carColors = [
       0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65,
@@ -880,25 +887,43 @@ const SmartCity3D = forwardRef((props, ref) => {
     const STOP_DIST = 130;
     const CAR_GAP = 90;
 
+    /* 8 lanes — 2 per direction */
     const LANES = [
+      // North-bound (Z+, west side of road)
       { id: "N1", axis: "z", dir: 1, fixed: -30, road: 1, start: -3600, end: 3600 },
       { id: "N2", axis: "z", dir: 1, fixed: -65, road: 1, start: -3600, end: 3600 },
+      // South-bound (Z-, east side)
       { id: "S1", axis: "z", dir: -1, fixed: 30, road: 2, start: 3600, end: -3600 },
       { id: "S2", axis: "z", dir: -1, fixed: 65, road: 2, start: 3600, end: -3600 },
+      // East-bound (X+, south side)
       { id: "E1", axis: "x", dir: 1, fixed: 30, road: 3, start: -3600, end: 3600 },
       { id: "E2", axis: "x", dir: 1, fixed: 65, road: 3, start: -3600, end: 3600 },
+      // West-bound (X-, north side)
       { id: "W1", axis: "x", dir: -1, fixed: -30, road: 4, start: 3600, end: -3600 },
       { id: "W2", axis: "x", dir: -1, fixed: -65, road: 4, start: 3600, end: -3600 },
     ];
 
+    /* ═══════════════════════════════════════════════════════════
+       ★★★ FIXED: CARS FACE THE CORRECT DIRECTION ★★★
+       Car model's front is at +X (rot.y = 0).
+       
+       • Moving +X (East)     → rotation.y = 0
+       • Moving -X (West)     → rotation.y = Math.PI
+       • Moving +Z (North)    → rotation.y = -Math.PI / 2
+       • Moving -Z (South)    → rotation.y = Math.PI / 2
+       ═══════════════════════════════════════════════════════════ */
     function updateCarTransform(c) {
       const { lane, pos } = c;
       if (lane.axis === "z") {
         c.car.position.set(lane.fixed, CAR_Y, pos);
-        c.car.rotation.y = lane.dir > 0 ? 0 : Math.PI;
+        // +Z North: rotate -90° → car's +X front points to +Z
+        // -Z South: rotate +90° → car's +X front points to -Z
+        c.car.rotation.y = lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
       } else {
         c.car.position.set(pos, CAR_Y, lane.fixed);
-        c.car.rotation.y = lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+        // +X East: no rotation
+        // -X West: rotate 180°
+        c.car.rotation.y = lane.dir > 0 ? 0 : Math.PI;
       }
     }
 
@@ -1008,7 +1033,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       try {
         s.aiSystem.tick(delta);
 
-        // Group cars by lane
+        // Cars — grouped by lane, no overlap
         const byLane = {};
         for (const c of s.cars) {
           if (!byLane[c.lane.id]) byLane[c.lane.id] = [];
@@ -1058,7 +1083,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           }
         }
 
-        // Traffic lights
+        // Traffic lights — blink
         const blinkFast = Math.floor(t * 4) % 2 === 0;
         const blinkMed = Math.floor(t * 2) % 2 === 0;
         for (const l of s.intersectionLights) {
@@ -1183,7 +1208,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           s.foodCropMeshes[i].rotation.y = Math.sin(t * 2 + i) * 0.15;
         }
 
-        // Camera transition
+        // Camera
         if (s.camTransition && s.camera && s.controls) {
           const now = performance.now();
           const elapsed = now - s.camTransition.startTime;
