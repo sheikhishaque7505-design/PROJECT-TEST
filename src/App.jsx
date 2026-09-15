@@ -28,7 +28,6 @@ export default function App() {
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // Recording timer
   useEffect(() => {
     if (!recording) return;
     const id = setInterval(() => setRecTime(t => t + 1), 1000);
@@ -145,7 +144,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* ═══ 4 SYSTEM CARDS — RIGHT SIDE ═══ */}
+      {/* ═══ 4 SYSTEM CARDS ═══ */}
       <div className="sys-cards">
         <button
           className="sys-card traffic"
@@ -190,7 +189,9 @@ export default function App() {
           <div className="card-icon">🍎</div>
           <div className="card-info">
             <div className="card-title">Food System</div>
-            <div className="card-sub">6-stage production</div>
+            <div className="card-sub">
+              {foodData?.stage?.label || "6-stage production"}
+            </div>
           </div>
           <div className="card-arrow">›</div>
         </button>
@@ -237,7 +238,7 @@ export default function App() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PANEL — Detailed popup
+   PANEL
    ═══════════════════════════════════════════════════════════════ */
 function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }) {
   const content = getPanelContent(data, aiTraffic, powerData, filtrationData, foodData);
@@ -249,10 +250,7 @@ function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }
         onClick={(e) => e.stopPropagation()}
         style={{ "--accent": content.color }}
       >
-        <div
-          className="panel-header"
-          style={{ background: content.headerBg }}
-        >
+        <div className="panel-header" style={{ background: content.headerBg }}>
           <div className="panel-icon">{content.icon}</div>
           <div className="panel-title-group">
             <div className="panel-title">{content.title}</div>
@@ -269,7 +267,7 @@ function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }
 function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
   const type = data.type;
 
-  /* ─────── AI TRAFFIC ─────── */
+  /* ═══════════════ AI TRAFFIC ═══════════════ */
   if (type === "traffic") {
     const stats = aiTraffic.stats || {};
     const roadSignal = (r) => {
@@ -285,7 +283,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     return {
       icon: "🚦",
       title: "AI Traffic Control Center",
-      subtitle: "2-phase adaptive system · Real-time signals",
+      subtitle: "2-phase adaptive · Real-time signals",
       color: "#22cfff",
       headerBg: "linear-gradient(135deg, #0a2a3a, #04141c)",
       body: (
@@ -332,10 +330,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
                       className="signal-light"
                       style={{ background: col, boxShadow: `0 0 16px ${col}` }}
                     />
-                    <div
-                      className="signal-state"
-                      style={{ color: col }}
-                    >
+                    <div className="signal-state" style={{ color: col }}>
                       {sig.toUpperCase()}
                     </div>
                   </div>
@@ -382,7 +377,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     };
   }
 
-  /* ─────── POWER ─────── */
+  /* ═══════════════ POWER ═══════════════ */
   if (type === "power") {
     const stages = [
       { name: "Solar Array", value: "42 MW", color: "#ffcc22", icon: "☀️" },
@@ -472,7 +467,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     };
   }
 
-  /* ─────── FILTRATION ─────── */
+  /* ═══════════════ FILTRATION ═══════════════ */
   if (type === "filtration") {
     const stages = [
       { name: "Wastewater Collection", color: "#6b4a2f", desc: "Raw sewage intake" },
@@ -524,18 +519,37 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
           <div className="p-section">
             <div className="p-label">PURIFICATION PIPELINE</div>
             <div className="pipeline">
-              {stages.map((s, i) => (
-                <div key={i} className="pipe-stage">
-                  <div
-                    className="pipe-dot"
-                    style={{ background: s.color, boxShadow: `0 0 10px ${s.color}` }}
-                  />
-                  <div className="pipe-info">
-                    <div className="pipe-name">Stage {i + 1}: {s.name}</div>
-                    <div className="pipe-desc">{s.desc}</div>
+              {stages.map((s, i) => {
+                const isCurrent = current && i === filtrationData.stageIndex;
+                const isPast = current && i < filtrationData.stageIndex;
+                return (
+                  <div key={i} className="pipe-stage">
+                    <div
+                      className="pipe-dot"
+                      style={{
+                        background: s.color,
+                        boxShadow: isCurrent ? `0 0 16px ${s.color}, 0 0 24px ${s.color}` : `0 0 10px ${s.color}`,
+                        transform: isCurrent ? "scale(1.4)" : "scale(1)",
+                        transition: "all 0.3s",
+                      }}
+                    />
+                    <div className="pipe-info">
+                      <div
+                        className="pipe-name"
+                        style={{
+                          color: isCurrent ? "#fff" : isPast ? "#7fe3ff" : "#8ba5b5",
+                          fontWeight: isCurrent ? 800 : 700,
+                        }}
+                      >
+                        Stage {i + 1}: {s.name}
+                        {isCurrent && <span className="pipe-active-badge">● ACTIVE</span>}
+                        {isPast && <span className="pipe-done-badge">✓ DONE</span>}
+                      </div>
+                      <div className="pipe-desc">{s.desc}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -553,78 +567,214 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     };
   }
 
-  /* ─────── FOOD ─────── */
+  /* ═══════════════ FOOD — DETAILED (AI Traffic jaise) ═══════════════ */
   if (type === "food") {
+    const currentStage = foodData?.stage;
+    const stageIdx = foodData?.stageIndex ?? 0;
+    const progress = foodData?.progress ?? 0;
+
     const stages = [
-      { name: "Smart Farming", color: "#2ecc71", icon: "🌾", desc: "9 AI-monitored crop fields" },
-      { name: "Auto Harvest", color: "#ffcc22", icon: "🚜", desc: "Robotic harvesters" },
-      { name: "Food Processing", color: "#e67e22", icon: "🏭", desc: "Washing, cutting, packaging" },
-      { name: "Quality Check", color: "#3498db", icon: "🔍", desc: "AI vision inspection" },
-      { name: "Smart Packaging", color: "#9b59b6", icon: "📦", desc: "Barcode tracking" },
-      { name: "City Distribution", color: "#ff6b6b", icon: "🚚", desc: "48 deliveries daily" },
+      { id: "planting", label: "Smart Planting", color: "#2ecc71", icon: "🌱", desc: "9 fields · AI seed placement" },
+      { id: "irrigation", label: "Smart Irrigation", color: "#22cfff", icon: "💧", desc: "Sprinklers active · 68% moisture" },
+      { id: "monitoring", label: "Drone Monitoring", color: "#ffcc22", icon: "🛸", desc: "3 drones scanning · 94% health" },
+      { id: "harvest", label: "Robotic Harvest", color: "#e67e22", icon: "🚜", desc: "Auto-harvesters collecting" },
+      { id: "processing", label: "Food Processing", color: "#9b59b6", icon: "🏭", desc: "Washing · cutting · packing" },
+      { id: "distribution", label: "City Distribution", color: "#ff6b6b", icon: "🚚", desc: "48 deliveries daily" },
     ];
-    const current = foodData?.stage;
+
+    // Live stats that change per stage
+    const stageStats = {
+      planting: { fields: "9", seeds: "720", aiScore: "98%", temp: "24°C" },
+      irrigation: { moisture: "68%", waterUse: "12K L", pressure: "2.4 bar", temp: "23°C" },
+      monitoring: { drones: "3", cropHealth: "94%", coverage: "100%", temp: "25°C" },
+      harvest: { yield: "2.4 T", efficiency: "91%", trucks: "2", temp: "22°C" },
+      processing: { items: "1,240", quality: "98%", speed: "180/min", temp: "18°C" },
+      distribution: { deliveries: "48", cities: "12", onTime: "99%", temp: "4°C" },
+    };
+    const stats = stageStats[currentStage?.id] || stageStats.planting;
 
     return {
       icon: "🍎",
-      title: "AI Food Production",
-      subtitle: "Farm-to-city automated food supply",
+      title: "AI Food Production System",
+      subtitle: "6-stage farm-to-city · Fully automated",
       color: "#2ecc71",
       headerBg: "linear-gradient(135deg, #0a3a1e, #041a0e)",
       body: (
         <>
-          {current && (
-            <div className="p-section">
-              <div className="p-label">CURRENT STAGE</div>
-              <div
-                className="p-big"
-                style={{
-                  color: current.color
-                    ? `#${current.color.toString(16).padStart(6, "0")}`
-                    : "#2ecc71",
-                }}
-              >
-                {current.label}
-              </div>
-              <div className="p-desc">{current.desc}</div>
-              <div className="p-progress" style={{ marginTop: 10 }}>
-                <div
-                  className="p-progress-fill"
-                  style={{
-                    width: `${(foodData.progress || 0) * 100}%`,
-                    background: "#2ecc71",
-                  }}
-                />
-              </div>
+          {/* CURRENT STAGE */}
+          <div className="p-section">
+            <div className="p-label">CURRENT STAGE</div>
+            <div className="p-big" style={{ color: "#2ecc71" }}>
+              {currentStage?.label || "Initializing…"}
             </div>
-          )}
+            <div className="p-desc">{currentStage?.desc || "AI food system starting up"}</div>
+            <div className="p-progress" style={{ marginTop: 10 }}>
+              <div
+                className="p-progress-fill"
+                style={{
+                  width: `${progress * 100}%`,
+                  background: "#2ecc71",
+                  boxShadow: "0 0 10px #2ecc71",
+                }}
+              />
+            </div>
+            <div className="p-timer">
+              Stage {stageIdx + 1} of 6 · {Math.round(progress * 100)}% complete
+            </div>
+          </div>
 
+          {/* PIPELINE */}
           <div className="p-section">
             <div className="p-label">PRODUCTION PIPELINE</div>
-            <div className="stage-list">
-              {stages.map((s, i) => (
-                <div
-                  key={i}
-                  className="stage-item"
-                  style={{ borderColor: s.color + "40" }}
-                >
-                  <div className="stage-icon">{s.icon}</div>
-                  <div className="stage-info">
-                    <div className="stage-name">{s.name}</div>
-                    <div className="stage-desc">{s.desc}</div>
+            <div className="pipeline">
+              {stages.map((s, i) => {
+                const isCurrent = i === stageIdx;
+                const isPast = i < stageIdx;
+                return (
+                  <div key={s.id} className="pipe-stage">
+                    <div
+                      className="pipe-dot"
+                      style={{
+                        background: s.color,
+                        boxShadow: isCurrent
+                          ? `0 0 16px ${s.color}, 0 0 24px ${s.color}`
+                          : `0 0 10px ${s.color}`,
+                        transform: isCurrent ? "scale(1.4)" : "scale(1)",
+                        transition: "all 0.3s",
+                      }}
+                    />
+                    <div className="pipe-info">
+                      <div
+                        className="pipe-name"
+                        style={{
+                          color: isCurrent ? "#fff" : isPast ? "#7fe3ff" : "#8ba5b5",
+                          fontWeight: isCurrent ? 800 : 700,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 14 }}>{s.icon}</span>
+                        <span>{s.label}</span>
+                        {isCurrent && <span className="pipe-active-badge">● ACTIVE</span>}
+                        {isPast && <span className="pipe-done-badge">✓ DONE</span>}
+                      </div>
+                      <div className="pipe-desc">{s.desc}</div>
+                    </div>
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* LIVE STAGE STATS */}
+          <div className="p-section">
+            <div className="p-label">LIVE STAGE METRICS</div>
+            <div className="stats-grid">
+              {Object.entries(stats).map(([k, v]) => (
+                <StatCard
+                  key={k}
+                  label={k.replace(/([A-Z])/g, " $1").trim()}
+                  value={v}
+                  color="#2ecc71"
+                />
               ))}
             </div>
           </div>
 
+          {/* FIELD STATUS (9 fields) */}
           <div className="p-section">
-            <div className="p-label">PRODUCTION METRICS</div>
+            <div className="p-label">FIELD STATUS — 9 FIELDS</div>
+            <div className="field-grid">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+                const fieldColors = ["#2ecc71", "#27ae60", "#7bc96f"];
+                const col = fieldColors[n % 3];
+                const health = 85 + (n * 3) % 15;
+                return (
+                  <div key={n} className="field-box">
+                    <div className="field-icon">🌾</div>
+                    <div className="field-name">F{n}</div>
+                    <div
+                      className="field-bar"
+                      style={{ width: `${health}%`, background: col }}
+                    />
+                    <div className="field-value" style={{ color: col }}>
+                      {health}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* MACHINERY STATUS */}
+          <div className="p-section">
+            <div className="p-label">MACHINERY STATUS</div>
+            <div className="machinery-list">
+              <div className="machine-item">
+                <span className="machine-icon">🛸</span>
+                <span className="machine-name">Drone Fleet</span>
+                <span className="machine-status active">3 ACTIVE</span>
+              </div>
+              <div className="machine-item">
+                <span className="machine-icon">💧</span>
+                <span className="machine-name">Sprinklers</span>
+                <span className="machine-status active">9 ONLINE</span>
+              </div>
+              <div className="machine-item">
+                <span className="machine-icon">⚙️</span>
+                <span className="machine-name">Processing Gears</span>
+                <span className="machine-status active">RUNNING</span>
+              </div>
+              <div className="machine-item">
+                <span className="machine-icon">🔍</span>
+                <span className="machine-name">Quality Scanner</span>
+                <span className="machine-status active">ONLINE</span>
+              </div>
+              <div className="machine-item">
+                <span className="machine-icon">📦</span>
+                <span className="machine-name">Packaging Line</span>
+                <span className="machine-status active">READY</span>
+              </div>
+              <div className="machine-item">
+                <span className="machine-icon">🚚</span>
+                <span className="machine-name">Delivery Fleet</span>
+                <span className="machine-status active">2 OUT</span>
+              </div>
+            </div>
+          </div>
+
+          {/* SENSOR READINGS */}
+          <div className="p-section">
+            <div className="p-label">ENVIRONMENTAL SENSORS</div>
+            <div className="sensor-row">
+              <div className="sensor-chip">
+                <span className="sensor-label">🌡️ Temp</span>
+                <span className="sensor-value">24°C</span>
+              </div>
+              <div className="sensor-chip">
+                <span className="sensor-label">💧 Humidity</span>
+                <span className="sensor-value">68%</span>
+              </div>
+              <div className="sensor-chip">
+                <span className="sensor-label">🌱 Soil pH</span>
+                <span className="sensor-value">6.8</span>
+              </div>
+              <div className="sensor-chip">
+                <span className="sensor-label">☀️ Sunlight</span>
+                <span className="sensor-value">82%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* DAILY TOTALS */}
+          <div className="p-section">
+            <div className="p-label">DAILY TOTALS</div>
             <div className="stats-grid">
-              <StatCard label="Crop Fields" value="9" color="#2ecc71" />
-              <StatCard label="Daily Deliveries" value="48" color="#ffcc22" />
+              <StatCard label="Crop Yield" value="2.4 T" color="#2ecc71" />
+              <StatCard label="Deliveries" value="48" color="#ffcc22" />
               <StatCard label="Quality Score" value="98%" color="#22ff66" />
-              <StatCard label="AI Mode" value="Active" color="#b266ff" />
+              <StatCard label="Water Used" value="12K L" color="#22cfff" />
             </div>
           </div>
         </>
@@ -632,7 +782,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     };
   }
 
-  /* ─────── DEFAULT BUILDING ─────── */
+  /* ═══════════════ DEFAULT BUILDING ═══════════════ */
   return {
     icon: "🏢",
     title: data.name || "Smart Building",
