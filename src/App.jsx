@@ -4,58 +4,54 @@ import "./ui.css";
 
 export default function App() {
   const [isNight, setIsNight] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [panel, setPanel] = useState(null);
   const [camIndicator, setCamIndicator] = useState(null);
+  const [locations, setLocations] = useState([]);
   const [liveTrafficMode, setLiveTrafficMode] = useState(false);
 
-  // ── Recording state ──
+  const [showTraffic, setShowTraffic] = useState(true);
+  const [showPower, setShowPower] = useState(false);
+  const [showFiltration, setShowFiltration] = useState(false);
+  const [showFood, setShowFood] = useState(false);
+
   const [recording, setRecording] = useState(false);
   const [recTime, setRecTime] = useState(0);
 
-  // ── Toast notification ──
-  const [toast, setToast] = useState(null);
-  const [toastKey, setToastKey] = useState(0);
-
-  // ── AI traffic mini-status ──
   const [aiTraffic, setAiTraffic] = useState({
-    phase: 1,
-    inYellow: false,
-    inPedestrian: false,
-    inAllRed: false,
-    currentGreenRoads: [1, 2],
-    currentRedRoads: [3, 4],
-    phaseProgress: 0,
-    stats: {
-      vehiclesDetected: 80,
-      vehiclesMoving: 40,
-      vehiclesWaiting: 40,
-      density: "HIGH",
-    },
-    phaseLabel: "Initializing…",
+    phase: 1, inYellow: false, inPedestrian: false, inAllRed: false,
+    currentGreenRoads: [1, 2], currentRedRoads: [3, 4],
+    phaseProgress: 0, phaseLabel: "Initializing…",
+    stats: { vehiclesDetected: 80, vehiclesMoving: 40, vehiclesWaiting: 40, density: "HIGH", aiConfidence: 94 },
+    roadQueues: { 1: 0, 2: 0, 3: 0, 4: 0 },
+    decisionLog: [],
   });
 
+  const [powerData, setPowerData] = useState(null);
+  const [filtrationData, setFiltrationData] = useState(null);
+  const [foodData, setFoodData] = useState(null);
   const [simTime, setSimTime] = useState("00:00");
 
   const cityRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // ── Recording timer ──
   useEffect(() => {
     if (!recording) return;
     const id = setInterval(() => setRecTime((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [recording]);
 
-  // ── Toast helper ──
-  const showToast = useCallback((msg, type = "info") => {
-    if (!msg) return;
-    setToast({ msg: String(msg), type });
-    setToastKey((k) => k + 1);
-    const id = setTimeout(() => setToast(null), 3500);
-    return () => clearTimeout(id);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (cityRef.current?.getLocations) {
+        const locs = cityRef.current.getLocations();
+        if (locs?.length) setLocations(locs);
+      }
+    }, 200);
+    return () => clearTimeout(t);
   }, []);
 
-  // ── Simulation clock (UTC HH:MM) ──
   useEffect(() => {
     const tick = () => {
       const now = new Date();
@@ -68,79 +64,71 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
-  // ── MediaRecorder — actually record the canvas ──
-  const startRecording = useCallback(() => {
+  const handleToggleRecording = () => {
     const canvas = document.querySelector("canvas");
-    if (!canvas) {
-      showToast("No canvas found to record", "info");
-      return;
-    }
-    try {
-      const stream = canvas.captureStream(30);
-      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
-        ? "video/webm;codecs=vp8"
-        : "video/webm";
-
-      const rec = new MediaRecorder(stream, { mimeType: mime });
-      chunksRef.current = [];
-
-      rec.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `smartcity-${Date.now()}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast("✅ Recording saved", "info");
-      };
-
-      rec.start(1000);
-      mediaRecorderRef.current = rec;
-    } catch (err) {
-      console.error(err);
-      showToast("Recording failed: " + err.message, "info");
-    }
-  }, [showToast]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
-    mediaRecorderRef.current = null;
-  }, []);
-
-  const handleToggleRecording = useCallback(() => {
-    setRecording((prev) => {
-      const next = !prev;
-      if (next) {
+    if (!canvas) return;
+    if (!recording) {
+      try {
+        const stream = canvas.captureStream(30);
+        const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+        const rec = new MediaRecorder(stream, { mimeType: mime });
+        chunksRef.current = [];
+        rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+        rec.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = `smartcity-${Date.now()}.webm`;
+          a.click(); URL.revokeObjectURL(url);
+        };
+        rec.start(1000);
+        mediaRecorderRef.current = rec;
         setRecTime(0);
-        startRecording();
-      } else {
-        stopRecording();
-      }
-      return next;
+        setRecording(true);
+      } catch (e) { console.error(e); }
+    } else {
+      mediaRecorderRef.current?.stop();
+      mediaRecorderRef.current = null;
+      setRecording(false);
+    }
+  };
+
+  const handleCameraSelect = (key, camName) => {
+    setLiveTrafficMode(false);
+    setMenuOpen(false);
+    cityRef.current?.goToLocationCamera?.(key, camName, (label) => {
+      setCamIndicator({ text: `🔒 ${label} — ${camName}` });
     });
-  }, [startRecording, stopRecording]);
+  };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        try { mediaRecorderRef.current.stop(); } catch (_) {}
-      }
-    };
-  }, []);
+  const handleLocationClick = (key) => {
+    setLiveTrafficMode(false);
+    setMenuOpen(false);
+    cityRef.current?.goToLocation?.(key, (label) => {
+      setCamIndicator({ text: `🔒 ${label.toUpperCase()}` });
+    });
+  };
 
-  // ── Handlers ──
+  const handleFollowVehicle = (key) => {
+    setLiveTrafficMode(false);
+    setMenuOpen(false);
+    cityRef.current?.followVehicle?.(key, (text) => setCamIndicator({ text }));
+  };
+
+  const handleOverview = () => {
+    setLiveTrafficMode(false);
+    setMenuOpen(false);
+    setCamIndicator(null);
+    cityRef.current?.goToOverview?.();
+  };
+
+  const handleTopDown = () => {
+    setLiveTrafficMode(false);
+    setMenuOpen(false);
+    setCamIndicator(null);
+    cityRef.current?.goToTopDown?.();
+  };
+
   const handleExitCamera = () => {
     setCamIndicator(null);
     setLiveTrafficMode(false);
@@ -153,37 +141,24 @@ export default function App() {
     cityRef.current?.setDayNight?.(next);
   };
 
-  const handleOverview = () => {
-    setLiveTrafficMode(false);
-    setCamIndicator(null);
-    cityRef.current?.goToOverview?.();
-  };
-
-  const handleTopDown = () => {
-    setLiveTrafficMode(false);
-    setCamIndicator(null);
-    cityRef.current?.goToTopDown?.();
-  };
-
-  const handleLiveTraffic = () => {
+  const handleViewLiveTraffic = () => {
+    setMenuOpen(false);
     setLiveTrafficMode(true);
     setCamIndicator({ text: "🔴 LIVE TRAFFIC — MONITORING" });
     cityRef.current?.goToLiveTraffic?.();
   };
 
-  const handleAITrafficUpdate = useCallback((data) => {
-    if (!data) return;
-    setAiTraffic((prev) => ({ ...prev, ...data }));
-  }, []);
+  const handleBackToCity = () => {
+    setLiveTrafficMode(false);
+    setCamIndicator(null);
+    cityRef.current?.goToOverview?.();
+  };
 
-  // Silent callbacks (no big panels anymore)
-  const handleFiltrationUpdate = useCallback(() => {}, []);
-  const handleWasteUpdate = useCallback(() => {}, []);
-  const handleTrafficUpdate = useCallback(() => {}, []);
-  const handleCycleUpdate = useCallback(() => {}, []);
-  const handleAiReason = useCallback(() => {}, []);
+  const handleAITrafficUpdate = useCallback((data) => setAiTraffic(data), []);
+  const handlePowerUpdate = useCallback((data) => setPowerData(data), []);
+  const handleFiltrationUpdate = useCallback((data) => setFiltrationData(data), []);
+  const handleFoodUpdate = useCallback((data) => setFoodData(data), []);
 
-  // ── Helpers ──
   const formatRecTime = (s) => {
     const m = Math.floor(s / 60).toString().padStart(2, "0");
     const sec = (s % 60).toString().padStart(2, "0");
@@ -192,9 +167,7 @@ export default function App() {
 
   const getRoadSignal = (roadId) => {
     if (aiTraffic.inPedestrian || aiTraffic.inAllRed) return "ped";
-    if (aiTraffic.inYellow) {
-      return aiTraffic.currentGreenRoads?.includes(roadId) ? "yellow" : "red";
-    }
+    if (aiTraffic.inYellow) return aiTraffic.currentGreenRoads?.includes(roadId) ? "yellow" : "red";
     return aiTraffic.currentGreenRoads?.includes(roadId) ? "green" : "red";
   };
 
@@ -205,122 +178,369 @@ export default function App() {
     return "#ff2222";
   };
 
-  const topLight = getSignalColor(
-    aiTraffic.inPedestrian || aiTraffic.inAllRed
-      ? "ped"
-      : aiTraffic.inYellow
-      ? "yellow"
-      : "green"
-  );
-
   return (
     <div className="app-root">
       <SmartCity3D
         ref={cityRef}
-        onPanel={(p) => showToast(`${p.title}: ${p.text}`, "info")}
-        onTrafficUpdate={handleTrafficUpdate}
-        onSimTime={setSimTime}
-        onCycleUpdate={handleCycleUpdate}
-        onAiMessage={(m) => showToast(m, "ai")}
-        onAiReason={handleAiReason}
-        onTouristMessage={(m) => showToast(m, "tourist")}
+        onPanel={setPanel}
         onAITrafficUpdate={handleAITrafficUpdate}
+        onPowerUpdate={handlePowerUpdate}
         onFiltrationUpdate={handleFiltrationUpdate}
-        onWasteUpdate={handleWasteUpdate}
+        onFoodUpdate={handleFoodUpdate}
       />
 
-      {/* ===== RECORDING BAR (top-left) ===== */}
+      {/* ═════ BRAND ═════ */}
+      <div className="ui-brand">
+        <div className="title">BSS WORLD</div>
+        <div className="sub">3D SMART CITY • AI CONTROL</div>
+      </div>
+
+      {/* ═════ RECORDING BAR (top-left) ═════ */}
       <div className="rec-bar">
         <span className={`rec-dot ${recording ? "on" : "off"}`} />
         <span className="rec-label">{recording ? "REC" : "LIVE"}</span>
         <span className="rec-time">{formatRecTime(recTime)}</span>
-        <button
-          className={`rec-btn ${recording ? "stop" : ""}`}
-          onClick={handleToggleRecording}
-          title={recording ? "Stop recording" : "Start recording"}
-        >
+        <button className={`rec-btn ${recording ? "stop" : ""}`} onClick={handleToggleRecording}>
           {recording ? "STOP" : "REC"}
         </button>
       </div>
 
-      {/* ===== CAMERA INDICATOR PILL (bottom-left, above status line) ===== */}
-      {camIndicator && (
-        <div className="cam-pill">
-          <span className="cam-pill-dot" />
-          <span className="cam-pill-text">{camIndicator.text}</span>
-          <button
-            className="cam-pill-exit"
-            onClick={handleExitCamera}
-            title="Exit camera view"
-          >
-            ✕
-          </button>
+      {/* ═════ SYSTEM BUTTONS (top-center) ═════ */}
+      <div className="sys-btns">
+        <SystemBtn label="🚦 TRAFFIC" active={showTraffic} onClick={() => setShowTraffic(v => !v)} color="#22cfff" />
+        <SystemBtn label="⚡ POWER" active={showPower} onClick={() => setShowPower(v => !v)} color="#ffcc22" />
+        <SystemBtn label="💧 WATER" active={showFiltration} onClick={() => setShowFiltration(v => !v)} color="#22cfff" />
+        <SystemBtn label="🍎 FOOD" active={showFood} onClick={() => setShowFood(v => !v)} color="#2ecc71" />
+      </div>
+
+      {/* ═════ DAY / NIGHT ═════ */}
+      <button className={`day-night-btn ${isNight ? "night" : ""}`} onClick={handleToggleDayNight}>
+        {isNight ? "🌙 NIGHT" : "☀ DAY"}
+      </button>
+
+      {/* ═════ LIVE TRAFFIC BTN ═════ */}
+      {!liveTrafficMode && (
+        <button className="live-traffic-btn" onClick={handleViewLiveTraffic}>
+          <span className="live-dot"></span>
+          <span>VIEW LIVE TRAFFIC</span>
+        </button>
+      )}
+      {liveTrafficMode && (
+        <button className="back-to-city-btn" onClick={handleBackToCity}>
+          ← BACK TO CITY
+        </button>
+      )}
+
+      {/* ═════ CAMERA INDICATOR ═════ */}
+      {camIndicator && !liveTrafficMode && (
+        <div className="cam-indicator show">
+          <span className="rec"></span>
+          <span>{camIndicator.text}</span>
+          <button className="cam-btn" onClick={handleExitCamera}>✕ EXIT</button>
         </div>
       )}
 
-      {/* ===== BOTTOM-LEFT STATUS LINE ===== */}
-      <div className="status-line">
-        <span className="sl-dot" style={{ background: topLight, boxShadow: `0 0 8px ${topLight}` }} />
-        <span className="sl-phase">{aiTraffic.phaseLabel || "AI MONITORING"}</span>
-        <span className="sl-sep">·</span>
-        <span className="sl-time">{simTime}</span>
-        <span className="sl-sep">·</span>
-        <span className="sl-roads">
-          {[1, 2, 3, 4].map((r) => {
-            const sig = getRoadSignal(r);
-            const col = getSignalColor(sig);
-            return (
-              <span
-                key={r}
-                className="sl-road"
-                style={{ color: col, borderColor: col }}
-                title={`Road ${r}: ${sig.toUpperCase()}`}
-              >
-                R{r}
-              </span>
-            );
-          })}
-        </span>
-      </div>
+      {/* ═════ AI TRAFFIC PANEL ═════ */}
+      {showTraffic && !liveTrafficMode && (
+        <div className="filtration-panel" style={{ right: "auto", left: 24 }}>
+          <button className="close-x-btn" onClick={() => setShowTraffic(false)} title="Close">✕</button>
+          <div className="fp-title">🤖 AI TRAFFIC CONTROL</div>
+          <div className="fp-stage-label">CURRENT PHASE</div>
+          <div className="fp-stage-name">{aiTraffic.phaseLabel || "—"}</div>
 
-      {/* ===== BOTTOM-RIGHT CONTROL CLUSTER ===== */}
-      <div className="ctrl-cluster">
-        <button
-          className={`ctrl-btn ${liveTrafficMode ? "active" : ""}`}
-          onClick={handleLiveTraffic}
-          title="Live Traffic View"
-        >
-          🔴
-        </button>
-        <button
-          className="ctrl-btn"
-          onClick={handleOverview}
-          title="City Overview"
-        >
-          🏠
-        </button>
-        <button
-          className="ctrl-btn"
-          onClick={handleTopDown}
-          title="Top-Down View"
-        >
-          🛰
-        </button>
-        <button
-          className={`ctrl-btn ${isNight ? "active" : ""}`}
-          onClick={handleToggleDayNight}
-          title="Toggle Day / Night"
-        >
-          {isNight ? "🌙" : "☀"}
-        </button>
-      </div>
+          <div className="fp-meter-row">
+            <span>Phase Progress</span>
+            <span>{Math.round((aiTraffic.phaseProgress || 0) * 100)}%</span>
+          </div>
+          <div className="fp-meter">
+            <div className="fp-meter-fill" style={{ width: `${(aiTraffic.phaseProgress || 0) * 100}%`, background: "#22cfff" }} />
+          </div>
 
-      {/* ===== TOAST NOTIFICATION ===== */}
-      {toast && (
-        <div key={toastKey} className={`toast toast-${toast.type}`}>
-          {toast.msg}
+          <div className="fp-meter-row" style={{ marginTop: 10 }}>
+            <span>Moving Vehicles</span>
+            <span style={{ color: "#3bff7a", fontWeight: 700 }}>{aiTraffic.stats?.vehiclesMoving ?? 0}</span>
+          </div>
+          <div className="fp-meter-row">
+            <span>Waiting</span>
+            <span style={{ color: "#ffcc22", fontWeight: 700 }}>{aiTraffic.stats?.vehiclesWaiting ?? 0}</span>
+          </div>
+          <div className="fp-meter-row">
+            <span>Density</span>
+            <span style={{ color: "#22cfff", fontWeight: 700 }}>{aiTraffic.stats?.density ?? "—"}</span>
+          </div>
+
+          <div className="fp-stages-list" style={{ marginTop: 10 }}>
+            {[1, 2, 3, 4].map(r => {
+              const sig = getRoadSignal(r);
+              const col = getSignalColor(sig);
+              return (
+                <div key={r} className="fp-stage-item active" style={{ borderColor: col }}>
+                  <span className="fp-dot" style={{ background: col, boxShadow: `0 0 8px ${col}` }} />
+                  <span>ROAD {r} — {sig.toUpperCase()}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {(aiTraffic.decisionLog || []).length > 0 && (
+            <>
+              <div className="fp-stage-label" style={{ marginTop: 10 }}>🧠 AI DECISION LOG</div>
+              <div style={{ maxHeight: 100, overflowY: "auto", fontSize: 10 }}>
+                {aiTraffic.decisionLog.slice(0, 4).map((e, i) => (
+                  <div key={i} style={{ color: e.type === "emergency" ? "#ff6b6b" : e.type === "adaptive" ? "#ffcc22" : "#7fe3ff", padding: "3px 6px", borderLeft: `2px solid ${e.type === "emergency" ? "#ff4444" : "#22cfff"}`, marginBottom: 2 }}>
+                    {e.message}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
+
+      {/* ═════ POWER PANEL ═════ */}
+      {showPower && powerData?.stage && !liveTrafficMode && (
+        <SystemPanel title="⚡ POWER SUPPLY" color="#ffcc22" data={powerData} onClose={() => setShowPower(false)}
+          extraStats={[["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]]} />
+      )}
+
+      {/* ═════ FILTRATION PANEL ═════ */}
+      {showFiltration && filtrationData?.stage && !liveTrafficMode && (
+        <SystemPanel title="💧 WATER FILTRATION" color="#22cfff" data={filtrationData} onClose={() => setShowFiltration(false)} left
+          extraStats={[["💧 Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24"], ["♻️ Recycle", "82%"]]} />
+      )}
+
+      {/* ═════ FOOD PANEL ═════ */}
+      {showFood && foodData?.stage && !liveTrafficMode && (
+        <SystemPanel title="🍎 FOOD PRODUCTION" color="#2ecc71" data={foodData} onClose={() => setShowFood(false)}
+          extraStats={[["🌾 Crops", "9 fields"], ["🚚 Deliveries", "48/day"], ["🍎 Quality", "98%"], ["🤖 AI", "Active"]]} />
+      )}
+
+      {/* ═════ LIVE TRAFFIC PANEL ═════ */}
+      {liveTrafficMode && (
+        <div className="live-traffic-panel">
+          <button className="close-x-btn" onClick={handleBackToCity} title="Close">✕</button>
+          <div className="ltp-header">
+            <div className="ai-dot"></div>
+            <div>
+              <div className="ltp-title">AI TRAFFIC MONITORING</div>
+              <div className="ltp-status">STATUS: <span className="active-txt">ACTIVE</span></div>
+            </div>
+          </div>
+          <div className="ltp-signals-title">CURRENT SIGNAL STATE</div>
+          <div className="ltp-signal-grid">
+            {[1, 2, 3, 4].map((roadId) => {
+              const sig = getRoadSignal(roadId);
+              const col = getSignalColor(sig);
+              return (
+                <div key={roadId} className={`ltp-signal-box ${sig}`}>
+                  <div className="ltp-road-name">ROAD {roadId}</div>
+                  <div className="ltp-light" style={{ background: col, boxShadow: `0 0 20px ${col}` }}></div>
+                  <div className="ltp-state" style={{ color: col }}>{sig.toUpperCase()}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="ltp-phase-bar">
+            <div className="ltp-phase-label">{aiTraffic.phaseLabel}</div>
+            <div className="ltp-track">
+              <div className="ltp-fill" style={{ width: `${(aiTraffic.phaseProgress || 0) * 100}%` }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═════ INFO PANEL ═════ */}
+      {panel && (
+        <div className="panel">
+          <button className="close" onClick={() => setPanel(null)}>×</button>
+          <h2>{panel.title}</h2>
+          <div className="type">{panel.type}</div>
+          <p>{panel.text}</p>
+        </div>
+      )}
+
+      {/* ═════ MENU BUTTON ═════ */}
+      <button className="menu-btn" onClick={() => setMenuOpen(v => !v)}>
+        <span className="icon">☰</span>
+        <span>SMART CITY MENU</span>
+      </button>
+
+      {/* ═════ MAIN MENU ═════ */}
+      <div className={`main-menu ${menuOpen ? "open" : ""}`}>
+        <div className="menu-header">
+          <div className="menu-title">🏙 SMART CITY</div>
+          <button className="close-btn" onClick={() => setMenuOpen(false)}>×</button>
+        </div>
+
+        <div className="menu-sub">🏛 LOCATIONS</div>
+        <div className="menu-list">
+          {locations.length === 0 ? (
+            <div className="menu-item" style={{ opacity: 0.5 }}>
+              <span className="m-icon">⏳</span>
+              <span className="m-label">Loading…</span>
+            </div>
+          ) : locations.map((loc) => (
+            <LocationItem key={loc.key} loc={loc} onCameraClick={handleCameraSelect} onLocationClick={handleLocationClick} />
+          ))}
+        </div>
+
+        <div className="menu-sub">🚗 VEHICLES</div>
+        <div className="menu-list">
+          {[
+            { key: "cityCars", label: "City Cars", icon: "🚗" },
+            { key: "garbage", label: "Garbage Truck", icon: "🚛" },
+            { key: "fert", label: "Fertilizer Truck", icon: "🌱" },
+          ].map((v) => (
+            <div key={v.key} className="menu-item" onClick={() => handleFollowVehicle(v.key)}>
+              <span className="m-icon">{v.icon}</span>
+              <span className="m-label">{v.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="menu-sub">🌍 CITY VIEW</div>
+        <div className="menu-list">
+          <div className="menu-item" onClick={handleViewLiveTraffic}>
+            <span className="m-icon">🔴</span>
+            <span className="m-label">VIEW LIVE TRAFFIC</span>
+          </div>
+          <div className="menu-item" onClick={handleOverview}>
+            <span className="m-icon">🌐</span>
+            <span className="m-label">360° CITY OVERVIEW</span>
+          </div>
+          <div className="menu-item" onClick={handleTopDown}>
+            <span className="m-icon">🛰</span>
+            <span className="m-label">TOP-DOWN VIEW</span>
+          </div>
+        </div>
+
+        <div className="menu-sub">📊 SYSTEM PANELS</div>
+        <div className="menu-list">
+          {[
+            { label: "AI Traffic Panel", icon: "🚦", val: showTraffic, set: setShowTraffic },
+            { label: "Power Supply", icon: "⚡", val: showPower, set: setShowPower },
+            { label: "Water Filtration", icon: "💧", val: showFiltration, set: setShowFiltration },
+            { label: "Food Production", icon: "🍎", val: showFood, set: setShowFood },
+          ].map((p) => (
+            <div key={p.label} className={`menu-item ${p.val ? "active" : ""}`} onClick={() => p.set(v => !v)}>
+              <span className="m-icon">{p.icon}</span>
+              <span className="m-label">{p.label}</span>
+              <span className="arrow">{p.val ? "ON" : "OFF"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ═════ HINT ═════ */}
+      {!liveTrafficMode && (
+        <div className="hint">
+          Drag = Rotate · Wheel = Zoom · Click buildings · ☰ Menu
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LocationItem({ loc, onCameraClick, onLocationClick }) {
+  const [open, setOpen] = useState(false);
+  const handleClick = () => {
+    const next = !open;
+    setOpen(next);
+    if (!next) onLocationClick(loc.key);
+  };
+  return (
+    <>
+      <div className={`menu-item ${open ? "active" : ""}`} onClick={handleClick}>
+        <span className="m-icon">{loc.icon}</span>
+        <span className="m-label">{loc.label}</span>
+        <span className="arrow">{open ? "▲" : "▼"}</span>
+      </div>
+      {open && (
+        <div className="camera-options">
+          {loc.cameras.map((cam) => (
+            <div key={cam.name} className="cam-option" onClick={(e) => { e.stopPropagation(); onCameraClick(loc.key, cam.name); }}>
+              <span className="cam-icon">{cam.inside ? "🎯" : cam.top ? "🔭" : "📹"}</span>
+              <span>{cam.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function SystemBtn({ label, active, onClick, color }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "8px 14px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+      borderRadius: 8, cursor: "pointer",
+      background: active ? `${color}25` : "rgba(5,12,22,0.8)",
+      border: `1.5px solid ${active ? color : "rgba(255,255,255,0.15)"}`,
+      color: active ? color : "#7fe3ff",
+      boxShadow: active ? `0 0 14px ${color}80` : "none",
+      transition: "all 0.2s", backdropFilter: "blur(10px)",
+    }}>{label}</button>
+  );
+}
+
+function SystemPanel({ title, color, data, onClose, extraStats = [], left }) {
+  if (!data?.stage) return null;
+  const stages = data.allStages || [];
+  const progress = data.progress || 0;
+  const pct = ((data.stageIndex + progress) / stages.length) * 100;
+
+  return (
+    <div className="filtration-panel" style={{
+      [left ? "left" : "right"]: 24,
+      [left ? "right" : "left"]: "auto",
+      top: 90,
+      borderColor: color,
+    }}>
+      <button className="close-x-btn" onClick={onClose} title="Close">✕</button>
+      <div className="fp-title" style={{ color }}>{title}</div>
+      <div className="fp-stage-label">CURRENT STAGE</div>
+      <div className="fp-stage-name">{data.stage.label}</div>
+
+      <div className="fp-meter-row">
+        <span>Overall</span>
+        <span style={{ color, fontWeight: 700 }}>{Math.round(pct)}%</span>
+      </div>
+      <div className="fp-meter">
+        <div className="fp-meter-fill" style={{ width: `${pct}%`, background: color }} />
+      </div>
+
+      <div className="fp-meter-row" style={{ marginTop: 8 }}>
+        <span>Stage Progress</span>
+        <span>{Math.round(progress * 100)}%</span>
+      </div>
+      <div className="fp-meter">
+        <div className="fp-meter-fill" style={{ width: `${progress * 100}%`, background: "#fff", opacity: 0.7 }} />
+      </div>
+
+      {extraStats.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 10 }}>
+          {extraStats.map(([l, v], i) => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}25`, borderRadius: 5, padding: "5px 7px" }}>
+              <div style={{ fontSize: 9, color: "#8fd8f0" }}>{l}</div>
+              <div style={{ fontSize: 11, color, fontWeight: 700 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="fp-stage-label" style={{ marginTop: 10 }}>PIPELINE</div>
+      <div className="fp-stages-list">
+        {stages.map((st, i) => {
+          const done = i < data.stageIndex;
+          const active = i === data.stageIndex;
+          return (
+            <div key={st.id} className={`fp-stage-item ${done ? "done" : active ? "active" : ""}`}>
+              <span className="fp-dot" />
+              <span>{st.label}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
