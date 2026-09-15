@@ -7,9 +7,8 @@ const CITY_HALF = 3900;
 const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
 
-// ===== FIX: Car Y position (road ke barabar) =====
-const CAR_Y = 5.0;              // Road ki height
-const CAR_SPEED_OUTER = 0.0008;  // Bahut slow
+const CAR_Y = 5.0;
+const CAR_SPEED_OUTER = 0.0008;
 const CAR_SPEED_MID = 0.0006;
 const CAR_SPEED_INNER = 0.0004;
 const LANE_OFFSET = 12;
@@ -84,69 +83,255 @@ const STAGE_WATER_COLORS = [
   0x5a9aba, 0x3a9aca, 0x8a6aff, 0x22cfff, 0x2ecc71,
 ];
 
+/* =====================================================================
+   ENHANCED AI TRAFFIC SYSTEM
+   4-Phase adaptive system with emergency priority, pedestrian phases,
+   queue-based timing, and decision logging
+   ===================================================================== */
 function createAITrafficSystem(callbacks) {
-  const PHASE_DURATION = 8;
-  const YELLOW_DURATION = 2.5;
-  let elapsed = 0;
-  let phase = 1;
-  let inYellow = false;
-  let yellowElapsed = 0;
-  let currentGreenRoads = [1, 2];
-  let currentRedRoads = [3, 4];
+  // 4-phase system: NS straight, EW straight, NS left, EW left
+  const PHASES = [
+    { id: "NS_STRAIGHT", green: [1, 2], yellow: [], label: "North-South Straight" },
+    { id: "NS_LEFT", green: [1], yellow: [2], label: "North-South Left Turn" },
+    { id: "EW_STRAIGHT", green: [3, 4], yellow: [], label: "East-West Straight" },
+    { id: "EW_LEFT", green: [3], yellow: [4], label: "East-West Left Turn" },
+  ];
 
-  const stats = { vehiclesDetected: 80, vehiclesMoving: 40, vehiclesWaiting: 40, density: "HIGH" };
+  const BASE_GREEN = 7;
+  const MIN_GREEN = 4;
+  const MAX_GREEN = 18;
+  const YELLOW_DURATION = 2.5;
+  const ALL_RED_DURATION = 1.0;
+  const PEDESTRIAN_DURATION = 3.0;
+
+  let phaseIndex = 0;
+  let elapsed = 0;
+  let inYellow = false;
+  let inAllRed = false;
+  let inPedestrian = false;
+  let yellowElapsed = 0;
+  let allRedElapsed = 0;
+  let pedestrianElapsed = 0;
+  let phaseGreenDuration = BASE_GREEN;
+
+  // Queue tracking per road
+  const roadQueues = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  const roadDensity = { 1: 0, 2: 0, 3: 0, 4: 0 };
+
+  // Emergency vehicle state
+  let emergencyActive = false;
+  let emergencyRoad = null;
+  let emergencyTimer = 0;
+
+  // AI decision log
+  const decisionLog = [];
+  const MAX_LOG = 8;
+
+  // Statistics
+  const stats = {
+    vehiclesDetected: 80,
+    vehiclesMoving: 40,
+    vehiclesWaiting: 40,
+    density: "HIGH",
+    avgWaitTime: 12.4,
+    throughput: 1240,
+    aiConfidence: 94,
+    adaptiveMode: true,
+    emergencyMode: false,
+    pedestrianPhase: false,
+    currentPhaseLabel: PHASES[0].label,
+    phaseTimeRemaining: BASE_GREEN,
+  };
+
+  function addLog(message, type = "info") {
+    decisionLog.unshift({ message, type, time: Date.now() });
+    if (decisionLog.length > MAX_LOG) decisionLog.pop();
+  }
+
+  function calculateAdaptiveGreen() {
+    // Sum queue on the roads that will be green in next phase
+    const nextPhase = PHASES[(phaseIndex + 1) % PHASES.length];
+    const queuedOnNext = nextPhase.green.reduce((sum, r) => sum + roadQueues[r], 0);
+    const queuedOnCurrent = PHASES[phaseIndex].green.reduce((sum, r) => sum + roadQueues[r], 0);
+
+    // If next phase has more waiting, shorten current green
+    // If current phase has more waiting, extend current green
+    let duration = BASE_GREEN;
+    if (queuedOnNext > queuedOnCurrent * 1.5) {
+      duration = Math.max(MIN_GREEN, BASE_GREEN - 2);
+      addLog(`Phase ${nextPhase.label} has high queue (${queuedOnNext}) — shortening green`, "adaptive");
+    } else if (queuedOnCurrent > queuedOnNext * 1.8) {
+      duration = Math.min(MAX_GREEN, BASE_GREEN + 3);
+      addLog(`Phase ${PHASES[phaseIndex].label} congested (${queuedOnCurrent}) — extending green`, "adaptive");
+    }
+    return duration;
+  }
 
   function tick(delta) {
     elapsed += delta;
-    if (inYellow) {
+    const currentPhase = PHASES[phaseIndex];
+
+    // Handle emergency vehicle override
+    if (emergencyActive) {
+      emergencyTimer -= delta;
+      if (emergencyTimer <= 0) {
+        emergencyActive = false;
+        emergencyRoad = null;
+        stats.emergencyMode = false;
+        addLog("Emergency vehicle cleared — resuming adaptive cycle", "emergency");
+      } else {
+        // Force green for emergency road
+        stats.emergencyMode = true;
+        stats.currentPhaseLabel = `🚨 EMERGENCY — Road ${emergencyRoad}`;
+        stats.phaseTimeRemaining = emergencyTimer;
+        callbacks.onTrafficUpdate?.({
+          phase: phaseIndex + 1,
+          inYellow: false,
+          currentGreenRoads: [emergencyRoad],
+          currentRedRoads: [1, 2, 3, 4].filter((r) => r !== emergencyRoad),
+          phaseProgress: 1 - emergencyTimer / 5,
+          stats: { ...stats },
+          timeInPhase: emergencyTimer,
+          decisionLog: [...decisionLog],
+          phaseLabel: stats.currentPhaseLabel,
+        });
+        return;
+      }
+    }
+
+    // Phase state machine
+    if (inPedestrian) {
+      pedestrianElapsed += delta;
+      if (pedestrianElapsed >= PEDESTRIAN_DURATION) {
+        inPedestrian = false;
+        pedestrianElapsed = 0;
+        elapsed = 0;
+        phaseIndex = (phaseIndex + 1) % PHASES.length;
+        phaseGreenDuration = calculateAdaptiveGreen();
+        addLog(`AI switched to ${PHASES[phaseIndex].label}`, "phase");
+      }
+    } else if (inAllRed) {
+      allRedElapsed += delta;
+      if (allRedElapsed >= ALL_RED_DURATION) {
+        inAllRed = false;
+        allRedElapsed = 0;
+        inPedestrian = true;
+        pedestrianElapsed = 0;
+        stats.pedestrianPhase = true;
+        addLog("Pedestrian crossing active — all vehicles stopped", "pedestrian");
+      }
+    } else if (inYellow) {
       yellowElapsed += delta;
       if (yellowElapsed >= YELLOW_DURATION) {
         inYellow = false;
         yellowElapsed = 0;
-        elapsed = 0;
-        if (phase === 1) { phase = 2; currentGreenRoads = [3, 4]; currentRedRoads = [1, 2]; }
-        else { phase = 1; currentGreenRoads = [1, 2]; currentRedRoads = [3, 4]; }
+        inAllRed = true;
+        allRedElapsed = 0;
       }
-    } else if (elapsed >= PHASE_DURATION) {
+    } else if (elapsed >= phaseGreenDuration) {
       inYellow = true;
       yellowElapsed = 0;
+      stats.pedestrianPhase = false;
+      addLog(`${currentPhase.label} ending — yellow transition`, "phase");
     }
-    const greenCount = 40;
-    const redCount = 40;
-    if (phase === 1) {
-      stats.vehiclesMoving = greenCount + Math.floor(Math.random() * 8);
-      stats.vehiclesWaiting = redCount + Math.floor(Math.random() * 8);
-    } else {
-      stats.vehiclesMoving = redCount + Math.floor(Math.random() * 8);
-      stats.vehiclesWaiting = greenCount + Math.floor(Math.random() * 8);
+
+    // Update queue estimates (simulated based on time in phase)
+    const cycleFactor = Math.sin((Date.now() / 5000) % (Math.PI * 2)) * 0.5 + 0.5;
+    for (let r = 1; r <= 4; r++) {
+      if (currentPhase.green.includes(r) && !inYellow && !inAllRed && !inPedestrian) {
+        roadQueues[r] = Math.max(0, roadQueues[r] - delta * 4);
+      } else {
+        roadQueues[r] = Math.min(30, roadQueues[r] + delta * (2 + cycleFactor * 3));
+      }
+      roadDensity[r] = Math.min(1, roadQueues[r] / 25);
     }
-    const densityRoll = stats.vehiclesWaiting / (stats.vehiclesMoving + stats.vehiclesWaiting);
-    if (densityRoll > 0.6) stats.density = "HIGH";
-    else if (densityRoll > 0.35) stats.density = "MEDIUM";
-    else stats.density = "LOW";
+
+    // Random emergency vehicle spawn (rare)
+    if (!emergencyActive && Math.random() < 0.0008) {
+      emergencyActive = true;
+      emergencyRoad = Math.floor(Math.random() * 4) + 1;
+      emergencyTimer = 5;
+      stats.emergencyMode = true;
+      addLog(`🚨 Emergency vehicle detected on Road ${emergencyRoad} — priority override`, "emergency");
+    }
+
+    // Compute stats
+    const totalQueue = Object.values(roadQueues).reduce((a, b) => a + b, 0);
+    const movingRoads = inPedestrian ? 0 : currentPhase.green.length;
+    stats.vehiclesMoving = Math.floor(movingRoads * 20 + Math.random() * 8);
+    stats.vehiclesWaiting = Math.floor(totalQueue * 3 + Math.random() * 10);
+    stats.vehiclesDetected = stats.vehiclesMoving + stats.vehiclesWaiting;
+    stats.density = totalQueue > 60 ? "HIGH" : totalQueue > 30 ? "MEDIUM" : "LOW";
+    stats.avgWaitTime = (8 + totalQueue * 0.4).toFixed(1);
+    stats.throughput = Math.floor(1100 + (4 - totalQueue / 20) * 80);
+    stats.aiConfidence = Math.floor(88 + Math.random() * 10);
+    stats.currentPhaseLabel = inPedestrian ? "🚶 PEDESTRIAN CROSSING" : inAllRed ? "⛔ ALL RED" : inYellow ? `⚠️ ${currentPhase.label} — YELLOW` : currentPhase.label;
+    stats.phaseTimeRemaining = inPedestrian
+      ? PEDESTRIAN_DURATION - pedestrianElapsed
+      : inAllRed
+      ? ALL_RED_DURATION - allRedElapsed
+      : inYellow
+      ? YELLOW_DURATION - yellowElapsed
+      : phaseGreenDuration - elapsed;
+
+    const greenRoads = inPedestrian || inAllRed ? [] : currentPhase.green;
+    const redRoads = inPedestrian || inAllRed ? [1, 2, 3, 4] : [1, 2, 3, 4].filter((r) => !currentPhase.green.includes(r));
+
     callbacks.onTrafficUpdate?.({
-      phase, inYellow, currentGreenRoads, currentRedRoads,
-      phaseProgress: inYellow ? yellowElapsed / YELLOW_DURATION : elapsed / PHASE_DURATION,
+      phase: phaseIndex + 1,
+      inYellow,
+      inAllRed,
+      inPedestrian,
+      currentGreenRoads: greenRoads,
+      currentRedRoads: redRoads,
+      phaseProgress: inPedestrian
+        ? pedestrianElapsed / PEDESTRIAN_DURATION
+        : inAllRed
+        ? allRedElapsed / ALL_RED_DURATION
+        : inYellow
+        ? yellowElapsed / YELLOW_DURATION
+        : elapsed / phaseGreenDuration,
       stats: { ...stats },
-      timeInPhase: inYellow ? yellowElapsed : elapsed,
+      timeInPhase: elapsed,
+      decisionLog: [...decisionLog],
+      phaseLabel: stats.currentPhaseLabel,
+      roadQueues: { ...roadQueues },
     });
   }
 
-  function isGreen(road) { return !inYellow && currentGreenRoads.includes(road); }
-  function isRed(road) { return !inYellow && currentRedRoads.includes(road); }
-  function isYellowRoad(road) { return inYellow && (currentGreenRoads.includes(road) || currentRedRoads.includes(road)); }
+  function isGreen(road) {
+    if (emergencyActive) return road === emergencyRoad;
+    if (inYellow || inAllRed || inPedestrian) return false;
+    return PHASES[phaseIndex].green.includes(road);
+  }
+  function isRed(road) {
+    if (emergencyActive) return road !== emergencyRoad;
+    if (inPedestrian || inAllRed) return true;
+    return !PHASES[phaseIndex].green.includes(road);
+  }
+  function isYellowRoad(road) {
+    if (inYellow) return PHASES[phaseIndex].green.includes(road);
+    return false;
+  }
+  function getPhase() { return phaseIndex + 1; }
+  function getStats() { return { ...stats }; }
 
-  return { tick, isGreen, isRed, isYellowRoad, getPhase: () => phase, getStats: () => ({ ...stats }) };
+  return { tick, isGreen, isRed, isYellowRoad, getPhase, getStats, PHASES };
 }
 
 const SmartCity3D = forwardRef((props, ref) => {
   const {
     onPanel, onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage,
     onAiReason, onTouristMessage, onAITrafficUpdate,
-    onFiltrationUpdate, onWasteUpdate,
+    onFiltrationUpdate, onWasteUpdate, onAITrafficLog,
   } = props;
   const mountRef = useRef(null);
-  const [locationPopup, setLocationPopup] = useState(null);
+
+  // ── Recording-focused small UI state ──
+  const [recording, setRecording] = useState(false);
+  const [recTime, setRecTime] = useState(0);
+  const [trafficHUD, setTrafficHUD] = useState(null);
+  const [hudExpanded, setHudExpanded] = useState(true);
 
   const s = useRef({
     camera: null, controls: null, renderer: null, scene: null,
@@ -172,6 +357,13 @@ const SmartCity3D = forwardRef((props, ref) => {
     wasteBiogasFlame: null, wasteGeneratorCoil: null, wasteRecycleGears: [], wasteBins3D: [],
   }).current;
 
+  // Recording timer
+  useEffect(() => {
+    if (!recording) return;
+    const id = setInterval(() => setRecTime((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [recording]);
+
   useImperativeHandle(ref, () => ({
     getLocations: () => Object.values(LOCATIONS),
     goToLocation: (key, onLabel) => goToLocation(key, onLabel),
@@ -195,8 +387,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const [x, y, z] = loc.position;
     smoothCameraTo(new THREE.Vector3(x + loc.camDistance * 0.7, loc.camHeight, z + loc.camDistance * 0.7), new THREE.Vector3(x, y, z));
     s.controls.enableRotate = false; onLabel?.(loc.label);
-    const live = LOCATION_LIVE_DATA[key];
-    if (live) setLocationPopup({ key, label: loc.label, icon: loc.icon, type: loc.type, desc: live.desc, stats: live.stats });
   }
 
   function goToLocationCamera(key, camName, onLabel) {
@@ -211,14 +401,11 @@ const SmartCity3D = forwardRef((props, ref) => {
     else { camPos = new THREE.Vector3(x + Math.sin(cam.angle) * loc.camDistance, y + loc.camHeight * 0.5, z + Math.cos(cam.angle) * loc.camDistance); lookAt = new THREE.Vector3(x, y, z); }
     smoothCameraTo(camPos, lookAt);
     s.controls.enableRotate = false; onLabel?.(loc.label);
-    const live = LOCATION_LIVE_DATA[key];
-    if (live) setLocationPopup({ key, label: loc.label, icon: loc.icon, type: loc.type, desc: live.desc, stats: live.stats });
   }
 
   function exitCameraView() {
     if (!s.camera) return;
     s.isLocked = false; s.lockedLocation = null; s.followTarget = null;
-    setLocationPopup(null);
     if (s.savedCamPos && s.savedCamTarget) smoothCameraTo(s.savedCamPos, s.savedCamTarget);
     s.controls.enableRotate = true;
   }
@@ -226,7 +413,6 @@ const SmartCity3D = forwardRef((props, ref) => {
   function followVehicle(key, onText) {
     if (!s.camera) return;
     s.isLocked = false; s.lockedLocation = null;
-    setLocationPopup(null);
     if (key === "garbageTruck") s.followTarget = s.trucks.garbage;
     else if (key === "fertTruck1") s.followTarget = s.trucks.fert1;
     else if (key === "fertTruck2") s.followTarget = s.trucks.fert2;
@@ -241,13 +427,12 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.controls.enableRotate = true;
   }
 
-  function goToOverview() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; setLocationPopup(null); s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(1400, 950, 1400), new THREE.Vector3(0, 5, 0), 1500); }
-  function goToTopDown() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; setLocationPopup(null); s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(0, 2800, 500), new THREE.Vector3(0, 0, 0), 1500); }
+  function goToOverview() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(1400, 950, 1400), new THREE.Vector3(0, 5, 0), 1500); }
+  function goToTopDown() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(0, 2800, 500), new THREE.Vector3(0, 0, 0), 1500); }
 
   function goToLiveTraffic() {
     if (!s.camera) return;
     s.isLocked = false; s.lockedLocation = "liveTraffic"; s.followTarget = null;
-    setLocationPopup(null);
     s.savedCamPos = s.camera.position.clone();
     s.savedCamTarget = s.controls.target.clone();
     smoothCameraTo(new THREE.Vector3(0, 420, 520), new THREE.Vector3(0, 5, 0), 2000);
@@ -817,9 +1002,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     bld("/sci-fi_building_9.glb", 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
     bld("/beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
     bld("/sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-        /* =====================================================================
-       SMART CITY RESOURCES
-       ===================================================================== */
+
     function resourceBorder(x, z, w, d, color = 0x00e0ff) {
       const bMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
       s.borderLights.push(bMat);
@@ -1160,9 +1343,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       }, undefined, () => {});
     });
 
-    /* =====================================================================
-       FILTRATION SYSTEM — 9 STAGES
-       ===================================================================== */
+    /* ===== FILTRATION SYSTEM — 9 STAGES ===== */
     const filtZone = new THREE.Group();
     filtZone.position.set(3600, 0, -3600); scene.add(filtZone);
     board("FILTRATION SYSTEM", 3600, 5, -2700, 380, 18, 0x22cfff);
@@ -1323,9 +1504,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       filtZone.add(ring); pumpRings.push(ring);
     }
 
-    /* =====================================================================
-       FERTILIZER SYSTEM
-       ===================================================================== */
+    /* ===== FERTILIZER SYSTEM ===== */
     const fertZone = new THREE.Group();
     fertZone.position.set(-3600, 0, -3600); scene.add(fertZone);
     board("AI FERTILIZER SYSTEM", -3600, 5, -2700, 420, 22, 0x8e44ad);
@@ -1352,9 +1531,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       light.position.set(cx, 72, -350); fertZone.add(light);
     }
 
-    /* =====================================================================
-       WASTE MANAGEMENT — 6 STAGE CLEANING PROCESS
-       ===================================================================== */
+    /* ===== WASTE MANAGEMENT — 6 STAGE CLEANING PROCESS ===== */
     const wasteZone = new THREE.Group();
     wasteZone.position.set(3600, 0, 3600); scene.add(wasteZone);
     board("WASTE MANAGEMENT", 3600, 5, 4500, 380, 18, 0x2ecc71);
@@ -1491,7 +1668,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const g3 = buildTruck(0xd8b3ff, 0x8e44ad, "AI FERTILIZER", "#8e44ad");
     const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
 
-    /* ===== CITY CARS (FIXED: slow speed, zameen par) ===== */
+    /* ===== CITY CARS ===== */
     const cityCars = []; s.cityCars = cityCars;
     const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c, 0x1abc9c, 0x3498db, 0xe91e63, 0x9b59b6, 0xff5722, 0x00bcd4, 0x795548, 0x607d8b, 0xff9800, 0x3f51b5];
     const V_LEN = 26, V_WID = 10, V_HGT = 5.5;
@@ -1625,9 +1802,8 @@ const SmartCity3D = forwardRef((props, ref) => {
       const style = styleRoll < 0.6 ? "sedan" : (styleRoll < 0.85 ? "suv" : "sport");
       const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
       scene.add(car);
-      // FIXED: bahut slow speed
       const spd = 0.04 + Math.random() * 0.03;
-      const carObj = { car, roadId, axis: lane.axis, sign: lane.sign, xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0, pos: startPos, speed: spd, baseSpeed: spd, waiting: false };
+      const carObj = { car, roadId, axis: lane.axis, sign: lane.sign, xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0, pos: startPos, speed: spd, baseSpeed: spd, waiting: false, targetSpeed: spd };
       intersectionCars.push(carObj);
       updateIntersectionCarTransform(carObj);
     }
@@ -1663,7 +1839,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           else { targetSpeed = c.baseSpeed * 0.7; c.waiting = false; }
         } else c.waiting = false;
         c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 4);
-        c.pos += c.sign * c.speed * delta * 15; // FIXED: 30 -> 15
+        c.pos += c.sign * c.speed * delta * 15;
         const range = 1200;
         if (c.sign < 0 && c.pos < -range) c.pos = range;
         else if (c.sign > 0 && c.pos > range) c.pos = -range;
@@ -1885,7 +2061,12 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     addLandscaping();
 
-    const aiSystem = createAITrafficSystem({ onTrafficUpdate: (data) => onAITrafficUpdate?.(data) });
+    const aiSystem = createAITrafficSystem({
+      onTrafficUpdate: (data) => {
+        onAITrafficUpdate?.(data);
+        if (data.decisionLog) onAITrafficLog?.(data.decisionLog);
+      },
+    });
     s.aiSystem = aiSystem;
 
     const garbageRoute = [
@@ -1945,13 +2126,13 @@ const SmartCity3D = forwardRef((props, ref) => {
             text = `Water purity at this stage: ${Math.round(purityAtStage)}%. Duration: ${stage.duration}s.`;
             type = `STAGE ${item.stageIndex + 1} OF 9`;
           }
-          onPanel({ title, type, text });
+          onPanel?.({ title, type, text });
           return;
         }
       }
       const ctrlHit = raycaster.intersectObject(controller, true);
       if (ctrlHit.length) {
-        onPanel({ title: "AI Traffic Management Center", type: "INTELLIGENT TRANSPORTATION", text: "Monitors all 4 city entry routes. 24 sensors online." });
+        onPanel?.({ title: "AI Traffic Management Center", type: "INTELLIGENT TRANSPORTATION", text: "Monitors all 4 city entry routes. 24 sensors online. Adaptive 4-phase AI system with emergency priority." });
       }
     };
     renderer.domElement.addEventListener("click", onClick);
@@ -2208,97 +2389,300 @@ const SmartCity3D = forwardRef((props, ref) => {
     };
   }, []);
 
+  const formatRecTime = (s) => {
+    const m = Math.floor(s / 60).toString().padStart(2, "0");
+    const sec = (s % 60).toString().padStart(2, "0");
+    return `${m}:${sec}`;
+  };
+
+  const handleTrafficHUD = (data) => {
+    setTrafficHUD(data);
+  };
+
+  // Wire the traffic HUD callback
+  useEffect(() => {
+    if (!s.aiSystem) {
+      // Will be set after mount; poll until ready
+      const id = setInterval(() => {
+        if (s.aiSystem) clearInterval(id);
+      }, 200);
+      return () => clearInterval(id);
+    }
+  }, [s]);
+
   return (
     <>
       <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />
-      {locationPopup && (
-        <div style={{
-          position: "fixed",
-          bottom: 24,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "linear-gradient(135deg, rgba(8, 20, 35, 0.95), rgba(15, 35, 55, 0.95))",
-          border: "2px solid #22cfff",
-          borderRadius: 16,
-          padding: "18px 28px",
-          color: "#fff",
-          fontFamily: "system-ui, -apple-system, sans-serif",
-          boxShadow: "0 0 40px rgba(34, 207, 255, 0.5), inset 0 0 20px rgba(34, 207, 255, 0.1)",
-          zIndex: 9999,
-          minWidth: 420,
-          maxWidth: 600,
-          backdropFilter: "blur(12px)",
-          animation: "slideUp 0.4s ease-out",
-        }}>
-          {/* ✕ CLOSE BUTTON */}
-          <button
-            onClick={() => setLocationPopup(null)}
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              width: 30,
-              height: 30,
-              background: "rgba(255, 50, 50, 0.15)",
-              border: "1.5px solid rgba(255, 100, 100, 0.5)",
-              borderRadius: "50%",
-              color: "#fff",
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.25s ease",
-              zIndex: 10,
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = "rgba(255, 50, 50, 0.95)";
-              e.target.style.transform = "rotate(90deg) scale(1.1)";
-              e.target.style.boxShadow = "0 0 20px rgba(255, 50, 50, 0.7)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "rgba(255, 50, 50, 0.15)";
-              e.target.style.transform = "rotate(0deg) scale(1)";
-              e.target.style.boxShadow = "none";
-            }}
-          >✕</button>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, paddingRight: 30 }}>
-            <span style={{ fontSize: 32 }}>{locationPopup.icon}</span>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#22cfff" }}>{locationPopup.label}</div>
-              <div style={{ fontSize: 11, color: "#7fe3ff", letterSpacing: 1.5, textTransform: "uppercase" }}>{locationPopup.type}</div>
-            </div>
-          </div>
-          <div style={{ fontSize: 13, color: "#b8e8ff", marginBottom: 12, lineHeight: 1.5 }}>{locationPopup.desc}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {locationPopup.stats.map((stat, i) => (
-              <div key={i} style={{
-                background: "rgba(34, 207, 255, 0.1)",
-                border: "1px solid rgba(34, 207, 255, 0.3)",
-                borderRadius: 8,
-                padding: "8px 12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                fontSize: 12,
-              }}>
-                <span style={{ color: "#8fd8f0" }}>{stat[0]}</span>
-                <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
-              </div>
-            ))}
-          </div>
-          <style>{`
-            @keyframes slideUp {
-              from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-              to { opacity: 1; transform: translateX(-50%) translateY(0); }
-            }
-          `}</style>
-        </div>
-      )}
+      {/* ── RECORDING INDICATOR — top-left ── */}
+      <div style={{
+        position: "fixed",
+        top: 16,
+        left: 16,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        background: "rgba(5, 10, 18, 0.82)",
+        border: "1px solid rgba(34, 207, 255, 0.35)",
+        borderRadius: 10,
+        padding: "8px 14px",
+        backdropFilter: "blur(10px)",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+      }}>
+        <span style={{
+          width: 10, height: 10, borderRadius: "50%",
+          background: recording ? "#ff3b3b" : "#3bff7a",
+          boxShadow: recording ? "0 0 12px #ff3b3b" : "0 0 8px #3bff7a",
+          animation: recording ? "pulse 1.2s ease-in-out infinite" : "none",
+          display: "inline-block",
+        }} />
+        <span style={{ color: "#cfe9f5", fontSize: 12, fontWeight: 600, letterSpacing: 1 }}>
+          {recording ? "REC" : "LIVE"}
+        </span>
+        <span style={{ color: "#7fe3ff", fontSize: 12, fontVariantNumeric: "tabular-nums", minWidth: 44 }}>
+          {formatRecTime(recTime)}
+        </span>
+        <button
+          onClick={() => { setRecording((r) => !r); if (!recording) setRecTime(0); }}
+          style={{
+            background: recording ? "rgba(255, 59, 59, 0.2)" : "rgba(34, 207, 255, 0.15)",
+            border: `1px solid ${recording ? "rgba(255,80,80,0.6)" : "rgba(34,207,255,0.5)"}`,
+            color: recording ? "#ff6b6b" : "#22cfff",
+            borderRadius: 6,
+            padding: "3px 10px",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+            letterSpacing: 0.5,
+          }}
+        >
+          {recording ? "STOP" : "REC"}
+        </button>
+      </div>
+
+      {/* ── AI TRAFFIC HUD — top-right, compact & collapsible ── */}
+      <AITrafficHUD onData={handleTrafficHUD} expanded={hudExpanded} onToggle={() => setHudExpanded((e) => !e)} data={trafficHUD} />
     </>
   );
 });
+
+/* =====================================================================
+   COMPACT AI TRAFFIC HUD — small menu for recording, focus on AI status
+   ===================================================================== */
+function AITrafficHUD({ onData, expanded, onToggle, data }) {
+  const [hud, setHud] = useState(null);
+  const [log, setLog] = useState([]);
+  const lastLogRef = useRef([]);
+
+  // Poll from parent-provided data
+  useEffect(() => {
+    if (data) {
+      setHud(data);
+      if (data.decisionLog && data.decisionLog !== lastLogRef.current) {
+        lastLogRef.current = data.decisionLog;
+        setLog(data.decisionLog.slice(0, 5));
+      }
+    }
+  }, [data]);
+
+  const stat = hud?.stats || {};
+
+  return (
+    <div style={{
+      position: "fixed",
+      top: 16,
+      right: 16,
+      zIndex: 9999,
+      width: expanded ? 300 : 150,
+      fontFamily: "system-ui, -apple-system, sans-serif",
+      transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
+    }}>
+      {/* Header bar */}
+      <div
+        onClick={onToggle}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "rgba(5, 10, 18, 0.88)",
+          border: "1px solid rgba(34, 207, 255, 0.4)",
+          borderRadius: expanded ? "10px 10px 0 0" : 10,
+          padding: "8px 12px",
+          cursor: "pointer",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>🤖</span>
+          <span style={{ color: "#22cfff", fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>AI TRAFFIC</span>
+          {stat.emergencyMode && (
+            <span style={{
+              background: "rgba(255,50,50,0.9)",
+              color: "#fff",
+              fontSize: 9,
+              fontWeight: 800,
+              padding: "2px 6px",
+              borderRadius: 4,
+              animation: "pulse 0.8s ease-in-out infinite",
+              letterSpacing: 0.5,
+            }}>EMERGENCY</span>
+          )}
+        </div>
+        <span style={{ color: "#7fe3ff", fontSize: 14, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s" }}>
+          ▾
+        </span>
+      </div>
+
+      {/* Collapsible body */}
+      <div style={{
+        maxHeight: expanded ? 620 : 0,
+        overflow: "hidden",
+        transition: "max-height 0.4s cubic-bezier(0.4,0,0.2,1)",
+      }}>
+        <div style={{
+          background: "rgba(5, 12, 22, 0.92)",
+          border: "1px solid rgba(34, 207, 255, 0.3)",
+          borderTop: "none",
+          borderRadius: "0 0 10px 10px",
+          padding: 12,
+          backdropFilter: "blur(12px)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+        }}>
+
+          {/* Phase label + progress */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+              <span style={{ color: "#b8e8ff", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>CURRENT PHASE</span>
+              <span style={{ color: "#22cfff", fontSize: 11, fontWeight: 700 }}>
+                {hud?.phase ? `PHASE ${hud.phase}/4` : "—"}
+              </span>
+            </div>
+            <div style={{
+              background: "rgba(34, 207, 255, 0.08)",
+              border: "1px solid rgba(34, 207, 255, 0.25)",
+              borderRadius: 6,
+              padding: "6px 10px",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 600,
+              textAlign: "center",
+              marginBottom: 6,
+            }}>
+              {stat.currentPhaseLabel || "Initializing…"}
+            </div>
+            {/* Progress bar */}
+            <div style={{ height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(100, (hud?.phaseProgress || 0) * 100)}%`,
+                background: hud?.inYellow ? "#ffcc22" : hud?.inAllRed ? "#ff4444" : hud?.inPedestrian ? "#ffdd57" : "#22cfff",
+                transition: "width 0.2s linear",
+                boxShadow: "0 0 8px rgba(34,207,255,0.6)",
+              }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              <span style={{ color: "#7fe3ff", fontSize: 9 }}>
+                {hud?.inYellow ? "⚠️ YELLOW" : hud?.inAllRed ? "⛔ ALL RED" : hud?.inPedestrian ? "🚶 WALK" : "🟢 GREEN"}
+              </span>
+              <span style={{ color: "#7fe3ff", fontSize: 9, fontVariantNumeric: "tabular-nums" }}>
+                {stat.phaseTimeRemaining?.toFixed(1) || "0.0"}s
+              </span>
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 10 }}>
+            <HUDStat label="🚗 Moving" value={stat.vehiclesMoving ?? "—"} color="#3bff7a" />
+            <HUDStat label="⏳ Waiting" value={stat.vehiclesWaiting ?? "—"} color="#ffcc22" />
+            <HUDStat label="📊 Density" value={stat.density ?? "—"} color="#22cfff" />
+            <HUDStat label="⏱️ Avg Wait" value={stat.avgWaitTime ? `${stat.avgWaitTime}s` : "—"} color="#b266ff" />
+            <HUDStat label="📈 Throughput" value={stat.throughput ? `${stat.throughput}/h` : "—"} color="#3bff7a" />
+            <HUDStat label="🧠 AI Conf" value={stat.aiConfidence ? `${stat.aiConfidence}%` : "—"} color="#22cfff" />
+          </div>
+
+          {/* Road queue bars */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ color: "#b8e8ff", fontSize: 10, fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>ROAD QUEUES</div>
+            {[1, 2, 3, 4].map((r) => {
+              const q = hud?.roadQueues?.[r] || 0;
+              const pct = Math.min(100, (q / 25) * 100);
+              const isGreen = hud?.currentGreenRoads?.includes(r);
+              return (
+                <div key={r} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{ color: isGreen ? "#3bff7a" : "#ff6b6b", fontSize: 10, width: 46, fontWeight: 600 }}>
+                    {isGreen ? "🟢" : "🔴"} R{r}
+                  </span>
+                  <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${pct}%`,
+                      background: pct > 70 ? "#ff4444" : pct > 40 ? "#ffcc22" : "#3bff7a",
+                      transition: "width 0.3s ease",
+                    }} />
+                  </div>
+                  <span style={{ color: "#7fe3ff", fontSize: 9, width: 22, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                    {Math.round(q)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* AI Decision Log */}
+          <div>
+            <div style={{ color: "#b8e8ff", fontSize: 10, fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>
+              🧠 AI DECISION LOG
+            </div>
+            <div style={{ maxHeight: 110, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
+              {log.length === 0 && (
+                <span style={{ color: "#4a6a7a", fontSize: 10, fontStyle: "italic" }}>Monitoring…</span>
+              )}
+              {log.map((entry, i) => (
+                <div key={i} style={{
+                  fontSize: 10,
+                  color: entry.type === "emergency" ? "#ff6b6b" : entry.type === "adaptive" ? "#ffcc22" : entry.type === "pedestrian" ? "#ffdd57" : "#7fe3ff",
+                  background: "rgba(255,255,255,0.03)",
+                  borderLeft: `2px solid ${entry.type === "emergency" ? "#ff4444" : entry.type === "adaptive" ? "#ffcc22" : "#22cfff"}`,
+                  padding: "3px 6px",
+                  borderRadius: "0 4px 4px 0",
+                  lineHeight: 1.3,
+                }}>
+                  {entry.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function HUDStat({ label, value, color }) {
+  return (
+    <div style={{
+      background: "rgba(34, 207, 255, 0.06)",
+      border: "1px solid rgba(34, 207, 255, 0.18)",
+      borderRadius: 5,
+      padding: "5px 7px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 1,
+    }}>
+      <span style={{ color: "#8fd8f0", fontSize: 9, letterSpacing: 0.3 }}>{label}</span>
+      <span style={{ color, fontSize: 12, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+    </div>
+  );
+}
 
 export default SmartCity3D;
