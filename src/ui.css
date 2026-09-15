@@ -1,777 +1,6 @@
 /* =====================================================================
    BSS WORLD — SMART CITY UI
-   Modern, glassmorphic, neon-accented designimport React, { useState, useEffect, useRef, useCallback } from "react";
-import SmartCity3D from "./SmartCity3D.jsx";
-import "./ui.css";
-
-export default function App() {
-  const [isNight, setIsNight] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [panel, setPanel] = useState(null);
-  const [camIndicator, setCamIndicator] = useState(null);
-  const [locations, setLocations] = useState([]);
-  const [liveTrafficMode, setLiveTrafficMode] = useState(false);
-
-  // Panel visibility states (✕ buttons ke liye)
-  const [showTraffic, setShowTraffic] = useState(true);
-  const [showFiltration, setShowFiltration] = useState(true);
-  const [showWaste, setShowWaste] = useState(true);
-
-  const [traffic, setTraffic] = useState({
-    state: "TRAFFIC NORMAL",
-    stateColor: "#63ddff",
-    reason: "ALL ROUTES FLOWING NORMALLY",
-    level: "NORMAL",
-    flow: "92%",
-    mode: "MONITORING",
-    incident: "<span>LIVE:</span> Traffic flowing normally",
-  });
-
-  const [aiTraffic, setAiTraffic] = useState({
-    phase: 1,
-    inYellow: false,
-    currentGreenRoads: [1, 2],
-    currentRedRoads: [3, 4],
-    phaseProgress: 0,
-    timeInPhase: 0,
-    stats: {
-      vehiclesDetected: 80,
-      vehiclesMoving: 40,
-      vehiclesWaiting: 40,
-      density: "HIGH",
-    },
-  });
-
-  const [simTime, setSimTime] = useState("00:00");
-  const [cycleLabel, setCycleLabel] = useState("");
-  const [cyclePct, setCyclePct] = useState(0);
-  const [cycleVisible, setCycleVisible] = useState(false);
-  const [aiMsg, setAiMsg] = useState("");
-  const [aiMsgVisible, setAiMsgVisible] = useState(false);
-  const [aiReason, setAiReason] = useState({ visible: false, title: "", text: "", result: "" });
-  const [showAiBtn, setShowAiBtn] = useState(false);
-  const [touristMsg, setTouristMsg] = useState("");
-  const [touristMsgVisible, setTouristMsgVisible] = useState(false);
-
-  // ===== FILTRATION & WASTE STATE =====
-  const [filtrationData, setFiltrationData] = useState({
-    stageIndex: 0,
-    stage: null,
-    allStages: [],
-    progress: 0,
-    purity: 0,
-  });
-
-  const [wasteStage, setWasteStage] = useState({
-    stageIndex: 0,
-    stage: null,
-    allStages: [],
-    progress: 0,
-  });
-
-  const cityRef = useRef(null);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (cityRef.current?.getLocations) {
-        const locs = cityRef.current.getLocations();
-        if (locs?.length) setLocations(locs);
-      }
-    }, 200);
-    return () => clearTimeout(t);
-  }, []);
-
-  const showAiMessage = useCallback((msg) => {
-    setAiMsg(msg);
-    setAiMsgVisible(true);
-    setTimeout(() => setAiMsgVisible(false), 4000);
-  }, []);
-
-  const showTouristMessage = useCallback((msg) => {
-    setTouristMsg(msg);
-    setTouristMsgVisible(true);
-    setTimeout(() => setTouristMsgVisible(false), 3000);
-  }, []);
-
-  const handleToggleMenu = () => setMenuOpen((v) => !v);
-
-  const handleCameraSelect = (key, camName) => {
-    setLiveTrafficMode(false);
-    setMenuOpen(false);
-    cityRef.current?.goToLocationCamera?.(key, camName, (label) => {
-      setCamIndicator({ text: `🔒 ${label.toUpperCase()} — ${camName}` });
-    });
-  };
-
-  const handleLocationClick = (key) => {
-    setLiveTrafficMode(false);
-    setMenuOpen(false);
-    cityRef.current?.goToLocation?.(key, (label) => {
-      setCamIndicator({ text: `🔒 ${label.toUpperCase()}` });
-    });
-  };
-
-  const handleFollowVehicle = (key) => {
-    setLiveTrafficMode(false);
-    setMenuOpen(false);
-    cityRef.current?.followVehicle?.(key, (text) => setCamIndicator({ text }));
-  };
-
-  const handleOverview = () => {
-    setLiveTrafficMode(false);
-    setMenuOpen(false);
-    setCamIndicator(null);
-    cityRef.current?.goToOverview?.();
-  };
-
-  const handleTopDown = () => {
-    setLiveTrafficMode(false);
-    setMenuOpen(false);
-    setCamIndicator(null);
-    cityRef.current?.goToTopDown?.();
-  };
-
-  const handleExitCamera = () => {
-    setCamIndicator(null);
-    setLiveTrafficMode(false);
-    cityRef.current?.exitCameraView?.();
-  };
-
-  const handleToggleDayNight = () => {
-    const next = !isNight;
-    setIsNight(next);
-    cityRef.current?.setDayNight?.(next);
-  };
-
-  const handleViewLiveTraffic = () => {
-    setMenuOpen(false);
-    setLiveTrafficMode(true);
-    setCamIndicator({ text: "🔴 LIVE TRAFFIC — MONITORING" });
-    cityRef.current?.goToLiveTraffic?.();
-  };
-
-  const handleBackToCity = () => {
-    setLiveTrafficMode(false);
-    setCamIndicator(null);
-    cityRef.current?.goToOverview?.();
-  };
-
-  const closeAiReason = () => {
-    setAiReason((v) => ({ ...v, visible: false }));
-    setShowAiBtn(true);
-  };
-
-  const reopenAiReason = () => {
-    setAiReason((v) => ({ ...v, visible: true }));
-    setShowAiBtn(false);
-  };
-
-  const handleAITrafficUpdate = useCallback((data) => {
-    setAiTraffic(data);
-  }, []);
-
-  const handleFiltrationUpdate = useCallback((data) => {
-    setFiltrationData((prev) => {
-      const stageIndex = data.stageIndex ?? prev.stageIndex;
-      const progress = data.progress ?? 0;
-      const purity = ((stageIndex + progress) / 9) * 100;
-      return {
-        ...prev,
-        ...data,
-        purity: Math.min(100, purity),
-      };
-    });
-  }, []);
-
-  const handleWasteUpdate = useCallback((data) => {
-    setWasteStage((prev) => ({ ...prev, ...data }));
-  }, []);
-
-  const getRoadSignal = (roadId) => {
-    if (aiTraffic.inYellow) {
-      if (aiTraffic.currentGreenRoads.includes(roadId)) return "yellow";
-      return "red";
-    }
-    if (aiTraffic.currentGreenRoads.includes(roadId)) return "green";
-    return "red";
-  };
-
-  const getSignalColor = (signal) => {
-    if (signal === "green") return "#22ff66";
-    if (signal === "yellow") return "#ffcc22";
-    return "#ff2222";
-  };
-
-  return (
-    <div className="app-root">
-      <SmartCity3D
-        ref={cityRef}
-        onPanel={setPanel}
-        onTrafficUpdate={setTraffic}
-        onSimTime={setSimTime}
-        onCycleUpdate={(label, pct, visible) => {
-          setCycleLabel(label);
-          setCyclePct(pct);
-          setCycleVisible(visible);
-        }}
-        onAiMessage={showAiMessage}
-        onAiReason={(data) => {
-          setAiReason(data);
-          setShowAiBtn(!data.visible);
-        }}
-        onTouristMessage={showTouristMessage}
-        onAITrafficUpdate={handleAITrafficUpdate}
-        onFiltrationUpdate={handleFiltrationUpdate}
-        onWasteUpdate={handleWasteUpdate}
-      />
-
-      {/* ===== BRAND ===== */}
-      <div className="ui-brand">
-        <div className="title">BSS WORLD</div>
-        <div className="sub">3D SMART CITY • AI TRAFFIC CONTROL</div>
-      </div>
-
-      {/* ===== DAY / NIGHT TOGGLE ===== */}
-      <button
-        className={`day-night-btn ${isNight ? "night" : ""}`}
-        onClick={handleToggleDayNight}
-      >
-        {isNight ? "🌙 NIGHT" : "☀ DAY"}
-      </button>
-
-      {/* ===== LIVE TRAFFIC BUTTON ===== */}
-      {!liveTrafficMode && (
-        <button className="live-traffic-btn" onClick={handleViewLiveTraffic}>
-          <span className="live-dot"></span>
-          <span>VIEW LIVE TRAFFIC</span>
-        </button>
-      )}
-
-      {liveTrafficMode && (
-        <button className="back-to-city-btn" onClick={handleBackToCity}>
-          <span>← BACK TO CITY</span>
-        </button>
-      )}
-
-      {/* ===== CAMERA INDICATOR ===== */}
-      {camIndicator && !liveTrafficMode && (
-        <div className="cam-indicator show">
-          <span className="rec"></span>
-          <span>{camIndicator.text}</span>
-          <button className="cam-btn" onClick={handleExitCamera}>✕ EXIT</button>
-        </div>
-      )}
-
-      {/* ===== FILTRATION PANEL ===== */}
-      {showFiltration && filtrationData.stage && !liveTrafficMode && (
-        <div className="filtration-panel">
-          {/* ✕ CLOSE BUTTON */}
-          <button
-            className="close-x-btn"
-            onClick={() => setShowFiltration(false)}
-            title="Close"
-          >✕</button>
-
-          <div className="fp-title">💧 WATER FILTRATION</div>
-          <div className="fp-stage-label">CURRENT STAGE</div>
-          <div className="fp-stage-name">{filtrationData.stage.label}</div>
-
-          <div className="fp-meter-row">
-            <span>Water Purity</span>
-            <span
-              style={{
-                color:
-                  filtrationData.purity > 90
-                    ? "#2ecc71"
-                    : filtrationData.purity > 50
-                    ? "#ffdd57"
-                    : "#ff6b6b",
-                fontWeight: 700,
-              }}
-            >
-              {Math.round(filtrationData.purity)}%
-            </span>
-          </div>
-          <div className="fp-meter">
-            <div
-              className="fp-meter-fill"
-              style={{
-                width: `${filtrationData.purity}%`,
-                background:
-                  filtrationData.purity > 90
-                    ? "linear-gradient(90deg, #22cfff, #2ecc71)"
-                    : "linear-gradient(90deg, #ff6b6b, #ffdd57)",
-              }}
-            />
-          </div>
-
-          <div className="fp-meter-row" style={{ marginTop: 10 }}>
-            <span>Stage Progress</span>
-            <span>{Math.round((filtrationData.progress || 0) * 100)}%</span>
-          </div>
-          <div className="fp-meter">
-            <div
-              className="fp-meter-fill"
-              style={{
-                width: `${(filtrationData.progress || 0) * 100}%`,
-                background: "#22cfff",
-              }}
-            />
-          </div>
-
-          <div className="fp-stages-list">
-            {filtrationData.allStages?.map((stage, i) => (
-              <div
-                key={stage.id}
-                className={`fp-stage-item ${
-                  i < filtrationData.stageIndex
-                    ? "done"
-                    : i === filtrationData.stageIndex
-                    ? "active"
-                    : ""
-                }`}
-              >
-                <span className="fp-dot" />
-                <span>{stage.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ===== REOPEN FILTRATION BUTTON ===== */}
-      {!showFiltration && filtrationData.stage && !liveTrafficMode && (
-        <button
-          className="reopen-btn filtration-reopen"
-          onClick={() => setShowFiltration(true)}
-          title="Show Filtration Panel"
-        >
-          💧 FILTRATION
-        </button>
-      )}
-
-      {/* ===== WASTE PANEL ===== */}
-      {showWaste && wasteStage.stage && !liveTrafficMode && (
-        <div className="waste-panel">
-          {/* ✕ CLOSE BUTTON */}
-          <button
-            className="close-x-btn"
-            onClick={() => setShowWaste(false)}
-            title="Close"
-          >✕</button>
-
-          <div className="wp-title">♻️ WASTE MANAGEMENT</div>
-          <div className="wp-stage-label">CURRENT PROCESS</div>
-          <div className="wp-stage-name">{wasteStage.stage.label}</div>
-
-          <div className="wp-meter-row">
-            <span>Process Progress</span>
-            <span>{Math.round((wasteStage.progress || 0) * 100)}%</span>
-          </div>
-          <div className="wp-meter">
-            <div
-              className="wp-meter-fill"
-              style={{ width: `${(wasteStage.progress || 0) * 100}%` }}
-            />
-          </div>
-
-          <div className="wp-stages-list">
-            {wasteStage.allStages?.map((stage, i) => (
-              <div
-                key={stage.id}
-                className={`wp-stage-item ${
-                  i < wasteStage.stageIndex
-                    ? "done"
-                    : i === wasteStage.stageIndex
-                    ? "active"
-                    : ""
-                }`}
-              >
-                <span className="wp-dot" />
-                <span>{stage.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ===== REOPEN WASTE BUTTON ===== */}
-      {!showWaste && wasteStage.stage && !liveTrafficMode && (
-        <button
-          className="reopen-btn waste-reopen"
-          onClick={() => setShowWaste(true)}
-          title="Show Waste Panel"
-        >
-          ♻️ WASTE
-        </button>
-      )}
-
-      {/* ===== LIVE TRAFFIC PANEL ===== */}
-      {liveTrafficMode && (
-        <div className="live-traffic-panel">
-          {/* ✕ CLOSE BUTTON */}
-          <button
-            className="close-x-btn"
-            onClick={handleBackToCity}
-            title="Close"
-          >✕</button>
-
-          <div className="ltp-header">
-            <div className="ai-dot"></div>
-            <div>
-              <div className="ltp-title">AI TRAFFIC MONITORING</div>
-              <div className="ltp-status">
-                SYSTEM STATUS: <span className="active-txt">ACTIVE</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="ltp-signals-title">CURRENT SIGNAL STATE</div>
-
-          <div className="ltp-signal-grid">
-            {[1, 2, 3, 4].map((roadId) => {
-              const sig = getRoadSignal(roadId);
-              const isGreen = sig === "green";
-              const isYellow = sig === "yellow";
-              const isRed = sig === "red";
-              return (
-                <div
-                  key={roadId}
-                  className={`ltp-signal-box ${isGreen ? "green" : ""} ${
-                    isRed ? "red" : ""
-                  } ${isYellow ? "yellow" : ""}`}
-                >
-                  <div className="ltp-road-name">ROAD {roadId}</div>
-                  <div
-                    className="ltp-light"
-                    style={{
-                      background: getSignalColor(sig),
-                      boxShadow: `0 0 20px ${getSignalColor(sig)}`,
-                    }}
-                  ></div>
-                  <div
-                    className="ltp-state"
-                    style={{ color: getSignalColor(sig) }}
-                  >
-                    {sig.toUpperCase()}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="ltp-phase-bar">
-            <div className="ltp-phase-label">
-              {aiTraffic.inYellow
-                ? "🟡 YELLOW — SWITCHING"
-                : `🟢 PHASE ${aiTraffic.phase} — ${aiTraffic.currentGreenRoads
-                    .map((r) => "ROAD " + r)
-                    .join(" + ")} GREEN`}
-            </div>
-            <div className="ltp-track">
-              <div
-                className="ltp-fill"
-                style={{ width: `${aiTraffic.phaseProgress * 100}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="ltp-signal-summary">
-            <div className="ltp-summary-green">
-              <span className="ltp-summary-label">GREEN</span>
-              <span className="ltp-summary-value">
-                {aiTraffic.currentGreenRoads.map((r) => "ROAD " + r).join(" + ")}
-              </span>
-            </div>
-            <div className="ltp-summary-red">
-              <span className="ltp-summary-label">RED</span>
-              <span className="ltp-summary-value">
-                {aiTraffic.currentRedRoads.map((r) => "ROAD " + r).join(" + ")}
-              </span>
-            </div>
-          </div>
-
-          <div className="ltp-stats-grid">
-            <div className="ltp-stat">
-              <span className="ltp-stat-value">
-                {aiTraffic.stats.vehiclesDetected}
-              </span>
-              <span className="ltp-stat-label">DETECTED</span>
-            </div>
-            <div className="ltp-stat">
-              <span className="ltp-stat-value" style={{ color: "#22ff66" }}>
-                {aiTraffic.stats.vehiclesMoving}
-              </span>
-              <span className="ltp-stat-label">MOVING</span>
-            </div>
-            <div className="ltp-stat">
-              <span className="ltp-stat-value" style={{ color: "#ff2222" }}>
-                {aiTraffic.stats.vehiclesWaiting}
-              </span>
-              <span className="ltp-stat-label">WAITING</span>
-            </div>
-            <div className="ltp-stat">
-              <span
-                className={`ltp-stat-value density-${aiTraffic.stats.density.toLowerCase()}`}
-              >
-                {aiTraffic.stats.density}
-              </span>
-              <span className="ltp-stat-label">DENSITY</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== TRAFFIC STATUS (normal mode) ===== */}
-      {showTraffic && !liveTrafficMode && (
-        <div className="traffic-status">
-          {/* ✕ CLOSE BUTTON */}
-          <button
-            className="close-x-btn"
-            onClick={() => setShowTraffic(false)}
-            title="Close"
-          >✕</button>
-
-          <div className="heading">AI TRAFFIC MANAGEMENT</div>
-          <div className="state" style={{ color: traffic.stateColor }}>
-            {traffic.state}
-          </div>
-          <div className="incident-reason">{traffic.reason}</div>
-          <div className="traffic-info">
-            <div className="info-box">
-              <span>SIMULATION</span>
-              <strong>{simTime}</strong>
-            </div>
-            <div className="info-box">
-              <span>TRAFFIC</span>
-              <strong>{traffic.level}</strong>
-            </div>
-            <div className="info-box">
-              <span>FLOW</span>
-              <strong>{traffic.flow}</strong>
-            </div>
-            <div className="info-box">
-              <span>AI MODE</span>
-              <strong>{traffic.mode}</strong>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== REOPEN TRAFFIC BUTTON ===== */}
-      {!showTraffic && !liveTrafficMode && (
-        <button
-          className="reopen-btn traffic-reopen"
-          onClick={() => setShowTraffic(true)}
-          title="Show Traffic Panel"
-        >
-          🚦 TRAFFIC
-        </button>
-      )}
-
-      {/* ===== AI MESSAGE ===== */}
-      <div className={`ai-message ${aiMsgVisible ? "show" : ""}`}>{aiMsg}</div>
-
-      {/* ===== TOURIST MESSAGE ===== */}
-      {touristMsgVisible && (
-        <div className="tourist-message">{touristMsg}</div>
-      )}
-
-      {/* ===== INCIDENT BAR ===== */}
-      {!liveTrafficMode && (
-        <div
-          className="incident-bar"
-          dangerouslySetInnerHTML={{ __html: traffic.incident }}
-        />
-      )}
-
-      {/* ===== AI REASON ===== */}
-      {aiReason.visible && !liveTrafficMode && (
-        <div className="ai-reason">
-          <button className="close-reason" onClick={closeAiReason}>
-            ×
-          </button>
-          <div className="title">
-            <span className="dot"></span>
-            <span>{aiReason.title}</span>
-          </div>
-          <div
-            className="reason"
-            dangerouslySetInnerHTML={{ __html: aiReason.text }}
-          />
-          <div
-            className="result"
-            dangerouslySetInnerHTML={{ __html: aiReason.result }}
-          />
-        </div>
-      )}
-
-      {showAiBtn && !liveTrafficMode && (
-        <button className="show-ai-btn" onClick={reopenAiReason}>
-          👁 SHOW AI LOG
-        </button>
-      )}
-
-      {/* ===== MENU BUTTON ===== */}
-      <button className="menu-btn" onClick={handleToggleMenu}>
-        <span className="icon">☰</span>
-        <span>SMART CITY MENU</span>
-      </button>
-
-      {/* ===== MAIN MENU ===== */}
-      <div className={`main-menu ${menuOpen ? "open" : ""}`}>
-        <div className="menu-header">
-          <div className="menu-title">🏙 SMART CITY</div>
-          <button className="close-btn" onClick={handleToggleMenu}>
-            ×
-          </button>
-        </div>
-
-        <div className="menu-sub">🏛 LOCATIONS</div>
-        <div className="menu-list">
-          {locations.length === 0 ? (
-            <div className="menu-item" style={{ opacity: 0.5 }}>
-              <span className="m-icon">⏳</span>
-              <span className="m-label">Loading locations...</span>
-            </div>
-          ) : (
-            locations.map((loc) => (
-              <LocationItem
-                key={loc.key}
-                loc={loc}
-                onCameraClick={handleCameraSelect}
-                onLocationClick={handleLocationClick}
-              />
-            ))
-          )}
-        </div>
-
-        <div className="menu-sub">🚗 VEHICLES</div>
-        <div className="menu-list">
-          {[
-            { key: "cityCars", label: "City Cars Traffic", icon: "🚗" },
-            { key: "garbageTruck", label: "Garbage Truck (moving)", icon: "🚛" },
-            { key: "fertTruck1", label: "Fertilizer Truck 1", icon: "🌱" },
-            { key: "fertTruck2", label: "Fertilizer Truck 2", icon: "🌱" },
-          ].map((v) => (
-            <div
-              key={v.key}
-              className="menu-item"
-              onClick={() => handleFollowVehicle(v.key)}
-            >
-              <span className="m-icon">{v.icon}</span>
-              <span className="m-label">{v.label}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="menu-sub">🌍 CITY VIEW</div>
-        <div className="menu-list">
-          <div className="menu-item" onClick={handleViewLiveTraffic}>
-            <span className="m-icon">🔴</span>
-            <span className="m-label">VIEW LIVE TRAFFIC</span>
-          </div>
-          <div className="menu-item" onClick={handleOverview}>
-            <span className="m-icon">🌐</span>
-            <span className="m-label">360° CITY OVERVIEW</span>
-          </div>
-          <div className="menu-item" onClick={handleTopDown}>
-            <span className="m-icon">🛰</span>
-            <span className="m-label">TOP-DOWN VIEW</span>
-          </div>
-        </div>
-
-        <div className="menu-sub">📊 PANELS</div>
-        <div className="menu-list">
-          <div
-            className={`menu-item ${showTraffic ? "active" : ""}`}
-            onClick={() => setShowTraffic((v) => !v)}
-          >
-            <span className="m-icon">🚦</span>
-            <span className="m-label">Traffic Panel</span>
-            <span className="arrow">{showTraffic ? "ON" : "OFF"}</span>
-          </div>
-          <div
-            className={`menu-item ${showFiltration ? "active" : ""}`}
-            onClick={() => setShowFiltration((v) => !v)}
-          >
-            <span className="m-icon">💧</span>
-            <span className="m-label">Filtration Panel</span>
-            <span className="arrow">{showFiltration ? "ON" : "OFF"}</span>
-          </div>
-          <div
-            className={`menu-item ${showWaste ? "active" : ""}`}
-            onClick={() => setShowWaste((v) => !v)}
-          >
-            <span className="m-icon">♻️</span>
-            <span className="m-label">Waste Panel</span>
-            <span className="arrow">{showWaste ? "ON" : "OFF"}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ===== INFO PANEL (Click popup) ===== */}
-      {panel && (
-        <div className="panel">
-          <button className="close" onClick={() => setPanel(null)}>
-            ×
-          </button>
-          <h2>{panel.title}</h2>
-          <div className="type">{panel.type}</div>
-          <p>{panel.text}</p>
-        </div>
-      )}
-
-      {/* ===== HINT ===== */}
-      {!liveTrafficMode && (
-        <div className="hint">
-          Drag = Rotate &nbsp;|&nbsp; Wheel = Zoom &nbsp;|&nbsp; Click buildings
-          &nbsp;|&nbsp; ☰ Menu
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LocationItem({ loc, onCameraClick, onLocationClick }) {
-  const [open, setOpen] = useState(false);
-  const handleClick = () => {
-    const next = !open;
-    setOpen(next);
-    if (!next) onLocationClick(loc.key);
-  };
-  return (
-    <>
-      <div
-        className={`menu-item ${open ? "active" : ""}`}
-        onClick={handleClick}
-      >
-        <span className="m-icon">{loc.icon}</span>
-        <span className="m-label">{loc.label}</span>
-        <span className="arrow">{open ? "▲" : "▼"}</span>
-      </div>
-      {open && (
-        <div className="camera-options">
-          {loc.cameras.map((cam) => (
-            <div
-              key={cam.name}
-              className="cam-option"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCameraClick(loc.key, cam.name);
-              }}
-            >
-              <span className="cam-icon">
-                {cam.inside ? "🎯" : cam.top ? "🔭" : "📹"}
-              </span>
-              <span>{cam.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
+   Modern glassmorphic design with close buttons everywhere
    ===================================================================== */
 
 * {
@@ -793,6 +22,90 @@ body {
   inset: 0;
   background: #050a14;
   overflow: hidden;
+}
+
+/* =====================================================================
+   UNIVERSAL CLOSE BUTTON (✕) — Sab panels mein use hoga
+   ===================================================================== */
+.close-x-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  background: rgba(255, 50, 50, 0.15);
+  border: 1.5px solid rgba(255, 100, 100, 0.5);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 10;
+  padding: 0;
+  font-family: inherit;
+}
+
+.close-x-btn:hover {
+  background: rgba(255, 50, 50, 0.95);
+  border-color: rgba(255, 150, 150, 1);
+  transform: rotate(90deg) scale(1.1);
+  box-shadow: 0 0 20px rgba(255, 50, 50, 0.7);
+}
+
+.close-x-btn:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
+/* =====================================================================
+   REOPEN BUTTONS (jab panel close ho jaye)
+   ===================================================================== */
+.reopen-btn {
+  position: fixed;
+  z-index: 94;
+  padding: 10px 18px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  border: 2px solid;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(10px);
+  font-family: inherit;
+}
+
+.reopen-btn:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.filtration-reopen {
+  top: 100px;
+  left: 24px;
+  background: linear-gradient(135deg, rgba(34, 207, 255, 0.9), rgba(20, 150, 200, 0.9));
+  border-color: rgba(100, 220, 255, 0.7);
+  box-shadow: 0 4px 20px rgba(34, 207, 255, 0.5);
+}
+
+.waste-reopen {
+  top: 100px;
+  right: 24px;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.9), rgba(20, 150, 80, 0.9));
+  border-color: rgba(100, 255, 150, 0.7);
+  box-shadow: 0 4px 20px rgba(46, 204, 113, 0.5);
+}
+
+.traffic-reopen {
+  top: 100px;
+  left: 24px;
+  background: linear-gradient(135deg, rgba(34, 207, 255, 0.9), rgba(20, 150, 200, 0.9));
+  border-color: rgba(100, 220, 255, 0.7);
+  box-shadow: 0 4px 20px rgba(34, 207, 255, 0.5);
 }
 
 /* =====================================================================
@@ -858,6 +171,7 @@ body {
   transition: all 0.3s ease;
   box-shadow: 0 4px 20px rgba(255, 180, 40, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(10px);
+  font-family: inherit;
 }
 
 .day-night-btn:hover {
@@ -872,7 +186,7 @@ body {
 }
 
 /* =====================================================================
-   LIVE TRAFFIC BUTTON — FIXED (no blue screen)
+   LIVE TRAFFIC BUTTON
    ===================================================================== */
 .live-traffic-btn {
   position: fixed;
@@ -897,6 +211,7 @@ body {
   transition: all 0.3s ease;
   box-shadow: 0 4px 20px rgba(255, 50, 50, 0.5);
   animation: livePulse 2s ease-in-out infinite;
+  font-family: inherit;
 }
 
 .live-traffic-btn:hover {
@@ -945,6 +260,7 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 20px rgba(34, 207, 255, 0.5);
+  font-family: inherit;
 }
 
 .back-to-city-btn:hover {
@@ -1004,6 +320,7 @@ body {
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .cam-btn:hover {
@@ -1026,6 +343,7 @@ body {
   border-radius: 16px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(16px);
+  animation: panelSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .traffic-status .heading {
@@ -1035,6 +353,7 @@ body {
   font-weight: 700;
   margin-bottom: 10px;
   text-transform: uppercase;
+  padding-right: 30px;
 }
 
 .traffic-status .state {
@@ -1066,6 +385,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: all 0.25s ease;
+}
+
+.info-box:hover {
+  background: rgba(34, 207, 255, 0.15);
+  border-color: rgba(34, 207, 255, 0.5);
+  transform: translateY(-2px);
 }
 
 .info-box span {
@@ -1108,6 +434,11 @@ body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .fp-title {
   font-size: 14px;
   font-weight: 800;
@@ -1116,6 +447,7 @@ body {
   margin-bottom: 14px;
   text-shadow: 0 0 15px rgba(34, 207, 255, 0.6);
   flex-shrink: 0;
+  padding-right: 30px;
 }
 
 .fp-stage-label {
@@ -1171,19 +503,9 @@ body {
   flex-shrink: 0;
 }
 
-.fp-stages-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.fp-stages-list::-webkit-scrollbar-track {
-  background: rgba(34, 207, 255, 0.05);
-  border-radius: 2px;
-}
-
-.fp-stages-list::-webkit-scrollbar-thumb {
-  background: rgba(34, 207, 255, 0.4);
-  border-radius: 2px;
-}
+.fp-stages-list::-webkit-scrollbar { width: 4px; }
+.fp-stages-list::-webkit-scrollbar-track { background: rgba(34, 207, 255, 0.05); border-radius: 2px; }
+.fp-stages-list::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #22cfff, #2ecc71); border-radius: 2px; }
 
 .fp-stage-item {
   display: flex;
@@ -1196,11 +518,7 @@ body {
   transition: all 0.3s ease;
 }
 
-.fp-stage-item.done {
-  color: #2ecc71;
-  opacity: 0.8;
-}
-
+.fp-stage-item.done { color: #2ecc71; opacity: 0.8; }
 .fp-stage-item.active {
   color: #22cfff;
   opacity: 1;
@@ -1261,6 +579,7 @@ body {
   margin-bottom: 14px;
   text-shadow: 0 0 15px rgba(46, 204, 113, 0.6);
   flex-shrink: 0;
+  padding-right: 30px;
 }
 
 .wp-stage-label {
@@ -1317,19 +636,9 @@ body {
   flex-shrink: 0;
 }
 
-.wp-stages-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.wp-stages-list::-webkit-scrollbar-track {
-  background: rgba(46, 204, 113, 0.05);
-  border-radius: 2px;
-}
-
-.wp-stages-list::-webkit-scrollbar-thumb {
-  background: rgba(46, 204, 113, 0.4);
-  border-radius: 2px;
-}
+.wp-stages-list::-webkit-scrollbar { width: 4px; }
+.wp-stages-list::-webkit-scrollbar-track { background: rgba(46, 204, 113, 0.05); border-radius: 2px; }
+.wp-stages-list::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #2ecc71, #22cfff); border-radius: 2px; }
 
 .wp-stage-item {
   display: flex;
@@ -1342,11 +651,7 @@ body {
   transition: all 0.3s ease;
 }
 
-.wp-stage-item.done {
-  color: #22cfff;
-  opacity: 0.8;
-}
-
+.wp-stage-item.done { color: #22cfff; opacity: 0.8; }
 .wp-stage-item.active {
   color: #2ecc71;
   opacity: 1;
@@ -1384,16 +689,11 @@ body {
   border-radius: 18px;
   box-shadow: 0 0 50px rgba(34, 207, 255, 0.5);
   backdrop-filter: blur(20px);
+  animation: panelSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.live-traffic-panel::-webkit-scrollbar {
-  width: 6px;
-}
-
-.live-traffic-panel::-webkit-scrollbar-thumb {
-  background: rgba(34, 207, 255, 0.4);
-  border-radius: 3px;
-}
+.live-traffic-panel::-webkit-scrollbar { width: 6px; }
+.live-traffic-panel::-webkit-scrollbar-thumb { background: rgba(34, 207, 255, 0.4); border-radius: 3px; }
 
 .ltp-header {
   display: flex;
@@ -1402,6 +702,7 @@ body {
   margin-bottom: 18px;
   padding-bottom: 14px;
   border-bottom: 1px solid rgba(34, 207, 255, 0.25);
+  padding-right: 30px;
 }
 
 .ai-dot {
@@ -1428,10 +729,7 @@ body {
   margin-top: 2px;
 }
 
-.active-txt {
-  color: #2ecc71;
-  font-weight: 700;
-}
+.active-txt { color: #2ecc71; font-weight: 700; }
 
 .ltp-signals-title {
   font-size: 10px;
@@ -1459,137 +757,30 @@ body {
   transition: all 0.3s ease;
 }
 
-.ltp-signal-box.green {
-  border-color: rgba(34, 255, 102, 0.6);
-  background: rgba(34, 255, 102, 0.1);
-  box-shadow: 0 0 20px rgba(34, 255, 102, 0.3);
-}
+.ltp-signal-box.green { border-color: rgba(34, 255, 102, 0.6); background: rgba(34, 255, 102, 0.1); box-shadow: 0 0 20px rgba(34, 255, 102, 0.3); }
+.ltp-signal-box.red { border-color: rgba(255, 34, 34, 0.6); background: rgba(255, 34, 34, 0.1); box-shadow: 0 0 20px rgba(255, 34, 34, 0.3); }
+.ltp-signal-box.yellow { border-color: rgba(255, 204, 34, 0.6); background: rgba(255, 204, 34, 0.1); box-shadow: 0 0 20px rgba(255, 204, 34, 0.3); }
 
-.ltp-signal-box.red {
-  border-color: rgba(255, 34, 34, 0.6);
-  background: rgba(255, 34, 34, 0.1);
-  box-shadow: 0 0 20px rgba(255, 34, 34, 0.3);
-}
+.ltp-road-name { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #7fe3ff; }
+.ltp-light { width: 24px; height: 24px; border-radius: 50%; transition: all 0.3s ease; }
+.ltp-state { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; }
 
-.ltp-signal-box.yellow {
-  border-color: rgba(255, 204, 34, 0.6);
-  background: rgba(255, 204, 34, 0.1);
-  box-shadow: 0 0 20px rgba(255, 204, 34, 0.3);
-}
+.ltp-phase-bar { margin-bottom: 16px; }
+.ltp-phase-label { font-size: 11px; color: #b8e8ff; margin-bottom: 8px; font-weight: 600; }
+.ltp-track { height: 8px; background: rgba(34, 207, 255, 0.15); border-radius: 4px; overflow: hidden; border: 1px solid rgba(34, 207, 255, 0.3); }
+.ltp-fill { height: 100%; background: linear-gradient(90deg, #22cfff, #2ecc71); transition: width 0.3s linear; border-radius: 4px; box-shadow: 0 0 10px #22cfff; }
 
-.ltp-road-name {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #7fe3ff;
-}
+.ltp-signal-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.ltp-summary-green, .ltp-summary-red { padding: 10px 12px; border-radius: 10px; display: flex; flex-direction: column; gap: 3px; }
+.ltp-summary-green { background: rgba(34, 255, 102, 0.1); border: 1px solid rgba(34, 255, 102, 0.4); }
+.ltp-summary-red { background: rgba(255, 34, 34, 0.1); border: 1px solid rgba(255, 34, 34, 0.4); }
+.ltp-summary-label { font-size: 9px; letter-spacing: 1.5px; color: #7fe3ff; }
+.ltp-summary-value { font-size: 12px; font-weight: 800; color: #fff; }
 
-.ltp-light {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-}
-
-.ltp-state {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-}
-
-.ltp-phase-bar {
-  margin-bottom: 16px;
-}
-
-.ltp-phase-label {
-  font-size: 11px;
-  color: #b8e8ff;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.ltp-track {
-  height: 8px;
-  background: rgba(34, 207, 255, 0.15);
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid rgba(34, 207, 255, 0.3);
-}
-
-.ltp-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #22cfff, #2ecc71);
-  transition: width 0.3s linear;
-  border-radius: 4px;
-  box-shadow: 0 0 10px #22cfff;
-}
-
-.ltp-signal-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.ltp-summary-green, .ltp-summary-red {
-  padding: 10px 12px;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.ltp-summary-green {
-  background: rgba(34, 255, 102, 0.1);
-  border: 1px solid rgba(34, 255, 102, 0.4);
-}
-
-.ltp-summary-red {
-  background: rgba(255, 34, 34, 0.1);
-  border: 1px solid rgba(255, 34, 34, 0.4);
-}
-
-.ltp-summary-label {
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  color: #7fe3ff;
-}
-
-.ltp-summary-value {
-  font-size: 12px;
-  font-weight: 800;
-  color: #fff;
-}
-
-.ltp-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.ltp-stat {
-  background: rgba(34, 207, 255, 0.06);
-  border: 1px solid rgba(34, 207, 255, 0.2);
-  border-radius: 10px;
-  padding: 10px 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-}
-
-.ltp-stat-value {
-  font-size: 16px;
-  font-weight: 900;
-  color: #fff;
-}
-
-.ltp-stat-label {
-  font-size: 8px;
-  letter-spacing: 1.2px;
-  color: #7fe3ff;
-}
-
+.ltp-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ltp-stat { background: rgba(34, 207, 255, 0.06); border: 1px solid rgba(34, 207, 255, 0.2); border-radius: 10px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ltp-stat-value { font-size: 16px; font-weight: 900; color: #fff; }
+.ltp-stat-label { font-size: 8px; letter-spacing: 1.2px; color: #7fe3ff; }
 .density-high { color: #ff2222 !important; }
 .density-medium { color: #ffcc22 !important; }
 .density-low { color: #22ff66 !important; }
@@ -1680,55 +871,7 @@ body {
   text-align: center;
 }
 
-.incident-bar span {
-  color: #ffcc22;
-  font-weight: 800;
-  margin-right: 6px;
-}
-
-/* =====================================================================
-   CYCLE BAR
-   ===================================================================== */
-.cycle-bar {
-  position: fixed;
-  bottom: 130px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 80;
-  width: 380px;
-  max-width: 90vw;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, rgba(8, 20, 35, 0.9), rgba(15, 35, 55, 0.9));
-  border: 1px solid rgba(34, 207, 255, 0.4);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.cycle-bar .label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #7fe3ff;
-  letter-spacing: 1.5px;
-  margin-bottom: 8px;
-  text-align: center;
-}
-
-.cycle-bar .bar {
-  height: 8px;
-  background: rgba(34, 207, 255, 0.15);
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid rgba(34, 207, 255, 0.3);
-}
-
-.cycle-bar .fill {
-  height: 100%;
-  background: linear-gradient(90deg, #22cfff, #2ecc71);
-  transition: width 0.5s linear;
-  border-radius: 4px;
-  box-shadow: 0 0 10px #22cfff;
-}
+.incident-bar span { color: #ffcc22; font-weight: 800; margin-right: 6px; }
 
 /* =====================================================================
    AI REASON PANEL
@@ -1766,11 +909,12 @@ body {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  font-family: inherit;
 }
 
 .close-reason:hover {
   background: rgba(255, 50, 50, 0.8);
-  transform: scale(1.1);
+  transform: scale(1.1) rotate(90deg);
 }
 
 .ai-reason .title {
@@ -1782,6 +926,7 @@ body {
   letter-spacing: 1.5px;
   color: #ffaa44;
   margin-bottom: 12px;
+  padding-right: 30px;
 }
 
 .ai-reason .title .dot {
@@ -1811,9 +956,7 @@ body {
   border-radius: 6px;
 }
 
-.ai-reason strong {
-  color: #ffaa44;
-}
+.ai-reason strong { color: #ffaa44; }
 
 .show-ai-btn {
   position: fixed;
@@ -1834,6 +977,7 @@ body {
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(255, 138, 0, 0.5);
   transition: all 0.3s ease;
+  font-family: inherit;
 }
 
 .show-ai-btn:hover {
@@ -1842,7 +986,7 @@ body {
 }
 
 /* =====================================================================
-   MENU BUTTON — FIXED
+   MENU BUTTON
    ===================================================================== */
 .menu-btn {
   position: fixed;
@@ -1866,6 +1010,7 @@ body {
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(34, 207, 255, 0.5);
   transition: all 0.3s ease;
+  font-family: inherit;
 }
 
 .menu-btn:hover {
@@ -1873,12 +1018,10 @@ body {
   box-shadow: 0 6px 30px rgba(34, 207, 255, 0.8);
 }
 
-.menu-btn .icon {
-  font-size: 18px;
-}
+.menu-btn .icon { font-size: 18px; }
 
 /* =====================================================================
-   MAIN MENU — FIXED (no blue screen, pointer-events handled)
+   MAIN MENU
    ===================================================================== */
 .main-menu {
   position: fixed;
@@ -1936,6 +1079,7 @@ body {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  font-family: inherit;
 }
 
 .close-btn:hover {
@@ -1959,19 +1103,9 @@ body {
   padding: 0 12px 12px;
 }
 
-.menu-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.menu-list::-webkit-scrollbar-track {
-  background: rgba(34, 207, 255, 0.05);
-  border-radius: 3px;
-}
-
-.menu-list::-webkit-scrollbar-thumb {
-  background: rgba(34, 207, 255, 0.4);
-  border-radius: 3px;
-}
+.menu-list::-webkit-scrollbar { width: 6px; }
+.menu-list::-webkit-scrollbar-track { background: rgba(34, 207, 255, 0.05); border-radius: 3px; }
+.menu-list::-webkit-scrollbar-thumb { background: rgba(34, 207, 255, 0.4); border-radius: 3px; }
 
 .menu-item {
   display: flex;
@@ -2001,21 +1135,9 @@ body {
   box-shadow: 0 0 20px rgba(34, 207, 255, 0.3);
 }
 
-.menu-item .m-icon {
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.menu-item .m-label {
-  flex: 1;
-}
-
-.menu-item .arrow {
-  font-size: 10px;
-  color: #7fe3ff;
-}
+.menu-item .m-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.menu-item .m-label { flex: 1; }
+.menu-item .arrow { font-size: 10px; color: #7fe3ff; font-weight: 800; }
 
 .camera-options {
   padding: 6px 0 6px 44px;
@@ -2045,9 +1167,7 @@ body {
   color: #fff;
 }
 
-.cam-icon {
-  font-size: 14px;
-}
+.cam-icon { font-size: 14px; }
 
 /* =====================================================================
    INFO PANEL (Click popup)
@@ -2091,6 +1211,7 @@ body {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  font-family: inherit;
 }
 
 .panel .close:hover {
@@ -2098,27 +1219,9 @@ body {
   transform: rotate(90deg);
 }
 
-.panel h2 {
-  font-size: 20px;
-  font-weight: 900;
-  color: #22cfff;
-  margin-bottom: 6px;
-  letter-spacing: 1px;
-}
-
-.panel .type {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: #7fe3ff;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-}
-
-.panel p {
-  font-size: 13px;
-  color: #b8e8ff;
-  line-height: 1.6;
-}
+.panel h2 { font-size: 20px; font-weight: 900; color: #22cfff; margin-bottom: 6px; letter-spacing: 1px; }
+.panel .type { font-size: 10px; letter-spacing: 2px; color: #7fe3ff; margin-bottom: 12px; text-transform: uppercase; }
+.panel p { font-size: 13px; color: #b8e8ff; line-height: 1.6; }
 
 /* =====================================================================
    HINT
@@ -2151,24 +1254,10 @@ body {
 @media (max-width: 768px) {
   .ui-brand .title { font-size: 20px; }
   .ui-brand .sub { font-size: 8px; letter-spacing: 2px; }
-  .traffic-status, .filtration-panel, .waste-panel { 
-    width: calc(100vw - 48px); 
-    max-width: 320px; 
-  }
+  .traffic-status, .filtration-panel, .waste-panel { width: calc(100vw - 48px); max-width: 320px; }
   .main-menu { width: 100%; }
-  .live-traffic-panel { 
-    width: calc(100vw - 48px); 
-    max-width: 360px; 
-  }
-  .day-night-btn { 
-    padding: 10px 16px; 
-    font-size: 11px; 
-  }
-  .live-traffic-btn, .menu-btn { 
-    padding: 10px 16px; 
-    font-size: 11px; 
-  }
-  .ltp-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .live-traffic-panel { width: calc(100vw - 48px); max-width: 360px; }
+  .day-night-btn { padding: 10px 16px; font-size: 11px; }
+  .live-traffic-btn, .menu-btn { padding: 10px 16px; font-size: 11px; }
+  .ltp-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
