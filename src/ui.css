@@ -13,7 +13,7 @@ body {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 24px;
-  background: linear-gradient(180deg, rgba(5,10,18,0.92), rgba(5,10,18,0.6));
+  background: linear-gradient(180deg, rgba(5,10,18,0.92), rgba(5,10,18,0.5));
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(34,207,255,0.15);
 }
@@ -35,7 +35,7 @@ body {
 
 .topbar-center { flex: 1; display: flex; justify-content: center; }
 .sys-pill {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   padding: 8px 18px;
   background: rgba(34,207,255,0.08);
   border: 1px solid rgba(34,207,255,0.3);
@@ -47,6 +47,9 @@ body {
   box-shadow: 0 0 10px currentColor;
   animation: pulse 1.5s ease-in-out infinite;
 }
+.pill-label { color: #7fe3ff; font-size: 10px; letter-spacing: 0.8px; }
+.pill-phase { color: #fff; font-weight: 700; }
+
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 
 .topbar-right { display: flex; align-items: center; gap: 12px; }
@@ -62,6 +65,7 @@ body {
   transition: all 0.2s;
 }
 .rec-btn:hover { background: rgba(255,80,80,0.15); }
+.rec-btn.on { background: rgba(255,80,80,0.2); }
 .rec-dot {
   width: 10px; height: 10px; border-radius: 50%;
   background: #ff3b3b;
@@ -88,10 +92,7 @@ body {
   backdrop-filter: blur(12px);
   text-align: left;
 }
-.sys-card:hover {
-  transform: translateX(-6px);
-  border-color: currentColor;
-}
+.sys-card:hover { transform: translateX(-6px); border-color: currentColor; }
 .sys-card.traffic { color: #22cfff; }
 .sys-card.power   { color: #ffcc22; }
 .sys-card.water   { color: #22cfff; }
@@ -131,7 +132,7 @@ body {
   position: fixed; bottom: 24px; left: 50%;
   transform: translateX(-50%);
   z-index: 90;
-  display: flex; gap: 8px;
+  display: flex; gap: 6px;
   padding: 8px;
   background: rgba(5,10,18,0.85);
   border: 1px solid rgba(34,207,255,0.2);
@@ -141,21 +142,21 @@ body {
 .ctrl-btn {
   display: flex; flex-direction: column; align-items: center;
   gap: 3px;
-  padding: 10px 16px;
+  padding: 10px 18px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
   color: #b8e8ff; font-family: inherit;
   cursor: pointer;
   transition: all 0.2s;
-  min-width: 80px;
+  min-width: 84px;
 }
-.ctrl-btn:hover {
+.ctrl-btn:hover, .ctrl-btn.active {
   background: rgba(34,207,255,0.1);
   border-color: rgba(34,207,255,0.3);
   color: #22cfff;
 }
-.ctrl-btn span:first-child { font-size: 20px; }
+.ctrl-icon { font-size: 20px; }
 .ctrl-label {
   font-size: 10px; font-weight: 600;
   letter-spacing: 0.4px;
@@ -165,15 +166,15 @@ body {
 /* ═══════════ PANEL (Popup) ═══════════ */
 .panel-backdrop {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
   animation: fadeIn 0.2s ease-out;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .panel {
-  width: min(540px, 92vw);
+  width: min(560px, 92vw);
   max-height: 88vh;
   background: #0a1018;
   border: 2px solid var(--accent, #22cfff);
@@ -201,6 +202,7 @@ body {
   background: rgba(255,255,255,0.06);
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
 }
 .panel-title-group { flex: 1; }
 .panel-title {
@@ -225,6 +227,7 @@ body {
   font-size: 15px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 .panel-close:hover {
   background: rgba(255,80,80,0.9);
@@ -253,7 +256,22 @@ body {
 .p-big {
   font-size: 20px; font-weight: 800;
   letter-spacing: 0.5px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+
+.p-desc {
+  font-size: 12px;
+  color: #7fa8bf;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.p-timer {
+  font-size: 10px;
+  color: #7fa8bf;
+  margin-top: 6px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .p-progress {
@@ -325,7 +343,7 @@ body {
   letter-spacing: 0.3px;
 }
 
-/* Stage list (vertical) */
+/* Stage list */
 .stage-list {
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -361,7 +379,7 @@ body {
   letter-spacing: 0.3px;
 }
 
-/* Pipeline (filtration) */
+/* Pipeline */
 .pipeline {
   display: flex; flex-direction: column; gap: 6px;
 }
