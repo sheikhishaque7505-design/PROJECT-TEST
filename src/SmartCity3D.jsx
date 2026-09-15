@@ -8,11 +8,11 @@ const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
 
 // ===== FIX: Car Y position (road ke barabar) =====
-const CAR_Y = 5.0;
-const CAR_SPEED_OUTER = 0.0025;
-const CAR_SPEED_MID = 0.0022;
-const CAR_SPEED_INNER = 0.0020;
-const LANE_OFFSET = 15;
+const CAR_Y = 5.0;              // Road ki height
+const CAR_SPEED_OUTER = 0.0008;  // Bahut slow
+const CAR_SPEED_MID = 0.0006;
+const CAR_SPEED_INNER = 0.0004;
+const LANE_OFFSET = 12;
 
 export const LOCATIONS = {
   school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
@@ -37,25 +37,25 @@ export const LOCATIONS = {
 };
 
 export const LOCATION_LIVE_DATA = {
-  school: { desc: "AI-powered classrooms, smart boards, robotics lab", stats: [["👨‍🎓 Students", "450"], ["👩‍🏫 Teachers", "32"], ["📚 Classes", "18 running"], ["🤖 Robotics Lab", "Active"]] },
-  hospital: { desc: "24/7 emergency, AI diagnosis, robotic surgery", stats: [["🏥 Patients", "32"], ["🚑 Ambulances", "2 ready"], ["💊 ICU Beds", "8 free"], ["🩺 AI Diagnosis", "Online"]] },
-  society: { desc: "Smart residential towers with IoT, solar, security", stats: [["🏠 Towers", "12"], ["👥 Residents", "2,400"], ["☀️ Solar", "82% self"], ["🔒 Security", "AI Active"]] },
-  bank: { desc: "Digital banking, AI fraud detection, 24/7 ATMs", stats: [["💰 Transactions", "1,240/hr"], ["🏧 ATMs", "8 online"], ["🔐 AI Security", "Active"], ["📈 Uptime", "99.9%"]] },
-  farm: { desc: "IoT sensors, drip irrigation, drone monitoring", stats: [["🌾 Crop Health", "94%"], ["💧 Soil Moisture", "68%"], ["🚁 Drones", "3 active"], ["🌡️ Temp", "24°C"]] },
-  newHall: { desc: "Events, conferences, concerts, smart lighting", stats: [["🎪 Capacity", "2,000"], ["🎤 Events today", "3"], ["💡 Smart Lights", "ON"], ["🎵 Sound", "Surround"]] },
-  carWash: { desc: "Automated car wash, EV charging, fuel station", stats: [["🚗 Cars today", "87"], ["⚡ EV Chargers", "4 active"], ["⛽ Fuel Pumps", "6"], ["💧 Water recycle", "78%"]] },
-  powerCompany: { desc: "Grid monitoring, AI load balancing, distribution", stats: [["⚡ Load", "68 MW"], ["🔋 Reserve", "22%"], ["📊 Grid Status", "Stable"], ["🔌 Outages", "0"]] },
-  powerSupply: { desc: "Solar + wind renewable energy generation zone", stats: [["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]] },
-  filtration: { desc: "Reverse osmosis, UV treatment, water quality AI", stats: [["💧 Water Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24 active"], ["♻️ Recycle", "82%"]] },
-  fertilizer: { desc: "AI nutrient mixing, soil analysis, auto-distribution", stats: [["🌱 NPK Ratio", "Optimal"], ["🤖 AI Dosing", "Active"], ["🚚 Trucks out", "2"], ["📊 Soil Health", "94%"]] },
-  wasteManagement: { desc: "Smart segregation, recycling, waste-to-energy", stats: [["♻️ Recycled", "68%"], ["⚡ Energy Gen", "4.2 MW"], ["🗑️ Trucks", "3 out"], ["📊 Bin Levels", "42%"]] },
-  cultureCenter: { desc: "Museums, art galleries, cultural events, VR tours", stats: [["🎭 Visitors", "320"], ["🖼️ Exhibits", "45"], ["🎬 VR Tours", "Online"], ["🎨 Workshops", "2 today"]] },
-  sewageCompany: { desc: "AI sewage treatment, biogas, water recycling", stats: [["🏭 Processed", "8M L/day"], ["💨 Biogas", "2.1 MW"], ["♻️ Recycle", "75%"], ["🔬 Quality", "Clean"]] },
-  scifi9: { desc: "Futuristic R&D, holographic labs, quantum computing", stats: [["🧪 Labs", "12 active"], ["💻 Quantum", "Online"], ["🔬 Research", "8 projects"], ["⚡ Power", "Stable"]] },
-  beautifulTower: { desc: "Iconic landmark, observation deck, smart lighting", stats: [["🏙️ Height", "320 m"], ["👁️ Visitors", "180"], ["💡 Lights", "Show mode"], ["📡 Antenna", "Active"]] },
-  scifi10: { desc: "Space tech, satellite control, AI mission planning", stats: [["🛰️ Satellites", "6 linked"], ["🚀 Missions", "2 active"], ["📡 Signal", "Strong"], ["🤖 AI", "Online"]] },
-  wasteCollector: { desc: "Smart bins, AI route optimization, odor control", stats: [["🗑️ Bins", "24"], ["📊 Fill Level", "42%"], ["🚛 Next pickup", "18 min"], ["♻️ Sorted", "78%"]] },
-  trafficController: { desc: "AI controls 4 roads, adaptive signals, jam detection", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24 online"]] },
+  school: { desc: "AI-powered classrooms, smart boards, robotics lab, 450 students, 32 teachers", stats: [["👨‍🎓 Students", "450"], ["👩‍🏫 Teachers", "32"], ["📚 Classes", "18 running"], ["🤖 Robotics Lab", "Active"]] },
+  hospital: { desc: "24/7 emergency, AI diagnosis, robotic surgery, 8 ICU beds available", stats: [["🏥 Patients", "32"], ["🚑 Ambulances", "2 ready"], ["💊 ICU Beds", "8 free"], ["🩺 AI Diagnosis", "Online"]] },
+  society: { desc: "12 smart residential towers, IoT security, 2,400 residents, 82% solar powered", stats: [["🏠 Towers", "12"], ["👥 Residents", "2,400"], ["☀️ Solar", "82% self"], ["🔒 Security", "AI Active"]] },
+  bank: { desc: "Digital banking, AI fraud detection, 8 ATMs, 1,240 transactions/hour", stats: [["💰 Transactions", "1,240/hr"], ["🏧 ATMs", "8 online"], ["🔐 AI Security", "Active"], ["📈 Uptime", "99.9%"]] },
+  farm: { desc: "IoT sensors, drip irrigation, 3 drones monitoring, 94% crop health", stats: [["🌾 Crop Health", "94%"], ["💧 Soil Moisture", "68%"], ["🚁 Drones", "3 active"], ["🌡️ Temp", "24°C"]] },
+  newHall: { desc: "Events, conferences, concerts, capacity 2,000, smart surround lighting", stats: [["🎪 Capacity", "2,000"], ["🎤 Events today", "3"], ["💡 Smart Lights", "ON"], ["🎵 Sound", "Surround"]] },
+  carWash: { desc: "Automated car wash, 4 EV chargers, 6 fuel pumps, 78% water recycling", stats: [["🚗 Cars today", "87"], ["⚡ EV Chargers", "4 active"], ["⛽ Fuel Pumps", "6"], ["💧 Water recycle", "78%"]] },
+  powerCompany: { desc: "Grid monitoring, AI load balancing, 68 MW load, 0 outages today", stats: [["⚡ Load", "68 MW"], ["🔋 Reserve", "22%"], ["📊 Grid Status", "Stable"], ["🔌 Outages", "0"]] },
+  powerSupply: { desc: "Solar (42 MW) + Wind (28 MW) = 70 MW renewable output zone", stats: [["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]] },
+  filtration: { desc: "9-stage water purification, 12M L/day, 99.7% purity, UV treatment", stats: [["💧 Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24 active"], ["♻️ Recycle", "82%"]] },
+  fertilizer: { desc: "AI nutrient mixing, soil analysis, auto-distribution, NPK optimal", stats: [["🌱 NPK Ratio", "Optimal"], ["🤖 AI Dosing", "Active"], ["🚚 Trucks out", "2"], ["📊 Soil Health", "94%"]] },
+  wasteManagement: { desc: "Smart segregation, recycling, biogas (4.2 MW energy), waste-to-energy", stats: [["♻️ Recycled", "68%"], ["⚡ Energy Gen", "4.2 MW"], ["🗑️ Trucks", "3 out"], ["📊 Bin Levels", "42%"]] },
+  cultureCenter: { desc: "Museums, art galleries, cultural events, VR tours, 45 exhibits", stats: [["🎭 Visitors", "320"], ["🖼️ Exhibits", "45"], ["🎬 VR Tours", "Online"], ["🎨 Workshops", "2 today"]] },
+  sewageCompany: { desc: "AI sewage treatment, biogas (2.1 MW), water recycling, 8M L/day", stats: [["🏭 Processed", "8M L/day"], ["💨 Biogas", "2.1 MW"], ["♻️ Recycle", "75%"], ["🔬 Quality", "Clean"]] },
+  scifi9: { desc: "Futuristic R&D, holographic labs, quantum computing, 12 active labs", stats: [["🧪 Labs", "12 active"], ["💻 Quantum", "Online"], ["🔬 Research", "8 projects"], ["⚡ Power", "Stable"]] },
+  beautifulTower: { desc: "Iconic 320m landmark, observation deck, smart show lighting", stats: [["🏙️ Height", "320 m"], ["👁️ Visitors", "180"], ["💡 Lights", "Show mode"], ["📡 Antenna", "Active"]] },
+  scifi10: { desc: "Space tech, satellite control (6 linked), AI mission planning", stats: [["🛰️ Satellites", "6 linked"], ["🚀 Missions", "2 active"], ["📡 Signal", "Strong"], ["🤖 AI", "Online"]] },
+  wasteCollector: { desc: "Smart bins (24), AI route optimization, odor control, 78% sorted", stats: [["🗑️ Bins", "24"], ["📊 Fill Level", "42%"], ["🚛 Next pickup", "18 min"], ["♻️ Sorted", "78%"]] },
+  trafficController: { desc: "AI controls 4 roads, adaptive signals, jam detection, 24 sensors", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24 online"]] },
 };
 
 const FILTRATION_STAGES = [
@@ -137,65 +137,6 @@ function createAITrafficSystem(callbacks) {
   function isYellowRoad(road) { return inYellow && (currentGreenRoads.includes(road) || currentRedRoads.includes(road)); }
 
   return { tick, isGreen, isRed, isYellowRoad, getPhase: () => phase, getStats: () => ({ ...stats }) };
-}
-
-function createCitySimulation(callbacks) {
-  const CYCLE_TIME = 60, NORMAL_DURATION = 25, JAM_DURATION = 20, REROUTE_DURATION = 15;
-  let simSec = 0, tState = 0, cycleStart = 0, jamStart = 0, rerouteStart = 0;
-
-  function tick(delta) {
-    simSec += delta;
-    const tt = Math.floor(simSec);
-    callbacks.onSimTime?.(String(Math.floor(tt / 60)).padStart(2, "0") + ":" + String(tt % 60).padStart(2, "0"));
-    const now = simSec - cycleStart;
-    if (tState === 0) {
-      if (now >= CYCLE_TIME) { jamStart = simSec; setState(1); callbacks.onAiMessage?.("⚠ CARS QUEUING AT INTERSECTION"); }
-    } else if (tState === 1) {
-      if (simSec - jamStart >= JAM_DURATION) { rerouteStart = simSec; setState(2); callbacks.onAiMessage?.("🤖 AI SPLITS TRAFFIC TO INNER ROADS"); }
-    } else if (tState === 2) {
-      if (simSec - rerouteStart >= REROUTE_DURATION) { setState(3); callbacks.onAiMessage?.("✅ JAM CLEARED BY AI"); }
-    } else if (tState === 3) {
-      if (simSec - rerouteStart >= REROUTE_DURATION + 10) { cycleStart = simSec; setState(0); }
-    }
-    const pct = Math.min(((simSec - cycleStart) / CYCLE_TIME) * 100, 100);
-    let label = "", visible = true;
-    if (tState === 0) label = "🚦 TRAFFIC EVENT IN " + Math.max(0, Math.ceil(CYCLE_TIME - now)) + "s";
-    else if (tState === 1) label = "🔴 JAM ACTIVE — " + Math.max(0, Math.ceil(NORMAL_DURATION + JAM_DURATION - now)) + "s";
-    else if (tState === 2) label = "🔵 AI REROUTING — " + Math.max(0, Math.ceil(NORMAL_DURATION + JAM_DURATION + REROUTE_DURATION - now)) + "s";
-    else { label = "🟢 RESOLVED"; visible = false; }
-    callbacks.onCycleUpdate?.(label, pct, visible);
-  }
-
-  function setState(s) {
-    tState = s;
-    const t = { state: "", stateColor: "", reason: "", level: "", flow: "", mode: "", incident: "" };
-    let aiReason = null;
-    if (s === 0) {
-      t.state = "TRAFFIC NORMAL"; t.stateColor = "#63ddff"; t.reason = "4-SITE NETWORK OPERATING NORMALLY";
-      t.level = "NORMAL"; t.flow = "92%"; t.mode = "MONITORING";
-      t.incident = "<span>LIVE:</span> Traffic flowing normally";
-    } else if (s === 1) {
-      t.state = "TRAFFIC JAM"; t.stateColor = "#ffd15a"; t.reason = "QUEUE BUILDING AT CENTRAL INTERSECTION";
-      t.level = "HEAVY"; t.flow = "28%"; t.mode = "ANALYZING";
-      t.incident = "<span>INCIDENT:</span> Cars queuing";
-      aiReason = { visible: true, title: "🔴 PROBLEM DETECTED", text: "<strong>REASON:</strong> Too many cars at central intersection.", result: "AI is <strong>reading the queue</strong> to figure out the best fix." };
-    } else if (s === 2) {
-      t.state = "AI REROUTING"; t.stateColor = "#67e4ff"; t.reason = "AI SPLITTING TRAFFIC TO INNER ROADS";
-      t.level = "RECOVERING"; t.flow = "68%"; t.mode = "OPTIMIZING";
-      t.incident = "<span>AI ACTION:</span> Rerouting cars via inner roads";
-      aiReason = { visible: true, title: "🔵 AI IS ACTING", text: "<strong>AI DID THIS:</strong> Flipped signals to green on inner roads and redirected half the cars.", result: "Result: <strong>less cars at intersection → jam clearing.</strong>" };
-    } else if (s === 3) {
-      t.state = "TRAFFIC CLEAR"; t.stateColor = "#6aff9d"; t.reason = "ALL ROUTES FLOWING NORMALLY";
-      t.level = "CLEAR"; t.flow = "96%"; t.mode = "OPTIMAL";
-      t.incident = "<span>SYSTEM:</span> All routes flowing normally";
-      aiReason = { visible: true, title: "🟢 RESOLVED BY AI", text: "<strong>AI RESOLVED IT</strong> by splitting traffic between outer and inner roads.", result: "Jam cleared in <strong>15 seconds</strong>." };
-    }
-    callbacks.onTrafficUpdate?.(t);
-    if (s === 0) callbacks.onAiReason?.({ visible: false, title: "", text: "", result: "" });
-    else if (aiReason) callbacks.onAiReason?.(aiReason);
-  }
-
-  return { tick, getState: () => tState };
 }
 
 const SmartCity3D = forwardRef((props, ref) => {
@@ -1550,7 +1491,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const g3 = buildTruck(0xd8b3ff, 0x8e44ad, "AI FERTILIZER", "#8e44ad");
     const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
 
-    /* ===== CITY CARS (FIXED) ===== */
+    /* ===== CITY CARS (FIXED: slow speed, zameen par) ===== */
     const cityCars = []; s.cityCars = cityCars;
     const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c, 0x1abc9c, 0x3498db, 0xe91e63, 0x9b59b6, 0xff5722, 0x00bcd4, 0x795548, 0x607d8b, 0xff9800, 0x3f51b5];
     const V_LEN = 26, V_WID = 10, V_HGT = 5.5;
@@ -1653,7 +1594,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       cityCars.push({ car: c, segments, progress, direction, speed, baseSpeed: speed });
     }
 
-    // FIXED SPEEDS — slow aur smooth
     for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCW, i / 16, 1, CAR_SPEED_OUTER);
     for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCCW, i / 16, 1, CAR_SPEED_OUTER);
     for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCW, i / 12, 1, CAR_SPEED_MID);
@@ -1685,8 +1625,8 @@ const SmartCity3D = forwardRef((props, ref) => {
       const style = styleRoll < 0.6 ? "sedan" : (styleRoll < 0.85 ? "suv" : "sport");
       const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
       scene.add(car);
-      // FIXED SPEED — slow
-      const spd = 0.15 + Math.random() * 0.1;
+      // FIXED: bahut slow speed
+      const spd = 0.04 + Math.random() * 0.03;
       const carObj = { car, roadId, axis: lane.axis, sign: lane.sign, xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0, pos: startPos, speed: spd, baseSpeed: spd, waiting: false };
       intersectionCars.push(carObj);
       updateIntersectionCarTransform(carObj);
@@ -1723,7 +1663,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           else { targetSpeed = c.baseSpeed * 0.7; c.waiting = false; }
         } else c.waiting = false;
         c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 4);
-        c.pos += c.sign * c.speed * delta * 30; // FIXED: 60 -> 30
+        c.pos += c.sign * c.speed * delta * 15; // FIXED: 30 -> 15
         const range = 1200;
         if (c.sign < 0 && c.pos < -range) c.pos = range;
         else if (c.sign > 0 && c.pos > range) c.pos = -range;
@@ -1840,20 +1780,19 @@ const SmartCity3D = forwardRef((props, ref) => {
     function addLandscaping() {
       const grassPatchMat = new THREE.MeshStandardMaterial({ color: 0x3d7f45, roughness: 0.95 });
       const sidewalkPatchMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9 });
-      const parkingMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.9 });
       const buildingPlots = [
-        { x: -600, z: -600, w: 500, d: 500, sidewalk: true, parking: true, trees: 6 },
-        { x: 600, z: -600, w: 480, d: 480, sidewalk: true, parking: true, trees: 5 },
-        { x: 600, z: 600, w: 520, d: 520, sidewalk: true, parking: true, trees: 6 },
-        { x: 1800, z: -600, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
-        { x: 600, z: 1800, w: 560, d: 560, sidewalk: true, parking: true, trees: 6 },
-        { x: 1800, z: 1750, w: 600, d: 600, sidewalk: true, parking: true, trees: 5 },
-        { x: 1800, z: 600, w: 560, d: 560, sidewalk: true, parking: false, trees: 6 },
-        { x: -1800, z: 1800, w: 620, d: 620, sidewalk: true, parking: false, trees: 8 },
-        { x: -1600, z: 800, w: 480, d: 480, sidewalk: true, parking: true, trees: 5 },
-        { x: -3900, z: -2400, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
-        { x: -3600, z: -800, w: 720, d: 720, sidewalk: true, parking: false, trees: 10 },
-        { x: -3600, z: 800, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
+        { x: -600, z: -600, w: 500, d: 500, sidewalk: true, trees: 6 },
+        { x: 600, z: -600, w: 480, d: 480, sidewalk: true, trees: 5 },
+        { x: 600, z: 600, w: 520, d: 520, sidewalk: true, trees: 6 },
+        { x: 1800, z: -600, w: 700, d: 700, sidewalk: true, trees: 10 },
+        { x: 600, z: 1800, w: 560, d: 560, sidewalk: true, trees: 6 },
+        { x: 1800, z: 1750, w: 600, d: 600, sidewalk: true, trees: 5 },
+        { x: 1800, z: 600, w: 560, d: 560, sidewalk: true, trees: 6 },
+        { x: -1800, z: 1800, w: 620, d: 620, sidewalk: true, trees: 8 },
+        { x: -1600, z: 800, w: 480, d: 480, sidewalk: true, trees: 5 },
+        { x: -3900, z: -2400, w: 700, d: 700, sidewalk: true, trees: 10 },
+        { x: -3600, z: -800, w: 720, d: 720, sidewalk: true, trees: 10 },
+        { x: -3600, z: 800, w: 700, d: 700, sidewalk: true, trees: 10 },
       ];
       buildingPlots.forEach(plot => {
         const grass = new THREE.Mesh(new THREE.BoxGeometry(plot.w + 60, 0.35, plot.d + 60), grassPatchMat);
@@ -1943,63 +1882,9 @@ const SmartCity3D = forwardRef((props, ref) => {
       createPark(300, -1800, 150);
       createPark(-900, -1700, 140);
       createPark(1800, -1500, 160);
-      function createPond(cx, cz, radius) {
-        const pondBase = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.1, 0.4, 24), new THREE.MeshStandardMaterial({ color: 0x3a7a3a, roughness: 0.95 }));
-        pondBase.position.set(cx, 4.5, cz); scene.add(pondBase);
-        const water = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.85, radius * 0.85, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0x2d8fb5, emissive: 0x0a3a52, emissiveIntensity: 0.5, transparent: true, opacity: 0.88, metalness: 0.3, roughness: 0.1 }));
-        water.position.set(cx, 4.8, cz); scene.add(water);
-        for (let i = 0; i < 8; i++) {
-          const angle = (i / 8) * Math.PI * 2;
-          const r = radius + 15 + Math.random() * 20;
-          const tx = cx + Math.cos(angle) * r;
-          const tz = cz + Math.sin(angle) * r;
-          if (!isOnRoad(tx, tz)) tree(tx, tz, 0.6 + Math.random() * 0.3);
-        }
-      }
-      createPond(-2400, 2400, 90);
-      createPond(2700, 1300, 80);
-      createPond(-2200, -1800, 95);
-      createPond(2200, -2400, 85);
-      const pavilionMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.2, metalness: 0.7, roughness: 0.2 });
-      const pavilionGlass = new THREE.MeshStandardMaterial({ color: 0x9edcf5, transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.3 });
-      function createPavilion(cx, cz) {
-        const pavilion = new THREE.Group();
-        pavilion.position.set(cx, 5, cz);
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(28, 30, 2, 16), new THREE.MeshStandardMaterial({ color: 0xb8bcc0, roughness: 0.9 }));
-        base.position.y = 1; pavilion.add(base);
-        for (let i = 0; i < 6; i++) {
-          const angle = (i / 6) * Math.PI * 2;
-          const px = Math.cos(angle) * 22;
-          const pz = Math.sin(angle) * 22;
-          const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 22, 8), pavilionMat);
-          pillar.position.set(px, 12, pz); pavilion.add(pillar);
-        }
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(32, 18, 16), pavilionMat); roof.position.y = 32; pavilion.add(roof);
-        const glassDome = new THREE.Mesh(new THREE.SphereGeometry(24, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), pavilionGlass);
-        glassDome.position.y = 22; pavilion.add(glassDome);
-        scene.add(pavilion);
-      }
-      createPavilion(0, -1800);
-      createPavilion(1800, 0);
-      createPavilion(-1800, -1800);
-      createPavilion(0, 800);
-      const smartPoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.4, metalness: 0.7 });
-      const smartGlowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3 });
-      function smartPole(x, z) {
-        const g = new THREE.Group(); g.position.set(x, 5, z);
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 18, 6), smartPoleMat); pole.position.y = 9; g.add(pole);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.4, 6, 16), smartGlowMat); ring.rotation.x = Math.PI / 2; ring.position.y = 18; g.add(ring);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 10), smartGlowMat); cap.position.y = 19; g.add(cap);
-        scene.add(g);
-      }
-      for (let x = -3600; x <= 3600; x += 400) {
-        if (Math.abs(x) > 200) { smartPole(x, -800); smartPole(x, 800); }
-      }
     }
     addLandscaping();
 
-    const sim = createCitySimulation({ onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason });
-    s.sim = sim;
     const aiSystem = createAITrafficSystem({ onTrafficUpdate: (data) => onAITrafficUpdate?.(data) });
     s.aiSystem = aiSystem;
 
@@ -2028,7 +1913,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const fert1State = { idx: 0, prog: 0 };
     const fert2State = { idx: 0, prog: 0 };
 
-    // FIXED TRUCK SPEED — slow
     function moveTruck(truck, route, state, delta, speed) {
       const from = route[state.idx];
       const to = route[(state.idx + 1) % route.length];
@@ -2067,7 +1951,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
       const ctrlHit = raycaster.intersectObject(controller, true);
       if (ctrlHit.length) {
-        onPanel({ title: "AI Traffic Management Center", type: "INTELLIGENT TRANSPORTATION", text: "Monitors all 4 city entry routes." });
+        onPanel({ title: "AI Traffic Management Center", type: "INTELLIGENT TRANSPORTATION", text: "Monitors all 4 city entry routes. 24 sensors online." });
       }
     };
     renderer.domElement.addEventListener("click", onClick);
@@ -2082,7 +1966,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const t = clock.elapsedTime;
       fc++;
 
-      sim.tick(delta);
       aiSystem.tick(delta);
       updateCarMovement();
       updateIntersectionCars(delta, aiSystem);
@@ -2139,10 +2022,9 @@ const SmartCity3D = forwardRef((props, ref) => {
         else l.gr.material.emissiveIntensity = 4;
       }
 
-      // FIXED TRUCK SPEEDS — slow aur smooth
-      moveTruck(garbageTruck, garbageRoute, garbageState, delta, 0.05);
-      moveTruck(fertTruck1, fertRoute1, fert1State, delta, 0.045);
-      moveTruck(fertTruck2, fertRoute2, fert2State, delta, 0.04);
+      moveTruck(garbageTruck, garbageRoute, garbageState, delta, 0.015);
+      moveTruck(fertTruck1, fertRoute1, fert1State, delta, 0.013);
+      moveTruck(fertTruck2, fertRoute2, fert2State, delta, 0.012);
       const blink = Math.floor(t * 2) % 2 === 0 ? 3 : 0.5;
       if (s.garbageWarn) s.garbageWarn.material.emissiveIntensity = blink;
       if (s.fertWarn1) s.fertWarn1.material.emissiveIntensity = blink;
@@ -2331,15 +2213,58 @@ const SmartCity3D = forwardRef((props, ref) => {
       <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />
       {locationPopup && (
         <div style={{
-          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+          position: "fixed",
+          bottom: 24,
+          left: "50%",
+          transform: "translateX(-50%)",
           background: "linear-gradient(135deg, rgba(8, 20, 35, 0.95), rgba(15, 35, 55, 0.95))",
-          border: "2px solid #22cfff", borderRadius: 16, padding: "18px 28px",
-          color: "#fff", fontFamily: "system-ui, -apple-system, sans-serif",
+          border: "2px solid #22cfff",
+          borderRadius: 16,
+          padding: "18px 28px",
+          color: "#fff",
+          fontFamily: "system-ui, -apple-system, sans-serif",
           boxShadow: "0 0 40px rgba(34, 207, 255, 0.5), inset 0 0 20px rgba(34, 207, 255, 0.1)",
-          zIndex: 9999, minWidth: 420, maxWidth: 600, backdropFilter: "blur(12px)",
+          zIndex: 9999,
+          minWidth: 420,
+          maxWidth: 600,
+          backdropFilter: "blur(12px)",
           animation: "slideUp 0.4s ease-out",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          {/* ✕ CLOSE BUTTON */}
+          <button
+            onClick={() => setLocationPopup(null)}
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              width: 30,
+              height: 30,
+              background: "rgba(255, 50, 50, 0.15)",
+              border: "1.5px solid rgba(255, 100, 100, 0.5)",
+              borderRadius: "50%",
+              color: "#fff",
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.25s ease",
+              zIndex: 10,
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = "rgba(255, 50, 50, 0.95)";
+              e.target.style.transform = "rotate(90deg) scale(1.1)";
+              e.target.style.boxShadow = "0 0 20px rgba(255, 50, 50, 0.7)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "rgba(255, 50, 50, 0.15)";
+              e.target.style.transform = "rotate(0deg) scale(1)";
+              e.target.style.boxShadow = "none";
+            }}
+          >✕</button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, paddingRight: 30 }}>
             <span style={{ fontSize: 32 }}>{locationPopup.icon}</span>
             <div>
               <div style={{ fontSize: 18, fontWeight: 700, color: "#22cfff" }}>{locationPopup.label}</div>
@@ -2350,9 +2275,14 @@ const SmartCity3D = forwardRef((props, ref) => {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {locationPopup.stats.map((stat, i) => (
               <div key={i} style={{
-                background: "rgba(34, 207, 255, 0.1)", border: "1px solid rgba(34, 207, 255, 0.3)",
-                borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between",
-                alignItems: "center", fontSize: 12,
+                background: "rgba(34, 207, 255, 0.1)",
+                border: "1px solid rgba(34, 207, 255, 0.3)",
+                borderRadius: 8,
+                padding: "8px 12px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: 12,
               }}>
                 <span style={{ color: "#8fd8f0" }}>{stat[0]}</span>
                 <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
