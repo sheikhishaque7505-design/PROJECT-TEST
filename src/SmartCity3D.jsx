@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -6,57 +6,37 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 const CITY_HALF = 3900;
 const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
-
 const CAR_Y = 5.0;
-const CAR_SPEED_OUTER = 0.0008;
-const CAR_SPEED_MID = 0.0006;
-const CAR_SPEED_INNER = 0.0004;
 const LANE_OFFSET = 12;
 
+/* =====================================================================
+   LOCATIONS — clickable buildings
+   ===================================================================== */
 export const LOCATIONS = {
-  school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  hospital: { key: "hospital", label: "Smart Hospital", icon: "🏥", type: "HEALTHCARE", position: [600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  society: { key: "society", label: "BSS Smart Society", icon: "🏘", type: "RESIDENTIAL", position: [-600, 5, 600], camHeight: 500, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  bank: { key: "bank", label: "Smart City State Bank", icon: "🏦", type: "FINANCIAL", position: [600, 5, 600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  farm: { key: "farm", label: "Smart Eco Farm", icon: "🌾", type: "AGRICULTURE", position: [1800, 5, -600], camHeight: 420, camDistance: 420, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  newHall: { key: "newHall", label: "Liverpool Event Hall", icon: "🎪", type: "EVENT VENUE", position: [600, 5, 1800], camHeight: 420, camDistance: 420, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  carWash: { key: "carWash", label: "Car Wash · Gas Station", icon: "🚗", type: "AUTOMOTIVE", position: [1800, 5, 1750], camHeight: 420, camDistance: 420, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  powerCompany: { key: "powerCompany", label: "City Power Supply Co.", icon: "🔌", type: "UTILITY", position: [-1600, 5, 800], camHeight: 380, camDistance: 380, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  powerSupply: { key: "powerSupply", label: "Power Supply Zone", icon: "⚡", type: "RENEWABLE", position: [-5400, 5, 3600], camHeight: 900, camDistance: 1000, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  filtration: { key: "filtration", label: "Filtration System", icon: "💧", type: "WATER TREATMENT", position: [3600, 5, -3600], camHeight: 420, camDistance: 380, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }, { name: "Inside Machine", inside: true }] },
-  fertilizer: { key: "fertilizer", label: "AI Fertilizer System", icon: "🌱", type: "FERTILIZER MANAGEMENT", position: [-3600, 5, -3600], camHeight: 450, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  wasteManagement: { key: "wasteManagement", label: "Waste Management", icon: "♻", type: "MUNICIPAL", position: [3600, 5, 3600], camHeight: 450, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  cultureCenter: { key: "cultureCenter", label: "Culture Center", icon: "🏛", type: "CULTURAL", position: [-1800, 5, 1800], camHeight: 450, camDistance: 450, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  sewageCompany: { key: "sewageCompany", label: "Sewage & Gas Co.", icon: "🏭", type: "INDUSTRIAL", position: [1800, 5, 600], camHeight: 400, camDistance: 400, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  scifi9: { key: "scifi9", label: "Sci-Fi Building 9", icon: "🛸", type: "SCI-FI", position: [-3900, 5, -2400], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  beautifulTower: { key: "beautifulTower", label: "Beautiful Tower", icon: "🗼", type: "SKYLINE", position: [-3600, 5, -800], camHeight: 550, camDistance: 500, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3600, 5, 800], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  wasteCollector: { key: "wasteCollector", label: "Waste Collector Point", icon: "🗑", type: "MUNICIPAL", position: [900, 5, 1400], camHeight: 300, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
-  trafficController: { key: "trafficController", label: "AI Traffic Controller", icon: "🤖", type: "TRANSPORTATION", position: [0, 5, 0], camHeight: 320, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600] },
+  hospital: { key: "hospital", label: "Smart Hospital", icon: "🏥", type: "HEALTHCARE", position: [600, 5, -600] },
+  society: { key: "society", label: "BSS Smart Society", icon: "🏘", type: "RESIDENTIAL", position: [-600, 5, 600] },
+  bank: { key: "bank", label: "Smart City State Bank", icon: "🏦", type: "FINANCIAL", position: [600, 5, 600] },
+  farm: { key: "farm", label: "Smart Eco Farm", icon: "🌾", type: "AGRICULTURE", position: [1800, 5, -600] },
+  newHall: { key: "newHall", label: "Liverpool Event Hall", icon: "🎪", type: "EVENT VENUE", position: [600, 5, 1800] },
+  carWash: { key: "carWash", label: "Car Wash · Gas Station", icon: "🚗", type: "AUTOMOTIVE", position: [1800, 5, 1750] },
+  powerCompany: { key: "powerCompany", label: "City Power Supply Co.", icon: "🔌", type: "UTILITY", position: [-1600, 5, 800] },
+  powerSupply: { key: "powerSupply", label: "Power Supply Zone", icon: "⚡", type: "RENEWABLE", position: [-5400, 5, 3600] },
+  filtration: { key: "filtration", label: "Filtration System", icon: "💧", type: "WATER TREATMENT", position: [3600, 5, -3600] },
+  fertilizer: { key: "fertilizer", label: "AI Fertilizer System", icon: "🌱", type: "FERTILIZER", position: [-3600, 5, -3600] },
+  wasteManagement: { key: "wasteManagement", label: "Waste Management", icon: "♻", type: "MUNICIPAL", position: [3600, 5, 3600] },
+  cultureCenter: { key: "cultureCenter", label: "Culture Center", icon: "🏛", type: "CULTURAL", position: [-1800, 5, 1800] },
+  sewageCompany: { key: "sewageCompany", label: "Sewage & Gas Co.", icon: "🏭", type: "INDUSTRIAL", position: [1800, 5, 600] },
+  scifi9: { key: "scifi9", label: "Sci-Fi Building 9", icon: "🛸", type: "SCI-FI", position: [-3900, 5, -2400] },
+  beautifulTower: { key: "beautifulTower", label: "Beautiful Tower", icon: "🗼", type: "SKYLINE", position: [-3600, 5, -800] },
+  scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3600, 5, 800] },
+  wasteCollector: { key: "wasteCollector", label: "Waste Collector Point", icon: "🗑", type: "MUNICIPAL", position: [900, 5, 1400] },
+  foodSystem: { key: "foodSystem", label: "AI Food Production", icon: "🍎", type: "FOOD SYSTEM", position: [2900, 5, -1200] },
 };
 
-export const LOCATION_LIVE_DATA = {
-  school: { desc: "AI-powered classrooms, smart boards, robotics lab, 450 students, 32 teachers", stats: [["👨‍🎓 Students", "450"], ["👩‍🏫 Teachers", "32"], ["📚 Classes", "18 running"], ["🤖 Robotics Lab", "Active"]] },
-  hospital: { desc: "24/7 emergency, AI diagnosis, robotic surgery, 8 ICU beds available", stats: [["🏥 Patients", "32"], ["🚑 Ambulances", "2 ready"], ["💊 ICU Beds", "8 free"], ["🩺 AI Diagnosis", "Online"]] },
-  society: { desc: "12 smart residential towers, IoT security, 2,400 residents, 82% solar powered", stats: [["🏠 Towers", "12"], ["👥 Residents", "2,400"], ["☀️ Solar", "82% self"], ["🔒 Security", "AI Active"]] },
-  bank: { desc: "Digital banking, AI fraud detection, 8 ATMs, 1,240 transactions/hour", stats: [["💰 Transactions", "1,240/hr"], ["🏧 ATMs", "8 online"], ["🔐 AI Security", "Active"], ["📈 Uptime", "99.9%"]] },
-  farm: { desc: "IoT sensors, drip irrigation, 3 drones monitoring, 94% crop health", stats: [["🌾 Crop Health", "94%"], ["💧 Soil Moisture", "68%"], ["🚁 Drones", "3 active"], ["🌡️ Temp", "24°C"]] },
-  newHall: { desc: "Events, conferences, concerts, capacity 2,000, smart surround lighting", stats: [["🎪 Capacity", "2,000"], ["🎤 Events today", "3"], ["💡 Smart Lights", "ON"], ["🎵 Sound", "Surround"]] },
-  carWash: { desc: "Automated car wash, 4 EV chargers, 6 fuel pumps, 78% water recycling", stats: [["🚗 Cars today", "87"], ["⚡ EV Chargers", "4 active"], ["⛽ Fuel Pumps", "6"], ["💧 Water recycle", "78%"]] },
-  powerCompany: { desc: "Grid monitoring, AI load balancing, 68 MW load, 0 outages today", stats: [["⚡ Load", "68 MW"], ["🔋 Reserve", "22%"], ["📊 Grid Status", "Stable"], ["🔌 Outages", "0"]] },
-  powerSupply: { desc: "Solar (42 MW) + Wind (28 MW) = 70 MW renewable output zone", stats: [["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]] },
-  filtration: { desc: "9-stage water purification, 12M L/day, 99.7% purity, UV treatment", stats: [["💧 Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24 active"], ["♻️ Recycle", "82%"]] },
-  fertilizer: { desc: "AI nutrient mixing, soil analysis, auto-distribution, NPK optimal", stats: [["🌱 NPK Ratio", "Optimal"], ["🤖 AI Dosing", "Active"], ["🚚 Trucks out", "2"], ["📊 Soil Health", "94%"]] },
-  wasteManagement: { desc: "Smart segregation, recycling, biogas (4.2 MW energy), waste-to-energy", stats: [["♻️ Recycled", "68%"], ["⚡ Energy Gen", "4.2 MW"], ["🗑️ Trucks", "3 out"], ["📊 Bin Levels", "42%"]] },
-  cultureCenter: { desc: "Museums, art galleries, cultural events, VR tours, 45 exhibits", stats: [["🎭 Visitors", "320"], ["🖼️ Exhibits", "45"], ["🎬 VR Tours", "Online"], ["🎨 Workshops", "2 today"]] },
-  sewageCompany: { desc: "AI sewage treatment, biogas (2.1 MW), water recycling, 8M L/day", stats: [["🏭 Processed", "8M L/day"], ["💨 Biogas", "2.1 MW"], ["♻️ Recycle", "75%"], ["🔬 Quality", "Clean"]] },
-  scifi9: { desc: "Futuristic R&D, holographic labs, quantum computing, 12 active labs", stats: [["🧪 Labs", "12 active"], ["💻 Quantum", "Online"], ["🔬 Research", "8 projects"], ["⚡ Power", "Stable"]] },
-  beautifulTower: { desc: "Iconic 320m landmark, observation deck, smart show lighting", stats: [["🏙️ Height", "320 m"], ["👁️ Visitors", "180"], ["💡 Lights", "Show mode"], ["📡 Antenna", "Active"]] },
-  scifi10: { desc: "Space tech, satellite control (6 linked), AI mission planning", stats: [["🛰️ Satellites", "6 linked"], ["🚀 Missions", "2 active"], ["📡 Signal", "Strong"], ["🤖 AI", "Online"]] },
-  wasteCollector: { desc: "Smart bins (24), AI route optimization, odor control, 78% sorted", stats: [["🗑️ Bins", "24"], ["📊 Fill Level", "42%"], ["🚛 Next pickup", "18 min"], ["♻️ Sorted", "78%"]] },
-  trafficController: { desc: "AI controls 4 roads, adaptive signals, jam detection, 24 sensors", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24 online"]] },
-};
-
+/* =====================================================================
+   FILTRATION STAGES
+   ===================================================================== */
 const FILTRATION_STAGES = [
   { id: "wastewater", label: "WASTEWATER COLLECTION", color: 0x6b4a2f, duration: 4 },
   { id: "primary", label: "PRIMARY FILTRATION", color: 0x8a7a4a, duration: 4 },
@@ -69,6 +49,37 @@ const FILTRATION_STAGES = [
   { id: "recycling", label: "WATER RECYCLING", color: 0x2ecc71, duration: 4 },
 ];
 
+const STAGE_WATER_COLORS = [
+  0x4a2a1a, 0x6a4a2a, 0x4a6a3a, 0x3a8aaa,
+  0x5a9aba, 0x3a9aca, 0x8a6aff, 0x22cfff, 0x2ecc71,
+];
+
+/* =====================================================================
+   POWER SUPPLY STAGES (new)
+   ===================================================================== */
+const POWER_STAGES = [
+  { id: "solar", label: "SOLAR ARRAY", color: 0xffcc22, duration: 4 },
+  { id: "wind", label: "WIND TURBINES", color: 0x22cfff, duration: 4 },
+  { id: "battery", label: "BATTERY STORAGE", color: 0x22ff9d, duration: 4 },
+  { id: "grid", label: "GRID DISTRIBUTION", color: 0xff6b6b, duration: 4 },
+  { id: "load", label: "CITY LOAD BALANCE", color: 0xb266ff, duration: 4 },
+];
+
+/* =====================================================================
+   FOOD SYSTEM STAGES (new)
+   ===================================================================== */
+const FOOD_STAGES = [
+  { id: "farm", label: "SMART FARMING", color: 0x2ecc71, duration: 4 },
+  { id: "harvest", label: "AUTO HARVEST", color: 0xffcc22, duration: 4 },
+  { id: "processing", label: "FOOD PROCESSING", color: 0xe67e22, duration: 4 },
+  { id: "quality", label: "QUALITY CHECK", color: 0x3498db, duration: 4 },
+  { id: "packaging", label: "SMART PACKAGING", color: 0x9b59b6, duration: 4 },
+  { id: "distribution", label: "CITY DISTRIBUTION", color: 0xff6b6b, duration: 4 },
+];
+
+/* =====================================================================
+   WASTE STAGES
+   ===================================================================== */
 const WASTE_STAGES = [
   { id: "collection", label: "WASTE COLLECTION", color: 0x8a6a3a, duration: 4 },
   { id: "segregation", label: "SEGREGATION", color: 0x3498db, duration: 4 },
@@ -78,164 +89,106 @@ const WASTE_STAGES = [
   { id: "incineration", label: "SAFE DISPOSAL", color: 0x8a3a3a, duration: 4 },
 ];
 
-const STAGE_WATER_COLORS = [
-  0x4a2a1a, 0x6a4a2a, 0x4a6a3a, 0x3a8aaa,
-  0x5a9aba, 0x3a9aca, 0x8a6aff, 0x22cfff, 0x2ecc71,
-];
-
 /* =====================================================================
-   ENHANCED AI TRAFFIC SYSTEM
-   4-Phase adaptive system with emergency priority, pedestrian phases,
-   queue-based timing, and decision logging
+   ENHANCED AI TRAFFIC SYSTEM — 4-phase adaptive with emergency + pedestrian
    ===================================================================== */
 function createAITrafficSystem(callbacks) {
-  // 4-phase system: NS straight, EW straight, NS left, EW left
   const PHASES = [
-    { id: "NS_STRAIGHT", green: [1, 2], yellow: [], label: "North-South Straight" },
-    { id: "NS_LEFT", green: [1], yellow: [2], label: "North-South Left Turn" },
-    { id: "EW_STRAIGHT", green: [3, 4], yellow: [], label: "East-West Straight" },
-    { id: "EW_LEFT", green: [3], yellow: [4], label: "East-West Left Turn" },
+    { id: "NS", green: [1, 2], label: "N-S STRAIGHT" },
+    { id: "NS_L", green: [1], label: "N-S LEFT" },
+    { id: "EW", green: [3, 4], label: "E-W STRAIGHT" },
+    { id: "EW_L", green: [3], label: "E-W LEFT" },
   ];
 
-  const BASE_GREEN = 7;
-  const MIN_GREEN = 4;
-  const MAX_GREEN = 18;
-  const YELLOW_DURATION = 2.5;
-  const ALL_RED_DURATION = 1.0;
-  const PEDESTRIAN_DURATION = 3.0;
+  const BASE_GREEN = 7, MIN_GREEN = 4, MAX_GREEN = 16;
+  const YELLOW_DURATION = 2.5, ALL_RED = 1.0, PEDESTRIAN = 3.0;
 
-  let phaseIndex = 0;
-  let elapsed = 0;
-  let inYellow = false;
-  let inAllRed = false;
-  let inPedestrian = false;
-  let yellowElapsed = 0;
-  let allRedElapsed = 0;
-  let pedestrianElapsed = 0;
+  let phaseIndex = 0, elapsed = 0;
+  let inYellow = false, yellowElapsed = 0;
+  let inAllRed = false, allRedElapsed = 0;
+  let inPedestrian = false, pedestrianElapsed = 0;
   let phaseGreenDuration = BASE_GREEN;
 
-  // Queue tracking per road
   const roadQueues = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  const roadDensity = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let emergencyActive = false, emergencyRoad = null, emergencyTimer = 0;
 
-  // Emergency vehicle state
-  let emergencyActive = false;
-  let emergencyRoad = null;
-  let emergencyTimer = 0;
-
-  // AI decision log
   const decisionLog = [];
-  const MAX_LOG = 8;
-
-  // Statistics
   const stats = {
-    vehiclesDetected: 80,
-    vehiclesMoving: 40,
-    vehiclesWaiting: 40,
-    density: "HIGH",
-    avgWaitTime: 12.4,
-    throughput: 1240,
-    aiConfidence: 94,
-    adaptiveMode: true,
-    emergencyMode: false,
-    pedestrianPhase: false,
-    currentPhaseLabel: PHASES[0].label,
-    phaseTimeRemaining: BASE_GREEN,
+    vehiclesDetected: 80, vehiclesMoving: 40, vehiclesWaiting: 40,
+    density: "HIGH", avgWaitTime: 12.4, throughput: 1240, aiConfidence: 94,
+    emergencyMode: false, pedestrianPhase: false,
+    currentPhaseLabel: PHASES[0].label, phaseTimeRemaining: BASE_GREEN,
   };
 
   function addLog(message, type = "info") {
     decisionLog.unshift({ message, type, time: Date.now() });
-    if (decisionLog.length > MAX_LOG) decisionLog.pop();
+    if (decisionLog.length > 8) decisionLog.pop();
   }
 
-  function calculateAdaptiveGreen() {
-    // Sum queue on the roads that will be green in next phase
+  function calcAdaptiveGreen() {
     const nextPhase = PHASES[(phaseIndex + 1) % PHASES.length];
-    const queuedOnNext = nextPhase.green.reduce((sum, r) => sum + roadQueues[r], 0);
-    const queuedOnCurrent = PHASES[phaseIndex].green.reduce((sum, r) => sum + roadQueues[r], 0);
-
-    // If next phase has more waiting, shorten current green
-    // If current phase has more waiting, extend current green
-    let duration = BASE_GREEN;
-    if (queuedOnNext > queuedOnCurrent * 1.5) {
-      duration = Math.max(MIN_GREEN, BASE_GREEN - 2);
-      addLog(`Phase ${nextPhase.label} has high queue (${queuedOnNext}) — shortening green`, "adaptive");
-    } else if (queuedOnCurrent > queuedOnNext * 1.8) {
-      duration = Math.min(MAX_GREEN, BASE_GREEN + 3);
-      addLog(`Phase ${PHASES[phaseIndex].label} congested (${queuedOnCurrent}) — extending green`, "adaptive");
-    }
-    return duration;
+    const qNext = nextPhase.green.reduce((s, r) => s + roadQueues[r], 0);
+    const qCur = PHASES[phaseIndex].green.reduce((s, r) => s + roadQueues[r], 0);
+    let d = BASE_GREEN;
+    if (qNext > qCur * 1.5) { d = Math.max(MIN_GREEN, BASE_GREEN - 2); addLog(`Next phase queue high (${qNext}) — shortening green`, "adaptive"); }
+    else if (qCur > qNext * 1.8) { d = Math.min(MAX_GREEN, BASE_GREEN + 3); addLog(`Current congested (${qCur}) — extending green`, "adaptive"); }
+    return d;
   }
 
   function tick(delta) {
-    elapsed += delta;
     const currentPhase = PHASES[phaseIndex];
 
-    // Handle emergency vehicle override
     if (emergencyActive) {
       emergencyTimer -= delta;
       if (emergencyTimer <= 0) {
-        emergencyActive = false;
-        emergencyRoad = null;
-        stats.emergencyMode = false;
-        addLog("Emergency vehicle cleared — resuming adaptive cycle", "emergency");
+        emergencyActive = false; emergencyRoad = null; stats.emergencyMode = false;
+        addLog("Emergency cleared — resuming adaptive cycle", "emergency");
       } else {
-        // Force green for emergency road
         stats.emergencyMode = true;
         stats.currentPhaseLabel = `🚨 EMERGENCY — Road ${emergencyRoad}`;
         stats.phaseTimeRemaining = emergencyTimer;
         callbacks.onTrafficUpdate?.({
-          phase: phaseIndex + 1,
-          inYellow: false,
-          currentGreenRoads: [emergencyRoad],
-          currentRedRoads: [1, 2, 3, 4].filter((r) => r !== emergencyRoad),
+          phase: phaseIndex + 1, inYellow: false, currentGreenRoads: [emergencyRoad],
+          currentRedRoads: [1,2,3,4].filter(r => r !== emergencyRoad),
           phaseProgress: 1 - emergencyTimer / 5,
-          stats: { ...stats },
-          timeInPhase: emergencyTimer,
-          decisionLog: [...decisionLog],
-          phaseLabel: stats.currentPhaseLabel,
+          stats: { ...stats }, decisionLog: [...decisionLog],
+          phaseLabel: stats.currentPhaseLabel, roadQueues: { ...roadQueues },
         });
         return;
       }
     }
 
-    // Phase state machine
     if (inPedestrian) {
       pedestrianElapsed += delta;
-      if (pedestrianElapsed >= PEDESTRIAN_DURATION) {
-        inPedestrian = false;
-        pedestrianElapsed = 0;
-        elapsed = 0;
+      if (pedestrianElapsed >= PEDESTRIAN) {
+        inPedestrian = false; pedestrianElapsed = 0; elapsed = 0;
         phaseIndex = (phaseIndex + 1) % PHASES.length;
-        phaseGreenDuration = calculateAdaptiveGreen();
+        phaseGreenDuration = calcAdaptiveGreen();
+        stats.pedestrianPhase = false;
         addLog(`AI switched to ${PHASES[phaseIndex].label}`, "phase");
       }
     } else if (inAllRed) {
       allRedElapsed += delta;
-      if (allRedElapsed >= ALL_RED_DURATION) {
-        inAllRed = false;
-        allRedElapsed = 0;
-        inPedestrian = true;
-        pedestrianElapsed = 0;
+      if (allRedElapsed >= ALL_RED) {
+        inAllRed = false; allRedElapsed = 0;
+        inPedestrian = true; pedestrianElapsed = 0;
         stats.pedestrianPhase = true;
-        addLog("Pedestrian crossing active — all vehicles stopped", "pedestrian");
+        addLog("Pedestrian crossing active", "pedestrian");
       }
     } else if (inYellow) {
       yellowElapsed += delta;
       if (yellowElapsed >= YELLOW_DURATION) {
-        inYellow = false;
-        yellowElapsed = 0;
-        inAllRed = true;
-        allRedElapsed = 0;
+        inYellow = false; yellowElapsed = 0;
+        inAllRed = true; allRedElapsed = 0;
       }
-    } else if (elapsed >= phaseGreenDuration) {
-      inYellow = true;
-      yellowElapsed = 0;
-      stats.pedestrianPhase = false;
-      addLog(`${currentPhase.label} ending — yellow transition`, "phase");
+    } else {
+      elapsed += delta;
+      if (elapsed >= phaseGreenDuration) {
+        inYellow = true; yellowElapsed = 0;
+        addLog(`${currentPhase.label} ending — yellow`, "phase");
+      }
     }
 
-    // Update queue estimates (simulated based on time in phase)
     const cycleFactor = Math.sin((Date.now() / 5000) % (Math.PI * 2)) * 0.5 + 0.5;
     for (let r = 1; r <= 4; r++) {
       if (currentPhase.green.includes(r) && !inYellow && !inAllRed && !inPedestrian) {
@@ -243,200 +196,163 @@ function createAITrafficSystem(callbacks) {
       } else {
         roadQueues[r] = Math.min(30, roadQueues[r] + delta * (2 + cycleFactor * 3));
       }
-      roadDensity[r] = Math.min(1, roadQueues[r] / 25);
     }
 
-    // Random emergency vehicle spawn (rare)
-    if (!emergencyActive && Math.random() < 0.0008) {
+    if (!emergencyActive && Math.random() < 0.0006) {
       emergencyActive = true;
       emergencyRoad = Math.floor(Math.random() * 4) + 1;
       emergencyTimer = 5;
       stats.emergencyMode = true;
-      addLog(`🚨 Emergency vehicle detected on Road ${emergencyRoad} — priority override`, "emergency");
+      addLog(`🚨 Emergency on Road ${emergencyRoad} — priority override`, "emergency");
     }
 
-    // Compute stats
-    const totalQueue = Object.values(roadQueues).reduce((a, b) => a + b, 0);
-    const movingRoads = inPedestrian ? 0 : currentPhase.green.length;
-    stats.vehiclesMoving = Math.floor(movingRoads * 20 + Math.random() * 8);
-    stats.vehiclesWaiting = Math.floor(totalQueue * 3 + Math.random() * 10);
+    const totalQ = Object.values(roadQueues).reduce((a, b) => a + b, 0);
+    stats.vehiclesMoving = Math.floor((inPedestrian ? 0 : currentPhase.green.length) * 20 + Math.random() * 8);
+    stats.vehiclesWaiting = Math.floor(totalQ * 3 + Math.random() * 10);
     stats.vehiclesDetected = stats.vehiclesMoving + stats.vehiclesWaiting;
-    stats.density = totalQueue > 60 ? "HIGH" : totalQueue > 30 ? "MEDIUM" : "LOW";
-    stats.avgWaitTime = (8 + totalQueue * 0.4).toFixed(1);
-    stats.throughput = Math.floor(1100 + (4 - totalQueue / 20) * 80);
+    stats.density = totalQ > 60 ? "HIGH" : totalQ > 30 ? "MEDIUM" : "LOW";
+    stats.avgWaitTime = (8 + totalQ * 0.4).toFixed(1);
+    stats.throughput = Math.floor(1100 + (4 - totalQ / 20) * 80);
     stats.aiConfidence = Math.floor(88 + Math.random() * 10);
-    stats.currentPhaseLabel = inPedestrian ? "🚶 PEDESTRIAN CROSSING" : inAllRed ? "⛔ ALL RED" : inYellow ? `⚠️ ${currentPhase.label} — YELLOW` : currentPhase.label;
-    stats.phaseTimeRemaining = inPedestrian
-      ? PEDESTRIAN_DURATION - pedestrianElapsed
-      : inAllRed
-      ? ALL_RED_DURATION - allRedElapsed
-      : inYellow
-      ? YELLOW_DURATION - yellowElapsed
+    stats.currentPhaseLabel = inPedestrian ? "🚶 PEDESTRIAN CROSSING" : inAllRed ? "⛔ ALL RED"
+      : inYellow ? `⚠️ ${currentPhase.label} — YELLOW` : currentPhase.label;
+    stats.phaseTimeRemaining = inPedestrian ? PEDESTRIAN - pedestrianElapsed
+      : inAllRed ? ALL_RED - allRedElapsed
+      : inYellow ? YELLOW_DURATION - yellowElapsed
       : phaseGreenDuration - elapsed;
 
-    const greenRoads = inPedestrian || inAllRed ? [] : currentPhase.green;
-    const redRoads = inPedestrian || inAllRed ? [1, 2, 3, 4] : [1, 2, 3, 4].filter((r) => !currentPhase.green.includes(r));
+    const greenRoads = (inPedestrian || inAllRed) ? [] : currentPhase.green;
+    const redRoads = (inPedestrian || inAllRed) ? [1,2,3,4] : [1,2,3,4].filter(r => !currentPhase.green.includes(r));
 
     callbacks.onTrafficUpdate?.({
-      phase: phaseIndex + 1,
-      inYellow,
-      inAllRed,
-      inPedestrian,
-      currentGreenRoads: greenRoads,
-      currentRedRoads: redRoads,
-      phaseProgress: inPedestrian
-        ? pedestrianElapsed / PEDESTRIAN_DURATION
-        : inAllRed
-        ? allRedElapsed / ALL_RED_DURATION
-        : inYellow
-        ? yellowElapsed / YELLOW_DURATION
+      phase: phaseIndex + 1, inYellow, inAllRed, inPedestrian,
+      currentGreenRoads: greenRoads, currentRedRoads: redRoads,
+      phaseProgress: inPedestrian ? pedestrianElapsed / PEDESTRIAN
+        : inAllRed ? allRedElapsed / ALL_RED
+        : inYellow ? yellowElapsed / YELLOW_DURATION
         : elapsed / phaseGreenDuration,
-      stats: { ...stats },
-      timeInPhase: elapsed,
-      decisionLog: [...decisionLog],
-      phaseLabel: stats.currentPhaseLabel,
-      roadQueues: { ...roadQueues },
+      stats: { ...stats }, decisionLog: [...decisionLog],
+      phaseLabel: stats.currentPhaseLabel, roadQueues: { ...roadQueues },
     });
   }
 
-  function isGreen(road) {
-    if (emergencyActive) return road === emergencyRoad;
-    if (inYellow || inAllRed || inPedestrian) return false;
-    return PHASES[phaseIndex].green.includes(road);
-  }
-  function isRed(road) {
-    if (emergencyActive) return road !== emergencyRoad;
-    if (inPedestrian || inAllRed) return true;
-    return !PHASES[phaseIndex].green.includes(road);
-  }
-  function isYellowRoad(road) {
-    if (inYellow) return PHASES[phaseIndex].green.includes(road);
-    return false;
-  }
-  function getPhase() { return phaseIndex + 1; }
-  function getStats() { return { ...stats }; }
-
-  return { tick, isGreen, isRed, isYellowRoad, getPhase, getStats, PHASES };
+  return {
+    tick,
+    isGreen: (r) => emergencyActive ? r === emergencyRoad : (!inYellow && !inAllRed && !inPedestrian && PHASES[phaseIndex].green.includes(r)),
+    isYellowRoad: (r) => inYellow && PHASES[phaseIndex].green.includes(r),
+    getPhase: () => phaseIndex + 1,
+    getStats: () => ({ ...stats }),
+  };
 }
 
+/* =====================================================================
+   MAIN COMPONENT
+   ===================================================================== */
 const SmartCity3D = forwardRef((props, ref) => {
-  const {
-    onPanel, onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage,
-    onAiReason, onTouristMessage, onAITrafficUpdate,
-    onFiltrationUpdate, onWasteUpdate, onAITrafficLog,
-  } = props;
+  const { onTouristMessage } = props;
   const mountRef = useRef(null);
 
-  // ── Recording-focused small UI state ──
+  // ── UI state ──
   const [recording, setRecording] = useState(false);
   const [recTime, setRecTime] = useState(0);
-  const [trafficHUD, setTrafficHUD] = useState(null);
-  const [hudExpanded, setHudExpanded] = useState(true);
+  const [toast, setToast] = useState(null);
+  const [toastKey, setToastKey] = useState(0);
+
+  // ── 4 SYSTEM PANELS (with close buttons) ──
+  const [showTraffic, setShowTraffic] = useState(true);
+  const [showPower, setShowPower] = useState(false);
+  const [showFiltration, setShowFiltration] = useState(false);
+  const [showFood, setShowFood] = useState(false);
+
+  // ── System data ──
+  const [trafficData, setTrafficData] = useState(null);
+  const [powerData, setPowerData] = useState({ stageIndex: 0, stage: POWER_STAGES[0], allStages: POWER_STAGES, progress: 0 });
+  const [filtrationData, setFiltrationData] = useState({ stageIndex: 0, stage: FILTRATION_STAGES[0], allStages: FILTRATION_STAGES, progress: 0 });
+  const [foodData, setFoodData] = useState({ stageIndex: 0, stage: FOOD_STAGES[0], allStages: FOOD_STAGES, progress: 0 });
+
+  const [isNight, setIsNight] = useState(false);
 
   const s = useRef({
     camera: null, controls: null, renderer: null, scene: null,
-    isLocked: false, lockedLocation: null, followTarget: null,
-    savedCamPos: null, savedCamTarget: null, camTransition: null,
-    trucks: {}, people: [], tourists: [], cityCars: [], intersectionCars: [],
-    trafficLights: [], intersectionLights: [],
-    turbines: [], streetBulbMats: [], batteryRings: [],
-    waterParticles: [], clickable: [], borderLights: [],
-    controller: null, radar: null, controllerRing: null, controllerRing2: null,
-    controllerSig: null, garbageWarn: null, fertWarn1: null, fertWarn2: null,
+    camTransition: null,
+    intersectionCars: [], straightCars: [],
+    intersectionLights: [], trucks: {}, trafficLights: [], turbines: [],
+    streetBulbMats: [], batteryRings: [], borderLights: [],
+    clickable: [], controller: null, aiSystem: null,
+    powerStageIndex: 0, powerStageElapsed: 0,
+    filtrationStageIndex: 0, filtrationStageElapsed: 0,
+    foodStageIndex: 0, foodStageElapsed: 0,
     grassMaterial: null, roadMaterial: null, roadLaneMaterial: null,
     curbMaterial: null, sidewalkMat: null, ambient: null, sun: null,
-    sim: null, roadZs: null, roadXs: null, aiSystem: null,
-    filtrationStageIndex: 0, filtrationStageElapsed: 0,
-    filtrationStageMeshes: [], filtrationFlowMeshes: [],
-    filtrationTankWater: null, filtrationUVLight: null, filtrationUVBulb: null,
-    filtrationUVRays: [], filtrationCleanReservoir: null,
-    filtrationPumpRings: [], filtrationBubbles: [],
-    dirtyWaterParticles: [], cleanWaterParticles: [],
-    wasteStageIndex: 0, wasteStageElapsed: 0,
-    wasteConveyorItems: [], wasteSmokeParticles: [], wasteSteamParticles: [],
-    wasteBiogasFlame: null, wasteGeneratorCoil: null, wasteRecycleGears: [], wasteBins3D: [],
+    filtrationStageMeshes: [], powerTurbineMeshes: [],
+    foodCropMeshes: [], foodConveyorItems: [],
   }).current;
 
-  // Recording timer
+  /* ── Recording timer ── */
   useEffect(() => {
     if (!recording) return;
     const id = setInterval(() => setRecTime((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [recording]);
 
+  /* ── Toast helper ── */
+  const showToast = useCallback((msg, type = "info") => {
+    if (!msg) return;
+    setToast({ msg: String(msg), type });
+    setToastKey((k) => k + 1);
+    setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  /* ── Recording ── */
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  const handleToggleRecording = () => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas) return;
+    if (!recording) {
+      try {
+        const stream = canvas.captureStream(30);
+        const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+          ? "video/webm;codecs=vp9" : "video/webm";
+        const rec = new MediaRecorder(stream, { mimeType: mime });
+        chunksRef.current = [];
+        rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+        rec.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = `smartcity-${Date.now()}.webm`;
+          a.click(); URL.revokeObjectURL(url);
+          showToast("✅ Recording saved", "info");
+        };
+        rec.start(1000);
+        mediaRecorderRef.current = rec;
+        setRecTime(0);
+        setRecording(true);
+      } catch (e) { showToast("Recording failed: " + e.message); }
+    } else {
+      mediaRecorderRef.current?.stop();
+      mediaRecorderRef.current = null;
+      setRecording(false);
+    }
+  };
+
+  /* ── Imperative handle ── */
   useImperativeHandle(ref, () => ({
-    getLocations: () => Object.values(LOCATIONS),
-    goToLocation: (key, onLabel) => goToLocation(key, onLabel),
-    goToLocationCamera: (key, camName, onLabel) => goToLocationCamera(key, camName, onLabel),
-    exitCameraView: () => exitCameraView(),
-    followVehicle: (key, onText) => followVehicle(key, onText),
-    goToOverview: () => goToOverview(),
-    goToTopDown: () => goToTopDown(),
+    goToOverview: () => { if (s.camera) smoothCameraTo(new THREE.Vector3(1400, 950, 1400), new THREE.Vector3(0, 5, 0), 1500); },
+    goToTopDown: () => { if (s.camera) smoothCameraTo(new THREE.Vector3(0, 2800, 500), new THREE.Vector3(0, 0, 0), 1500); },
     setDayNight: (night) => setDayNight(night),
-    goToLiveTraffic: () => goToLiveTraffic(),
+    exitCameraView: () => setDayNight(isNight),
   }));
 
   function smoothCameraTo(targetPos, targetLook, duration = 1400) {
-    s.camTransition = { startPos: s.camera.position.clone(), targetPos, startLook: s.controls.target.clone(), targetLook, startTime: performance.now(), duration };
-  }
-
-  function goToLocation(key, onLabel) {
-    const loc = LOCATIONS[key]; if (!loc || !s.camera) return;
-    s.isLocked = true; s.lockedLocation = key; s.followTarget = null;
-    s.savedCamPos = s.camera.position.clone(); s.savedCamTarget = s.controls.target.clone();
-    const [x, y, z] = loc.position;
-    smoothCameraTo(new THREE.Vector3(x + loc.camDistance * 0.7, loc.camHeight, z + loc.camDistance * 0.7), new THREE.Vector3(x, y, z));
-    s.controls.enableRotate = false; onLabel?.(loc.label);
-  }
-
-  function goToLocationCamera(key, camName, onLabel) {
-    const loc = LOCATIONS[key]; if (!loc || !s.camera) return;
-    const cam = loc.cameras.find((c) => c.name === camName); if (!cam) return;
-    s.isLocked = true; s.lockedLocation = key; s.followTarget = null;
-    s.savedCamPos = s.camera.position.clone(); s.savedCamTarget = s.controls.target.clone();
-    const [x, y, z] = loc.position;
-    let camPos, lookAt;
-    if (cam.inside) { camPos = new THREE.Vector3(x - 80, y + 60, z - 80); lookAt = new THREE.Vector3(x, y + 25, z); }
-    else if (cam.top) { camPos = new THREE.Vector3(x, y + loc.camHeight * 1.8, z + 10); lookAt = new THREE.Vector3(x, y, z); }
-    else { camPos = new THREE.Vector3(x + Math.sin(cam.angle) * loc.camDistance, y + loc.camHeight * 0.5, z + Math.cos(cam.angle) * loc.camDistance); lookAt = new THREE.Vector3(x, y, z); }
-    smoothCameraTo(camPos, lookAt);
-    s.controls.enableRotate = false; onLabel?.(loc.label);
-  }
-
-  function exitCameraView() {
     if (!s.camera) return;
-    s.isLocked = false; s.lockedLocation = null; s.followTarget = null;
-    if (s.savedCamPos && s.savedCamTarget) smoothCameraTo(s.savedCamPos, s.savedCamTarget);
-    s.controls.enableRotate = true;
-  }
-
-  function followVehicle(key, onText) {
-    if (!s.camera) return;
-    s.isLocked = false; s.lockedLocation = null;
-    if (key === "garbageTruck") s.followTarget = s.trucks.garbage;
-    else if (key === "fertTruck1") s.followTarget = s.trucks.fert1;
-    else if (key === "fertTruck2") s.followTarget = s.trucks.fert2;
-    else s.followTarget = null;
-    if (s.followTarget) {
-      smoothCameraTo(s.followTarget.position.clone().add(new THREE.Vector3(120, 90, 120)), s.followTarget.position.clone(), 1200);
-      onText?.("🎥 FOLLOWING — " + key.toUpperCase());
-    } else {
-      smoothCameraTo(new THREE.Vector3(0, 2000, 2000), new THREE.Vector3(0, 0, 0), 1500);
-      onText?.("🌐 WATCHING CITY CARS");
-    }
-    s.controls.enableRotate = true;
-  }
-
-  function goToOverview() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(1400, 950, 1400), new THREE.Vector3(0, 5, 0), 1500); }
-  function goToTopDown() { if (!s.camera) return; s.isLocked = false; s.lockedLocation = null; s.followTarget = null; s.controls.enableRotate = true; smoothCameraTo(new THREE.Vector3(0, 2800, 500), new THREE.Vector3(0, 0, 0), 1500); }
-
-  function goToLiveTraffic() {
-    if (!s.camera) return;
-    s.isLocked = false; s.lockedLocation = "liveTraffic"; s.followTarget = null;
-    s.savedCamPos = s.camera.position.clone();
-    s.savedCamTarget = s.controls.target.clone();
-    smoothCameraTo(new THREE.Vector3(0, 420, 520), new THREE.Vector3(0, 5, 0), 2000);
-    s.controls.enableRotate = true;
+    s.camTransition = {
+      startPos: s.camera.position.clone(), targetPos,
+      startLook: s.controls.target.clone(), targetLook,
+      startTime: performance.now(), duration,
+    };
   }
 
   function setDayNight(night) {
@@ -460,13 +376,18 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.borderLights.forEach((m) => { m.emissiveIntensity = night ? 6.5 : 3.0; });
   }
 
+  /* =====================================================================
+     MAIN 3D SETUP
+     ===================================================================== */
   useEffect(() => {
     const container = mountRef.current; if (!container) return;
     const scene = new THREE.Scene();
     s.scene = scene;
     scene.background = new THREE.Color(0x8fbcd4);
+
     const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 5, 15000);
     camera.position.set(1400, 950, 1400); s.camera = camera;
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
@@ -475,16 +396,21 @@ const SmartCity3D = forwardRef((props, ref) => {
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = false;
     container.appendChild(renderer.domElement); s.renderer = renderer;
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.15;
     controls.minDistance = 200; controls.maxDistance = 8000;
     controls.target.set(0, 5, 0); s.controls = controls;
+
     const ambient = new THREE.HemisphereLight(0xffffff, 0x4a7a56, 2.8);
     scene.add(ambient); s.ambient = ambient;
+
     const sun = new THREE.DirectionalLight(0xffffff, 2.6);
     sun.position.set(-800, 1400, 500); scene.add(sun); s.sun = sun;
+
     const fillLight = new THREE.DirectionalLight(0xd0e8ff, 1.2);
     fillLight.position.set(800, 1000, -500); scene.add(fillLight);
+
     const mat = (c, r = 0.8, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
     const grassMaterial = mat(0x4d8f50, 0.98);
     const roadMaterial = mat(0x2a3238, 0.96);
@@ -495,11 +421,16 @@ const SmartCity3D = forwardRef((props, ref) => {
     const darkMaterial = mat(0x182327, 0.65, 0.15);
     const blueMaterial = mat(0x087fa8, 0.35, 0.25);
     const sidewalkMat = mat(0x8a8f94, 0.9);
+
     s.grassMaterial = grassMaterial; s.roadMaterial = roadMaterial;
     s.roadLaneMaterial = roadLaneMaterial; s.curbMaterial = curbMaterial;
     s.sidewalkMat = sidewalkMat;
+
+    // Ground
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE), grassMaterial);
     ground.rotation.x = -Math.PI / 2; scene.add(ground);
+
+    // City boundary
     const cityBoundMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
     s.borderLights.push(cityBoundMat);
     const boundThick = 20, boundY = 6;
@@ -509,19 +440,13 @@ const SmartCity3D = forwardRef((props, ref) => {
     const boundLeft = new THREE.Mesh(new THREE.BoxGeometry(boundThick, 2, CITY_HALF * 2 + boundThick), cityBoundMat);
     boundLeft.position.set(-CITY_HALF, boundY, 0); scene.add(boundLeft);
     const boundRight = boundLeft.clone(); boundRight.position.x = CITY_HALF; scene.add(boundRight);
-    for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
-      const cx = dx * CITY_HALF, cz = dz * CITY_HALF;
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(6, 8, 30, 12), cityBoundMat);
-      p.position.set(cx, 20, cz); scene.add(p);
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x22cfff, emissiveIntensity: 4 }));
-      s.borderLights.push(cap.material);
-      cap.position.set(cx, 37, cz); scene.add(cap);
-    }
+
+    // Roads
     const ROAD_W = 110, ROAD_HALF = ROAD_W / 2;
     const ROAD_LEN = ROAD_HALF_LEN * 2;
     const roadZs = [-2400, -1200, 0, 1200, 2400];
     const roadXs = [-2400, -1200, 0, 1200, 2400];
-    s.roadZs = roadZs; s.roadXs = roadXs;
+
     function makeRoadE(x, z, length) {
       const shoulder = new THREE.Mesh(new THREE.BoxGeometry(length, 0.25, ROAD_W + 20), roadLaneMaterial);
       shoulder.position.set(x, 4.55, z); scene.add(shoulder);
@@ -533,11 +458,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const topLine = new THREE.Mesh(new THREE.BoxGeometry(length, 0.08, 1.5), whiteLineMaterial);
       topLine.position.set(x, 5.05, z + ROAD_HALF - 6); scene.add(topLine);
       const botLine = topLine.clone(); botLine.position.z = z - ROAD_HALF + 6; scene.add(botLine);
-      for (let lx = x - length / 2 + 30; lx < x + length / 2 - 20; lx += 70) {
-        const d1 = new THREE.Mesh(new THREE.BoxGeometry(30, 0.09, 0.8), whiteLineMaterial);
-        d1.position.set(lx, 5.06, z + 30); scene.add(d1);
-        const d2 = d1.clone(); d2.position.z = z - 30; scene.add(d2);
-      }
     }
     function makeRoadN(x, z, length) {
       const shoulder = new THREE.Mesh(new THREE.BoxGeometry(ROAD_W + 20, 0.25, length), roadLaneMaterial);
@@ -550,125 +470,36 @@ const SmartCity3D = forwardRef((props, ref) => {
       const leftLine = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, length), whiteLineMaterial);
       leftLine.position.set(x - ROAD_HALF + 6, 5.05, z); scene.add(leftLine);
       const rightLine = leftLine.clone(); rightLine.position.x = x + ROAD_HALF - 6; scene.add(rightLine);
-      for (let lz = z - length / 2 + 30; lz < z + length / 2 - 20; lz += 70) {
-        const d1 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.09, 30), whiteLineMaterial);
-        d1.position.set(x + 30, 5.06, lz); scene.add(d1);
-        const d2 = d1.clone(); d2.position.x = x - 30; scene.add(d2);
-      }
     }
     roadZs.forEach((z) => makeRoadE(0, z, ROAD_LEN));
     roadXs.forEach((x) => makeRoadN(x, 0, ROAD_LEN));
+
+    // Sidewalks
     roadZs.forEach((z) => {
       const s1 = new THREE.Mesh(new THREE.BoxGeometry(ROAD_LEN, 0.3, 10), sidewalkMat);
       s1.position.set(0, 5.05, z + ROAD_HALF + 10); scene.add(s1);
       const s2 = s1.clone(); s2.position.z = z - ROAD_HALF - 10; scene.add(s2);
     });
-    roadXs.forEach((x) => {
-      const s1 = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, ROAD_LEN), sidewalkMat);
-      s1.position.set(x + ROAD_HALF + 10, 5.05, 0); scene.add(s1);
-      const s2 = s1.clone(); s2.position.x = x - ROAD_HALF - 10; scene.add(s2);
-    });
+
+    // City Walls
     const wallConcreteMat = new THREE.MeshStandardMaterial({ color: 0x5a6670, roughness: 0.85, metalness: 0.15 });
     const wallTopMat = new THREE.MeshStandardMaterial({ color: 0x3a4650, roughness: 0.7, metalness: 0.35 });
     const wallGlowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3.5, metalness: 0.7, roughness: 0.2 });
     s.borderLights.push(wallGlowMat);
-    function makeWallTextTexture(text, sub) {
-      const c = document.createElement("canvas"); c.width = 2048; c.height = 512;
-      const ctx = c.getContext("2d");
-      ctx.fillStyle = "#3a4650"; ctx.fillRect(0, 0, 2048, 512);
-      ctx.strokeStyle = "#22cfff"; ctx.lineWidth = 12;
-      ctx.strokeRect(20, 20, 2008, 472);
-      ctx.fillStyle = "#e8f7ff"; ctx.font = "bold 200px Arial";
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(text, 1024, 210);
-      ctx.fillStyle = "#7fe3ff"; ctx.font = "bold 90px Arial";
-      ctx.fillText(sub, 1024, 380);
-      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-      return tex;
-    }
+
     const wallH = 140, wallT = 30;
     const wallLen = CITY_HALF * 2 + wallT * 2;
-    function buildCityWall() {
+    function buildSimpleWall() {
       const eastWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallH, wallLen), wallConcreteMat);
       eastWall.position.set(CITY_HALF, 5 + wallH / 2, 0); scene.add(eastWall);
-      const eastTop = new THREE.Mesh(new THREE.BoxGeometry(wallT + 6, 6, wallLen), wallTopMat);
-      eastTop.position.set(CITY_HALF, 5 + wallH + 3, 0); scene.add(eastTop);
-      for (let z = -CITY_HALF + 100; z <= CITY_HALF - 100; z += 400) {
-        const gl = new THREE.Mesh(new THREE.BoxGeometry(wallT + 1, 4, 20), wallGlowMat);
-        gl.position.set(CITY_HALF, 5 + wallH - 25, z); scene.add(gl);
-        const gl2 = gl.clone(); gl2.position.y = 5 + 25; scene.add(gl2);
-      }
-      const texE = makeWallTextTexture("MA DEVELOPERS", "DEVELOPED BY MA DEVELOPERS");
-      const panelE = new THREE.Mesh(new THREE.PlaneGeometry(900, 220), new THREE.MeshBasicMaterial({ map: texE, side: THREE.DoubleSide }));
-      panelE.position.set(CITY_HALF - wallT / 2 - 1, 5 + wallH / 2, 0);
-      panelE.rotation.y = -Math.PI / 2; scene.add(panelE);
-      const panelE2 = panelE.clone();
-      panelE2.position.set(CITY_HALF + wallT / 2 + 1, 5 + wallH / 2, 0);
-      panelE2.rotation.y = Math.PI / 2; scene.add(panelE2);
       const westWall = eastWall.clone(); westWall.position.x = -CITY_HALF; scene.add(westWall);
-      const westTop = eastTop.clone(); westTop.position.x = -CITY_HALF; scene.add(westTop);
-      for (let z = -CITY_HALF + 100; z <= CITY_HALF - 100; z += 400) {
-        const gl = new THREE.Mesh(new THREE.BoxGeometry(wallT + 1, 4, 20), wallGlowMat);
-        gl.position.set(-CITY_HALF, 5 + wallH - 25, z); scene.add(gl);
-        const gl2 = gl.clone(); gl2.position.y = 5 + 25; scene.add(gl2);
-      }
-      const panelW = panelE.clone();
-      panelW.position.set(-CITY_HALF + wallT / 2 + 1, 5 + wallH / 2, 0);
-      panelW.rotation.y = Math.PI / 2; scene.add(panelW);
-      const panelW2 = panelE.clone();
-      panelW2.position.set(-CITY_HALF - wallT / 2 - 1, 5 + wallH / 2, 0);
-      panelW2.rotation.y = -Math.PI / 2; scene.add(panelW2);
       const northWall = new THREE.Mesh(new THREE.BoxGeometry(wallLen, wallH, wallT), wallConcreteMat);
       northWall.position.set(0, 5 + wallH / 2, CITY_HALF); scene.add(northWall);
-      const northTop = new THREE.Mesh(new THREE.BoxGeometry(wallLen, 6, wallT + 6), wallTopMat);
-      northTop.position.set(0, 5 + wallH + 3, CITY_HALF); scene.add(northTop);
-      for (let x = -CITY_HALF + 100; x <= CITY_HALF - 100; x += 400) {
-        const gl = new THREE.Mesh(new THREE.BoxGeometry(20, 4, wallT + 1), wallGlowMat);
-        gl.position.set(x, 5 + wallH - 25, CITY_HALF); scene.add(gl);
-        const gl2 = gl.clone(); gl2.position.y = 5 + 25; scene.add(gl2);
-      }
-      const panelN = panelE.clone();
-      panelN.position.set(0, 5 + wallH / 2, CITY_HALF - wallT / 2 - 1);
-      panelN.rotation.y = 0; scene.add(panelN);
-      const panelN2 = panelE.clone();
-      panelN2.position.set(0, 5 + wallH / 2, CITY_HALF + wallT / 2 + 1);
-      panelN2.rotation.y = Math.PI; scene.add(panelN2);
       const southWall = northWall.clone(); southWall.position.z = -CITY_HALF; scene.add(southWall);
-      const southTop = northTop.clone(); southTop.position.z = -CITY_HALF; scene.add(southTop);
-      for (let x = -CITY_HALF + 100; x <= CITY_HALF - 100; x += 400) {
-        const gl = new THREE.Mesh(new THREE.BoxGeometry(20, 4, wallT + 1), wallGlowMat);
-        gl.position.set(x, 5 + wallH - 25, -CITY_HALF); scene.add(gl);
-        const gl2 = gl.clone(); gl2.position.y = 5 + 25; scene.add(gl2);
-      }
-      const panelS = panelE.clone();
-      panelS.position.set(0, 5 + wallH / 2, -CITY_HALF + wallT / 2 + 1);
-      panelS.rotation.y = Math.PI; scene.add(panelS);
-      const panelS2 = panelE.clone();
-      panelS2.position.set(0, 5 + wallH / 2, -CITY_HALF - wallT / 2 - 1);
-      panelS2.rotation.y = 0; scene.add(panelS2);
     }
-    buildCityWall();
+    buildSimpleWall();
 
-    function buildingBorder(x, z, w, d, color = 0x22cfff) {
-      const bMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
-      s.borderLights.push(bMat);
-      const front = new THREE.Mesh(new THREE.BoxGeometry(w + 20, 2.5, 6), bMat);
-      front.position.set(x, 6.5, z + d / 2 + 10); scene.add(front);
-      const back = front.clone(); back.position.z = z - d / 2 - 10; scene.add(back);
-      const left = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, d + 20), bMat);
-      left.position.set(x - w / 2 - 10, 6.5, z); scene.add(left);
-      const right = left.clone(); right.position.x = x + w / 2 + 10; scene.add(right);
-      for (const cx of [-1, 1]) for (const cz of [-1, 1]) {
-        const px = x + cx * (w / 2 + 10), pz = z + cz * (d / 2 + 10);
-        const p = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 4.5, 22, 10), bMat);
-        p.position.set(px, 16, pz); scene.add(p);
-        const capMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: color, emissiveIntensity: 4 });
-        s.borderLights.push(capMat);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), capMat);
-        cap.position.set(px, 30, pz); scene.add(cap);
-      }
-    }
-
+    // Board
     function board(text, x, y, z, w = 80, h = 12, color) {
       const g = new THREE.Group(); g.position.set(x, y, z);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 14, 6), darkMaterial);
@@ -691,6 +522,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       scene.add(g);
     }
 
+    // Street lights
     const streetBulbMats = []; s.streetBulbMats = streetBulbMats;
     function sl(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
@@ -709,25 +541,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
     });
 
-    const trafficLights = []; s.trafficLights = trafficLights;
-    function tl(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 9, 5), darkMaterial);
-      pole.position.y = 4.5; g.add(pole);
-      const box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 5, 1.4), darkMaterial);
-      box.position.y = 7.5; g.add(box);
-      const light = (color, y) => {
-        const m = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0 }));
-        m.position.set(0, y, 0.75); g.add(m); return m;
-      };
-      const r = light(0xff2222, 8.8);
-      const yL = light(0xffcc22, 7.5);
-      const gr = light(0x22ff66, 6.2);
-      scene.add(g);
-      trafficLights.push({ r, y: yL, gr, phase: Math.random() * 10 });
-    }
-    roadXs.forEach((x) => roadZs.forEach((z) => tl(x, z)));
-
+    // Intersection traffic lights (4 at center)
     const intersectionLights = []; s.intersectionLights = intersectionLights;
     const INTERSECTION_LIGHT_OFFSET = 70;
     function makeIntersectionLight(x, z, road) {
@@ -753,47 +567,71 @@ const SmartCity3D = forwardRef((props, ref) => {
     makeIntersectionLight(INTERSECTION_LIGHT_OFFSET, -INTERSECTION_LIGHT_OFFSET, 3);
     makeIntersectionLight(-INTERSECTION_LIGHT_OFFSET, INTERSECTION_LIGHT_OFFSET, 4);
 
+    // AI Controller tower
     const controller = new THREE.Group(); s.controller = controller;
     controller.position.set(0, 5, 0);
     const controllerBase = new THREE.Mesh(new THREE.CylinderGeometry(55, 62, 3, 24), mat(0x142f3b, 0.28, 0.4));
     controllerBase.position.y = 1.5; controller.add(controllerBase);
     const controllerRing = new THREE.Mesh(new THREE.TorusGeometry(53, 1.2, 8, 36), new THREE.MeshStandardMaterial({ color: 0x32dfff, emissive: 0x18cfff, emissiveIntensity: 2.5 }));
-    controllerRing.rotation.x = Math.PI / 2; controllerRing.position.y = 3.2; controller.add(controllerRing); s.controllerRing = controllerRing;
-    const controllerRing2 = new THREE.Mesh(new THREE.TorusGeometry(44, 0.8, 8, 36), new THREE.MeshStandardMaterial({ color: 0x22bfff, emissive: 0x0a9fdf, emissiveIntensity: 2.0 }));
-    controllerRing2.rotation.x = Math.PI / 2; controllerRing2.position.y = 5; controller.add(controllerRing2); s.controllerRing2 = controllerRing2;
+    controllerRing.rotation.x = Math.PI / 2; controllerRing.position.y = 3.2; controller.add(controllerRing);
     const controllerTower = new THREE.Mesh(new THREE.BoxGeometry(22, 40, 22), mat(0x185a72, 0.25, 0.35));
     controllerTower.position.y = 22; controller.add(controllerTower);
     const controllerUpper = new THREE.Mesh(new THREE.BoxGeometry(18, 14, 18), new THREE.MeshStandardMaterial({ color: 0x0a3345, emissive: 0x1a7a9a, emissiveIntensity: 1.8 }));
     controllerUpper.position.y = 44; controller.add(controllerUpper);
-    [{ x: 0, y: 22, z: 12, ry: 0 }, { x: 0, y: 22, z: -12, ry: Math.PI }, { x: 12, y: 22, z: 0, ry: Math.PI / 2 }, { x: -12, y: 22, z: 0, ry: -Math.PI / 2 }].forEach((sp) => {
-      const m = new THREE.MeshStandardMaterial({ color: 0x03141b, emissive: 0x21cfff, emissiveIntensity: 2.6 });
-      const sMesh = new THREE.Mesh(new THREE.BoxGeometry(10, 7.5, 0.4), m);
-      sMesh.position.set(sp.x, sp.y, sp.z); sMesh.rotation.y = sp.ry; controller.add(sMesh);
-    });
     const radar = new THREE.Mesh(new THREE.TorusGeometry(8, 0.5, 8, 32), new THREE.MeshStandardMaterial({ color: 0x61e7ff, emissive: 0x23dfff, emissiveIntensity: 2.5 }));
-    radar.rotation.x = Math.PI / 2; radar.position.y = 53; controller.add(radar); s.radar = radar;
+    radar.rotation.x = Math.PI / 2; radar.position.y = 53; controller.add(radar);
     const controllerSig = new THREE.Mesh(new THREE.SphereGeometry(2.2, 12, 12), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 3.5 }));
-    controllerSig.position.y = 68; controller.add(controllerSig); s.controllerSig = controllerSig;
+    controllerSig.position.y = 68; controller.add(controllerSig);
     scene.add(controller);
 
-    const loader = new GLTFLoader(); const clickable = []; s.clickable = clickable;
-
-    function removeGroundFromGLB(model) {
-      const toRemove = [];
-      model.traverse((child) => {
-        if (child.isMesh) {
-          const name = (child.name || "").toLowerCase();
-          if (name.includes("ground") || name.includes("floor") || name.includes("plane") ||
-              name.includes("terrain") || name.includes("grass") || name === "base" || name.includes("_base")) {
-            toRemove.push(child);
-          }
-        }
-      });
-      toRemove.forEach((m) => m.parent && m.parent.remove(m));
+    // Occupied spots — buildings that cars must avoid
+    const occupiedSpots = [
+      { x: -600, z: -600, r: 260 }, { x: 600, z: -600, r: 250 },
+      { x: 600, z: 600, r: 300 }, { x: 1800, z: -600, r: 400 },
+      { x: 600, z: 1800, r: 290 }, { x: 1800, z: 1750, r: 320 },
+      { x: 1800, z: 600, r: 290 }, { x: 0, z: 0, r: 130 },
+      { x: -5400, z: 3600, r: 1200 }, { x: 3600, z: -3600, r: 600 },
+      { x: -3600, z: -3600, r: 600 }, { x: 3600, z: 3600, r: 600 },
+      { x: -1800, z: 1800, r: 400 }, { x: -600, z: 600, r: 500 },
+      { x: -1600, z: 800, r: 260 }, { x: -3900, z: -2400, r: 350 },
+      { x: -3600, z: -800, r: 400 }, { x: -3600, z: 800, r: 350 },
+      { x: 900, z: 1400, r: 250 }, { x: 2900, z: -1200, r: 400 },
+    ];
+    function isOnBuilding(x, z) {
+      for (const o of occupiedSpots) {
+        const dx = x - o.x, dz = z - o.z;
+        if (dx * dx + dz * dz < o.r * o.r) return true;
+      }
+      return false;
     }
 
-    function prep(obj, size, stripGround = true) {
-      if (stripGround) removeGroundFromGLB(obj);
+    // Simple trees
+    const treeTrunkMat = mat(0x5a3d24, 0.95, 0.05);
+    const treeLeafMat = mat(0x2d6e3d, 0.9);
+    const treeTrunkGeo = new THREE.CylinderGeometry(2.2, 3.5, 28, 7);
+    const treeLeafCone = new THREE.ConeGeometry(18, 42, 8);
+
+    function tree(x, z, sc = 1) {
+      if (isOnBuilding(x, z)) return;
+      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
+      const t = new THREE.Mesh(treeTrunkGeo, treeTrunkMat); t.position.y = 14; g.add(t);
+      const l = new THREE.Mesh(treeLeafCone, treeLeafMat); l.position.y = 38; g.add(l);
+      scene.add(g);
+    }
+
+    for (let i = 0; i < 400; i++) {
+      const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
+      const z = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
+      if (Math.abs(x) < 200 || Math.abs(z) < 200) continue;
+      if (Math.abs(x % 1200) < 130 || Math.abs(z % 1200) < 130) continue;
+      tree(x, z, 0.8 + Math.random() * 0.6);
+    }
+
+    /* ── Load buildings ── */
+    const loader = new GLTFLoader();
+    const clickable = []; s.clickable = clickable;
+
+    function prep(obj, size) {
       const box = new THREE.Box3().setFromObject(obj);
       const sz = new THREE.Vector3(); box.getSize(sz);
       const maxD = Math.max(sz.x, sz.y, sz.z);
@@ -803,475 +641,79 @@ const SmartCity3D = forwardRef((props, ref) => {
       obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b2.min.y;
     }
 
-    function bld(file, size, pos, type, name, borderColor, stripGround = true, skipBorder = false) {
+    function bld(file, size, pos, type, name, borderColor) {
       const url = file.startsWith("/") ? file : "/" + file;
       loader.load(url, (g) => {
         const b = g.scene;
-        prep(b, size, stripGround);
+        prep(b, size);
         b.position.set(pos[0], 5, pos[1]);
         scene.add(b);
         clickable.push({ object: b, type, name: name || type });
-        if (!skipBorder) buildingBorder(pos[0], pos[1], size * 1.4, size * 1.4, borderColor || 0x22cfff);
+        // Border
+        const bMat = new THREE.MeshStandardMaterial({ color: borderColor || 0x22cfff, emissive: borderColor || 0x22cfff, emissiveIntensity: 2.5, metalness: 0.7, roughness: 0.2 });
+        s.borderLights.push(bMat);
+        const fw = size * 1.4;
+        const front = new THREE.Mesh(new THREE.BoxGeometry(fw, 2.5, 6), bMat);
+        front.position.set(pos[0], 6.5, pos[1] + fw / 2 + 10); scene.add(front);
+        const back = front.clone(); back.position.z = pos[1] - fw / 2 - 10; scene.add(back);
+        const left = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, fw), bMat);
+        left.position.set(pos[0] - fw / 2 - 10, 6.5, pos[1]); scene.add(left);
+        const right = left.clone(); right.position.x = pos[0] + fw / 2 + 10; scene.add(right);
       }, undefined, (err) => console.warn("GLB load failed:", url, err));
     }
-
-    const treeTrunkMat = mat(0x5a3d24, 0.95, 0.05);
-    const treeLeafMat = mat(0x2d6e3d, 0.9);
-    const treeLeafMat2 = mat(0x3a8a4c, 0.9);
-    const treeLeafMat3 = mat(0x1f5a2e, 0.9);
-    const treeLeafMat4 = mat(0x4a9d5a, 0.9);
-    const treeTrunkGeo = new THREE.CylinderGeometry(2.2, 3.5, 28, 7);
-    const treeLeafCone = new THREE.ConeGeometry(18, 42, 8);
-    const treeLeafConeSmall = new THREE.ConeGeometry(14, 32, 7);
-    const treeLeafSphereBig = new THREE.SphereGeometry(18, 10, 9);
-
-    function tree(x, z, sc = 1) {
-      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
-      const t = new THREE.Mesh(treeTrunkGeo, treeTrunkMat); t.position.y = 14; g.add(t);
-      const roll = Math.random();
-      if (roll < 0.5) {
-        const l = new THREE.Mesh(treeLeafCone, treeLeafMat); l.position.y = 38; g.add(l);
-        const l2 = new THREE.Mesh(treeLeafConeSmall, treeLeafMat2); l2.position.y = 52; l2.scale.setScalar(0.75); g.add(l2);
-      } else {
-        const l = new THREE.Mesh(treeLeafSphereBig, treeLeafMat4); l.position.y = 40; l.scale.set(1.2, 1.1, 1.2); g.add(l);
-        const l2 = new THREE.Mesh(treeLeafConeSmall, treeLeafMat3); l2.position.y = 55; l2.scale.setScalar(0.6); g.add(l2);
-      }
-      scene.add(g);
-    }
-
-    function bush(x, z, sc = 1) {
-      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
-      const colors = [0x2d6e3d, 0x3a8a4c, 0x1f5a2e, 0x4a9d5a];
-      for (let i = 0; i < 3; i++) {
-        const b = new THREE.Mesh(new THREE.SphereGeometry(4 + Math.random() * 3, 6, 5),
-          mat(colors[Math.floor(Math.random() * colors.length)], 0.95));
-        b.position.set((Math.random() - 0.5) * 6, 4 + Math.random() * 2, (Math.random() - 0.5) * 6);
-        g.add(b);
-      }
-      scene.add(g);
-    }
-
-    function isOnRoad(x, z) {
-      const clear = 130;
-      for (const rz of roadZs) if (Math.abs(z - rz) < clear) return true;
-      for (const rx of roadXs) if (Math.abs(x - rx) < clear) return true;
-      return false;
-    }
-    function isInsideCity(x, z) {
-      return Math.abs(x) < CITY_HALF - 200 && Math.abs(z) < CITY_HALF - 200;
-    }
-
-    const occupiedSpots = [
-      { x: -600, z: -600, r: 260 }, { x: 600, z: -600, r: 250 },
-      { x: 600, z: 600, r: 300 },
-      { x: 1800, z: -600, r: 400 }, { x: 600, z: 1800, r: 290 },
-      { x: 1800, z: 1750, r: 320 }, { x: 1800, z: 600, r: 290 },
-      { x: 0, z: 0, r: 130 },
-      { x: -5400, z: 3600, r: 1200 }, { x: 3600, z: -3600, r: 600 },
-      { x: -3600, z: -3600, r: 600 }, { x: 3600, z: 3600, r: 600 },
-      { x: -1800, z: 1800, r: 400 },
-      { x: -600, z: 600, r: 500 },
-      { x: -1600, z: 800, r: 260 },
-      { x: -3900, z: -2400, r: 350 }, { x: -3600, z: -800, r: 400 },
-      { x: -3600, z: 800, r: 350 },
-      { x: 900, z: 1400, r: 250 },
-    ];
-    function isOnBuilding(x, z) {
-      for (const o of occupiedSpots) {
-        const dx = x - o.x, dz = z - o.z;
-        if (dx * dx + dz * dz < o.r * o.r) return true;
-      }
-      return false;
-    }
-    function isFree(x, z) {
-      return isInsideCity(x, z) && !isOnRoad(x, z) && !isOnBuilding(x, z);
-    }
-
-    const TOWER_COLORS = [
-      0x5b9bd5, 0x4a90e2, 0x7bb3e0, 0x6ba3d9, 0x82c0e8, 0x5090d0,
-      0xc0629b, 0xd475a8, 0xb84f8a, 0xe087b6, 0xf5a623, 0xf7b955,
-      0xe89b3e, 0xffc866, 0x6cd4a0, 0x4ec39a, 0x8adbb8, 0x5bc08a,
-      0x9b7ad9, 0xaa8ae0, 0x8a66c9, 0xbaa0e8, 0xe8635c, 0xd94f4a,
-      0xf0776b, 0x4a4a5c, 0x5a5a6e, 0x3d3d4e, 0x6a6a7e, 0xdde0e3,
-      0xc8ccd0, 0xb0b5bb, 0x22a5b8, 0x2bb8c9, 0x40c9d9,
-    ];
-
-    function tallTower(x, z, w, h, d, color) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const bMat = mat(color, 0.4, 0.55);
-      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMat);
-      body.position.y = h / 2; g.add(body);
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(w * 0.95, 6, d * 0.95), mat(0x2a2a35, 0.5, 0.6));
-      cap.position.y = h + 3; g.add(cap);
-      if (Math.random() > 0.4) {
-        const antH = 30 + Math.random() * 40;
-        const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, antH, 6), mat(0x9a9a9a, 0.4, 0.8));
-        ant.position.y = h + 6 + antH / 2; g.add(ant);
-        const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 4 }));
-        beacon.position.y = h + 6 + antH; g.add(beacon);
-      }
-      const glassMat = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, emissive: 0x66ccff, emissiveIntensity: 0.7, metalness: 0.6, roughness: 0.2 });
-      const floorLines = 4;
-      for (let f = 1; f <= floorLines; f++) {
-        const fy = (h / (floorLines + 1)) * f;
-        const line = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 0.6, d + 0.5), glassMat);
-        line.position.y = fy; g.add(line);
-      }
-      const lightColor = [0xff6666, 0x66ff99, 0x66aaff, 0xffdd66][Math.floor(Math.random() * 4)];
-      const spot = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), new THREE.MeshStandardMaterial({ color: lightColor, emissive: lightColor, emissiveIntensity: 3 }));
-      spot.position.y = h + 8; g.add(spot);
-      scene.add(g);
-    }
-
-    const solarPanelMat = new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.18, metalness: 0.7, emissive: 0x063b62, emissiveIntensity: 0.7 });
-
-    function solarPanelUnit(x, z, rotY = 0) {
-      const g = new THREE.Group(); g.position.set(x, 5, z); g.rotation.y = rotY;
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 20), mat(0x2a2a35, 0.5, 0.6)); frame.position.y = 3; g.add(frame);
-      const panel = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 18), solarPanelMat); panel.position.y = 4.2; panel.rotation.x = -0.2; g.add(panel);
-      const legGeo = new THREE.CylinderGeometry(0.6, 0.6, 3, 6);
-      const legMat = mat(0x555a5e, 0.5, 0.7);
-      for (const lx of [-10, 10]) for (const lz of [-7, 7]) {
-        const leg = new THREE.Mesh(legGeo, legMat); leg.position.set(lx, 1.5, lz); g.add(leg);
-      }
-      scene.add(g);
-    }
-
-    function buildSociety(centerX, centerZ) {
-      const SOCIETY_W = 850, SOCIETY_D = 850;
-      const HALF_W = SOCIETY_W / 2, HALF_D = SOCIETY_D / 2;
-      const SOCIETY_GREEN = 0x2ecc71;
-      const societyBorderMat = new THREE.MeshStandardMaterial({ color: SOCIETY_GREEN, emissive: SOCIETY_GREEN, emissiveIntensity: 2.4, metalness: 0.6, roughness: 0.25 });
-      s.borderLights.push(societyBorderMat);
-      const innerGround = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W - 30, 0.6, SOCIETY_D - 30), mat(0xb8bcc0, 0.92));
-      innerGround.position.set(centerX, 4.85, centerZ); scene.add(innerGround);
-      const grassPad = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 50, 0.4, SOCIETY_D + 50), grassMaterial);
-      grassPad.position.set(centerX, 4.6, centerZ); scene.add(grassPad);
-      const WALL_H = 14, WALL_T = 6;
-      const wallF = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 12, WALL_H, WALL_T), societyBorderMat);
-      wallF.position.set(centerX, 5 + WALL_H / 2, centerZ + HALF_D + 6); scene.add(wallF);
-      const wallB = wallF.clone(); wallB.position.z = centerZ - HALF_D - 6; scene.add(wallB);
-      const wallL = new THREE.Mesh(new THREE.BoxGeometry(WALL_T, WALL_H, SOCIETY_D + 12), societyBorderMat);
-      wallL.position.set(centerX - HALF_W - 6, 5 + WALL_H / 2, centerZ); scene.add(wallL);
-      const wallR = wallL.clone(); wallR.position.x = centerX + HALF_W + 6; scene.add(wallR);
-      for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
-        const cx = centerX + dx * (HALF_W + 6), cz = centerZ + dz * (HALF_D + 6);
-        const p = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 40, 12), societyBorderMat);
-        p.position.set(cx, 25, cz); scene.add(p);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: SOCIETY_GREEN, emissiveIntensity: 3.5 }));
-        cap.position.set(cx, 48, cz); scene.add(cap);
-      }
-      const gateLeft = new THREE.Mesh(new THREE.BoxGeometry(10, 30, 12), societyBorderMat);
-      gateLeft.position.set(centerX - 50, 20, centerZ + HALF_D + 6); scene.add(gateLeft);
-      const gateRight = gateLeft.clone(); gateRight.position.x = centerX + 50; scene.add(gateRight);
-      const gateTop = new THREE.Mesh(new THREE.BoxGeometry(120, 8, 12), societyBorderMat);
-      gateTop.position.set(centerX, 34, centerZ + HALF_D + 6); scene.add(gateTop);
-      const towerRows = 4, towerCols = 3, innerMargin = 100;
-      const usableW = SOCIETY_W - innerMargin * 2, usableD = SOCIETY_D - innerMargin * 2;
-      for (let r = 0; r < towerRows; r++) {
-        for (let c = 0; c < towerCols; c++) {
-          const tx = centerX - usableW / 2 + (c + 0.5) * (usableW / towerCols);
-          const tz = centerZ - usableD / 2 + (r + 0.5) * (usableD / towerRows);
-          const w = 28 + Math.random() * 14, d = 28 + Math.random() * 14, h = 180 + Math.random() * 180;
-          tallTower(tx, tz, w, h, d, TOWER_COLORS[Math.floor(Math.random() * TOWER_COLORS.length)]);
-        }
-      }
-      for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ + HALF_D - 60, 0);
-      for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ - HALF_D + 60, Math.PI);
-      board("BSS SMART SOCIETY", centerX, 5, centerZ + HALF_D + 100, 280, 18, SOCIETY_GREEN);
-    }
-
-    const SOCIETY_X = -600, SOCIETY_Z = 600;
-    buildSociety(SOCIETY_X, SOCIETY_Z);
-    const societyGroup = new THREE.Group();
-    societyGroup.position.set(SOCIETY_X, 0, SOCIETY_Z);
-    clickable.push({ object: societyGroup, type: "society", name: "BSS Smart Society" });
 
     bld("/american_high_school.glb", 300, [-600, -600], "school", "American High School", 0x1a5490);
     bld("/low_poly_hospital.glb", 280, [600, -600], "hospital", "Smart Hospital", 0xc0392b);
     bld("/us_bank_tower.glb", 360, [600, 600], "bank", "State Bank", 0x8e44ad);
-    buildingBorder(600, 600, 360 * 1.4 + 40, 360 * 1.4 + 40, 0xf39c12);
-    buildingBorder(600, 600, 360 * 1.4 + 80, 360 * 1.4 + 80, 0x3498db);
     bld("/simple_farm_free.glb", 520, [1800, -600], "farm", "Smart Eco Farm", 0x27ae60);
     bld("/liverpool_street_station_south_entrance.glb", 420, [600, 1800], "newHall", "Liverpool Event Hall", 0xd4a017);
     bld("/gas_station.glb", 380, [1800, 1750], "gasStation", "Gas Station · Car Wash", 0xc0392b);
     bld("/office.glb", 380, [1800, 600], "sewageCompany", "Sewage & Gas Co.", 0x2ecc71);
-    bld("/brutalist_building.glb", 300, [2200, 600], "sewageCompanyOld", "Old Office Building", 0x34495e);
     bld("/national_archives_research_center.glb", 480, [-1800, 1800], "cultureCenter", "Culture Center", 0xf39c12);
     bld("/power-suply-companey.glb", 380, [-1600, 800], "powerCompany", "City Power Supply Co.", 0xf1c40f);
     bld("/sci-fi_building_9.glb", 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
     bld("/beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
     bld("/sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
 
-    function resourceBorder(x, z, w, d, color = 0x00e0ff) {
-      const bMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
-      s.borderLights.push(bMat);
-      const front = new THREE.Mesh(new THREE.BoxGeometry(w + 12, 2, 5), bMat);
-      front.position.set(x, 6.5, z + d / 2 + 6); scene.add(front);
-      const back = front.clone(); back.position.z = z - d / 2 - 6; scene.add(back);
-      const left = new THREE.Mesh(new THREE.BoxGeometry(5, 2, d + 12), bMat);
-      left.position.set(x - w / 2 - 6, 6.5, z); scene.add(left);
-      const right = left.clone(); right.position.x = x + w / 2 + 6; scene.add(right);
-    }
-
-    function buildDataCenter(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(220, 4, 220), mat(0x2a3846, 0.7, 0.3));
-      base.position.y = 2; g.add(base);
-      const building = new THREE.Mesh(new THREE.BoxGeometry(180, 90, 180), mat(0x1a4a6a, 0.3, 0.5));
-      building.position.y = 49; g.add(building);
-      const glass = new THREE.MeshStandardMaterial({ color: 0x2ac8ff, emissive: 0x2ac8ff, emissiveIntensity: 1.5, transparent: true, opacity: 0.65, metalness: 0.5, roughness: 0.15 });
-      for (let f = 0; f < 3; f++) {
-        const band = new THREE.Mesh(new THREE.BoxGeometry(182, 3, 182), glass);
-        band.position.y = 20 + f * 25; g.add(band);
+    // Society (procedural)
+    const societyGroup = new THREE.Group();
+    societyGroup.position.set(-600, 0, 600);
+    scene.add(societyGroup);
+    const societyBorderMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 2.4, metalness: 0.6, roughness: 0.25 });
+    s.borderLights.push(societyBorderMat);
+    const innerGround = new THREE.Mesh(new THREE.BoxGeometry(820, 0.6, 820), mat(0xb8bcc0, 0.92));
+    innerGround.position.set(-600, 4.85, 600); scene.add(innerGround);
+    const TOWER_COLORS = [0x5b9bd5, 0x7bb3e0, 0xc0629b, 0xf5a623, 0x6cd4a0, 0x9b7ad9, 0xe8635c];
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 3; c++) {
+        const tx = -600 - 340 + (c + 0.5) * (680 / 3);
+        const tz = 600 - 340 + (r + 0.5) * (680 / 4);
+        const w = 30, d = 30, h = 180 + Math.random() * 180;
+        const tg = new THREE.Group(); tg.position.set(tx, 5, tz);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(TOWER_COLORS[Math.floor(Math.random() * TOWER_COLORS.length)], 0.4, 0.55));
+        body.position.y = h / 2; tg.add(body);
+        scene.add(tg);
       }
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 12), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 4.5 }));
-      beacon.position.y = 100; g.add(beacon);
-      scene.add(g);
-      resourceBorder(x, z, 220, 220, 0x00e0ff);
-      board("DATA CENTER", x, 5, z + 180, 200, 14, 0x00a8cc);
-      clickable.push({ object: g, type: "dataCenter", name: "Smart Data Center" });
     }
-
-    function buildTelecomTower(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(120, 3, 120), mat(0x2a2a3a, 0.8));
-      base.position.y = 1.5; g.add(base);
-      const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 5, 220, 6), mat(0xb0b8bc, 0.4, 0.7));
-      tower.position.y = 110; g.add(tower);
-      for (let i = 0; i < 4; i++) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(12, 0.8, 6, 16), new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff3333, emissiveIntensity: 3.5 }));
-        ring.rotation.x = Math.PI / 2; ring.position.y = 60 + i * 40; g.add(ring);
-      }
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 12), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 5 }));
-      beacon.position.y = 230; g.add(beacon);
-      scene.add(g);
-      resourceBorder(x, z, 120, 120, 0xff4444);
-      board("TELECOM TOWER", x, 5, z + 100, 220, 14, 0xcc2222);
-      clickable.push({ object: g, type: "telecom", name: "Smart Telecom Tower" });
-    }
-
-    function buildWaterTower(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(90, 2, 90), mat(0x3a4a5a, 0.9));
-      base.position.y = 1; g.add(base);
-      for (const lx of [-30, 30]) for (const lz of [-30, 30]) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(2, 3, 120, 6), mat(0x8a9aa8, 0.4, 0.6));
-        leg.position.set(lx, 60, lz); g.add(leg);
-      }
-      const tank = new THREE.Mesh(new THREE.CylinderGeometry(38, 38, 60, 16), mat(0x4a9ac8, 0.3, 0.5));
-      tank.position.y = 150; g.add(tank);
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(40, 20, 16), mat(0x2a7aa8, 0.3, 0.5));
-      cap.position.y = 190; g.add(cap);
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 4 }));
-      beacon.position.y = 205; g.add(beacon);
-      scene.add(g);
-      resourceBorder(x, z, 90, 90, 0x22cfff);
-      board("WATER TOWER", x, 5, z + 90, 200, 14, 0x2a7aa8);
-      clickable.push({ object: g, type: "waterTower", name: "Smart Water Tower" });
-    }
-
-    function buildEVStation(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const pad = new THREE.Mesh(new THREE.BoxGeometry(140, 1, 140), mat(0x2a3a2e, 0.9));
-      pad.position.y = 0.5; g.add(pad);
-      for (let i = 0; i < 4; i++) {
-        const px = (i - 1.5) * 32;
-        const post = new THREE.Mesh(new THREE.BoxGeometry(8, 40, 8), mat(0x2ecc71, 0.4, 0.5));
-        post.position.set(px, 21, 0); g.add(post);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(14, 12, 14), new THREE.MeshStandardMaterial({ color: 0x0a2a1a, emissive: 0x2ecc71, emissiveIntensity: 2.5 }));
-        head.position.set(px, 46, 0); g.add(head);
-      }
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(160, 2, 60), mat(0x0a3a1a, 0.5, 0.5));
-      roof.position.y = 68; g.add(roof);
-      for (const rx of [-70, 70]) for (const rz of [-25, 25]) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 68, 6), mat(0x4a5a4e, 0.5, 0.5));
-        leg.position.set(rx, 34, rz); g.add(leg);
-      }
-      scene.add(g);
-      resourceBorder(x, z, 140, 140, 0x2ecc71);
-      board("EV CHARGING", x, 5, z + 120, 200, 14, 0x2ecc71);
-      clickable.push({ object: g, type: "ev", name: "EV Charging Station" });
-    }
-
-    function buildPoliceStation(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(180, 4, 180), mat(0x3a3a4a, 0.9));
-      base.position.y = 2; g.add(base);
-      const building = new THREE.Mesh(new THREE.BoxGeometry(140, 70, 140), mat(0x2a3a6a, 0.4, 0.4));
-      building.position.y = 39; g.add(building);
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(150, 4, 150), mat(0x1a2a4a, 0.5, 0.5));
-      roof.position.y = 76; g.add(roof);
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 12), new THREE.MeshStandardMaterial({ color: 0x3388ff, emissive: 0x3388ff, emissiveIntensity: 4.5 }));
-      beacon.position.y = 85; g.add(beacon);
-      const red = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 5 }));
-      red.position.set(-15, 82, 0); g.add(red);
-      const blue = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), new THREE.MeshStandardMaterial({ color: 0x2266ff, emissive: 0x2266ff, emissiveIntensity: 5 }));
-      blue.position.set(15, 82, 0); g.add(blue);
-      scene.add(g);
-      resourceBorder(x, z, 180, 180, 0x3388ff);
-      board("POLICE STATION", x, 5, z + 160, 220, 14, 0x2a3a6a);
-      clickable.push({ object: g, type: "police", name: "Smart Police Station" });
-    }
-
-    function buildFireStation(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(180, 4, 180), mat(0x4a2a2a, 0.9));
-      base.position.y = 2; g.add(base);
-      const building = new THREE.Mesh(new THREE.BoxGeometry(150, 75, 130), mat(0xa02a2a, 0.4, 0.4));
-      building.position.y = 41; g.add(building);
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(158, 4, 138), mat(0x6a1a1a, 0.5, 0.5));
-      roof.position.y = 81; g.add(roof);
-      for (let i = 0; i < 3; i++) {
-        const door = new THREE.Mesh(new THREE.BoxGeometry(28, 50, 4), new THREE.MeshStandardMaterial({ color: 0xff4444, emissive: 0xff4444, emissiveIntensity: 1.5 }));
-        door.position.set(-45 + i * 45, 30, 66); g.add(door);
-      }
-      scene.add(g);
-      resourceBorder(x, z, 180, 180, 0xff4444);
-      board("FIRE STATION", x, 5, z + 160, 220, 14, 0xa02a2a);
-      clickable.push({ object: g, type: "fire", name: "Fire Station" });
-    }
-
-    function buildLibrary(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(200, 4, 200), mat(0x4a3a2a, 0.9));
-      base.position.y = 2; g.add(base);
-      const building = new THREE.Mesh(new THREE.BoxGeometry(160, 80, 160), mat(0x8a6a3a, 0.5, 0.3));
-      building.position.y = 44; g.add(building);
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(70, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xa88a4a, 0.4, 0.35));
-      dome.position.y = 84; g.add(dome);
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffdd66, emissive: 0xffdd66, emissiveIntensity: 4 }));
-      beacon.position.y = 158; g.add(beacon);
-      scene.add(g);
-      resourceBorder(x, z, 200, 200, 0xffdd66);
-      board("SMART LIBRARY", x, 5, z + 180, 220, 14, 0x8a6a3a);
-      clickable.push({ object: g, type: "library", name: "Smart Public Library" });
-    }
-
-    function buildHelipad(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const pad = new THREE.Mesh(new THREE.CylinderGeometry(80, 80, 4, 32), mat(0x3a4a5a, 0.7, 0.4));
-      pad.position.y = 2; g.add(pad);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(60, 3, 8, 32), new THREE.MeshStandardMaterial({ color: 0xffdd22, emissive: 0xffdd22, emissiveIntensity: 3.5 }));
-      ring.rotation.x = Math.PI / 2; ring.position.y = 4.5; g.add(ring);
-      const hMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffdd22, emissiveIntensity: 2.0 });
-      const bar1 = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 50), hMat); bar1.position.y = 5; g.add(bar1);
-      const bar2 = bar1.clone(); bar2.position.z = -18; g.add(bar2);
-      const bar3 = bar1.clone(); bar3.position.z = 18; g.add(bar3);
-      const cross = new THREE.Mesh(new THREE.BoxGeometry(50, 1, 8), hMat); cross.position.y = 5; g.add(cross);
-      scene.add(g);
-      resourceBorder(x, z, 160, 160, 0xffdd22);
-      board("EMERGENCY HELIPAD", x, 5, z + 130, 260, 14, 0xccaa22);
-      clickable.push({ object: g, type: "helipad", name: "Emergency Helipad" });
-    }
-
-    function buildSmartParking(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const pad = new THREE.Mesh(new THREE.BoxGeometry(240, 2, 240), mat(0x3a3a3a, 0.95));
-      pad.position.y = 1; g.add(pad);
-      const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 });
-      for (let i = 0; i < 5; i++) {
-        const line = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 60), lineMat);
-        line.position.set(-80 + i * 40, 2.3, 0); g.add(line);
-      }
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(250, 3, 250), new THREE.MeshStandardMaterial({ color: 0x2a3a5a, emissive: 0x3388ff, emissiveIntensity: 1.2, metalness: 0.5, roughness: 0.3, transparent: true, opacity: 0.8 }));
-      roof.position.y = 90; g.add(roof);
-      for (const cx of [-120, 120]) for (const cz of [-120, 120]) {
-        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 90, 8), mat(0x4a5a6a, 0.4, 0.5));
-        pillar.position.set(cx, 45, cz); g.add(pillar);
-      }
-      scene.add(g);
-      resourceBorder(x, z, 240, 240, 0x3388ff);
-      board("SMART PARKING", x, 5, z + 200, 220, 14, 0x2a3a5a);
-      clickable.push({ object: g, type: "parking", name: "Smart Parking" });
-    }
-
-    function buildPublicGarden(x, z) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const pad = new THREE.Mesh(new THREE.CylinderGeometry(110, 110, 2, 24), mat(0x3a8a3a, 0.95));
-      pad.position.y = 1; g.add(pad);
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        const tx = Math.cos(a) * 80;
-        const tz = Math.sin(a) * 80;
-        tree(x + tx, z + tz, 0.6 + Math.random() * 0.3);
-      }
-      const fountain = new THREE.Mesh(new THREE.CylinderGeometry(20, 25, 8, 16), mat(0x9aa0a6, 0.5, 0.6));
-      fountain.position.set(0, 5, 0); g.add(fountain);
-      const water = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 2, 16), new THREE.MeshStandardMaterial({ color: 0x32dfff, emissive: 0x32dfff, emissiveIntensity: 2.5, transparent: true, opacity: 0.8 }));
-      water.position.set(0, 10, 0); g.add(water);
-      scene.add(g);
-      resourceBorder(x, z, 220, 220, 0x22c866);
-      board("PUBLIC GARDEN", x, 5, z + 150, 200, 14, 0x2a8a2a);
-    }
-
-    buildDataCenter(2900, 1000);
-    buildTelecomTower(-2900, -300);
-    buildWaterTower(2800, -1600);
-    buildEVStation(-2700, 2500);
-    buildPoliceStation(2400, -2900);
-    buildFireStation(-2400, -2900);
-    buildLibrary(2800, 2800);
-    buildHelipad(-2800, -1500);
-    buildSmartParking(-2800, 1200);
-    buildPublicGarden(2000, 2800);
-
-    const wcGroup = new THREE.Group();
-    wcGroup.position.set(900, 5, 1400); scene.add(wcGroup);
-    const wcPad = new THREE.Mesh(new THREE.BoxGeometry(280, 0.8, 280), mat(0x2a3a2e, 0.95));
-    wcPad.position.y = 0.4; wcGroup.add(wcPad);
-    const wcBorderMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 2.5, metalness: 0.6, roughness: 0.2 });
-    s.borderLights.push(wcBorderMat);
-    const wcF = new THREE.Mesh(new THREE.BoxGeometry(280, 1.5, 4), wcBorderMat); wcF.position.set(0, 1, 140); wcGroup.add(wcF);
-    const wcB = wcF.clone(); wcB.position.z = -140; wcGroup.add(wcB);
-    const wcL = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 280), wcBorderMat); wcL.position.set(-140, 1, 0); wcGroup.add(wcL);
-    const wcR = wcL.clone(); wcR.position.x = 140; wcGroup.add(wcR);
-    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-      const bin = new THREE.Group();
-      bin.position.set(-80 + c * 80, 0, -80 + r * 80);
-      const body = new THREE.Mesh(new THREE.BoxGeometry(40, 26, 40), mat(0x2ecc71, 0.5, 0.5));
-      body.position.y = 13; bin.add(body);
-      const lid = new THREE.Mesh(new THREE.BoxGeometry(42, 2, 42), mat(0x1a1a1a, 0.6, 0.3));
-      lid.position.y = 27; bin.add(lid);
-      wcGroup.add(bin);
-    }
-    board("WASTE COLLECTOR", 900, 5, 1600, 260, 16, 0x2ecc71);
-    clickable.push({ object: wcGroup, type: "wasteCollector", name: "Waste Collector Point" });
+    clickable.push({ object: societyGroup, type: "society", name: "BSS Smart Society" });
 
     board("AMERICAN HIGH SCHOOL", -600, 5, -950, 200, 14, 0x1a5490);
     board("BSS SMART HOSPITAL", 600, 5, -950, 200, 14, 0xc0392b);
     board("SMART CITY STATE BANK", 600, 5, 950, 200, 14, 0x8e44ad);
     board("SMART ECO FARM", 1800, 5, -950, 200, 14, 0x27ae60);
+    board("BSS SMART SOCIETY", -600, 5, 1100, 240, 16, 0x2ecc71);
     board("LIVERPOOL EVENT HALL", 600, 5, 2250, 280, 16, 0xd4a017);
     board("CAR WASH · GAS STATION", 1800, 5, 2200, 220, 16, 0xc0392b);
-    board("SEWAGE & GAS CO.", 1800, 5, 300, 240, 16, 0x2ecc71);
     board("CULTURE CENTER", -1800, 5, 2400, 260, 18, 0xf39c12);
     board("CITY POWER SUPPLY CO.", -1600, 5, 400, 300, 16, 0xf1c40f);
     board("AI TRAFFIC CONTROLLER", 0, 5, 300, 190, 14);
-    board("SCI-FI BUILDING 9", -3900, 5, -2400 + 320, 260, 16, 0x66ff99);
-    board("BEAUTIFUL TOWER", -3600, 5, -800 + 320, 260, 16, 0x22cfff);
-    board("SCI-FI BUILDING 10", -3600, 5, 800 + 320, 260, 16, 0xff66dd);
 
-    function shop(x, z, scale = 1.4, name) {
-      loader.load("/dagashiya_shop_japanese_old_snack_shop.glb", (g) => {
-        const sm = g.scene; prep(sm, 50 * scale); sm.position.set(x, 5, z); scene.add(sm);
-        clickable.push({ object: sm, type: "shop", name: name || "Dagashiya Snack Shop" });
-      }, undefined, () => {});
-    }
-    shop(-1000, -600, 1.4, "School Canteen");
-    shop(1000, -600, 1.4, "Hospital Canteen");
-    shop(1000, 600, 1.4, "Bank Shop");
-
-    /* ===== POWER SUPPLY ZONE ===== */
+    /* =====================================================================
+       POWER SUPPLY ZONE (enhanced)
+       ===================================================================== */
     const powerZone = new THREE.Group();
     powerZone.position.set(-5400, 0, 3600); scene.add(powerZone);
-    board("POWER SUPPLY (OUT-OF-CITY)", -5400, 5, 4600, 460, 22, 0x0a4d5c);
-    const powerBasePad = new THREE.Mesh(new THREE.BoxGeometry(2400, 0.8, 1800), mat(0x2a3238, 0.92));
-    powerBasePad.position.set(0, 4.3, 0); powerZone.add(powerBasePad);
-    const powerLinkRoad = new THREE.Mesh(new THREE.BoxGeometry(1900, 0.45, 90), roadMaterial);
-    powerLinkRoad.position.set(1250, 4.7, -1800); powerZone.add(powerLinkRoad);
-    const powerLinkLine = new THREE.Mesh(new THREE.BoxGeometry(1900, 0.1, 2), yellowLineMaterial);
-    powerLinkLine.position.set(1250, 5, -1800); powerZone.add(powerLinkLine);
+    board("POWER SUPPLY ZONE", -5400, 5, 4600, 460, 22, 0x0a4d5c);
     const powerPad = new THREE.Mesh(new THREE.BoxGeometry(1600, 1, 1300), mat(0x1d3a2e, 0.92));
     powerPad.position.y = 4.2; powerZone.add(powerPad);
     const powerBorderMat = new THREE.MeshStandardMaterial({ color: 0x00e0ff, emissive: 0x00cfff, emissiveIntensity: 2.5, metalness: 0.7, roughness: 0.2 });
@@ -1280,16 +722,8 @@ const SmartCity3D = forwardRef((props, ref) => {
     const pbB = pbF.clone(); pbB.position.z = 650; powerZone.add(pbB);
     const pbL = new THREE.Mesh(new THREE.BoxGeometry(5, 1.6, 1300), powerBorderMat); pbL.position.set(-800, 6.5, 0); powerZone.add(pbL);
     const pbR = pbL.clone(); pbR.position.x = 800; powerZone.add(pbR);
-    for (const cx of [-800, 800]) for (const cz of [-650, 650]) {
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5.5, 32, 10), powerBorderMat);
-      p.position.set(cx, 20, cz); powerZone.add(p);
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(3.6, 10, 10), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 3 }));
-      cap.position.set(cx, 38, cz); powerZone.add(cap);
-    }
-    loader.load("/old_antenna.glb", (g) => { const a = g.scene; prep(a, 360); a.position.set(-550, 5, 0); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Old Antenna" }); }, undefined, () => {});
-    loader.load("/antena.glb", (g) => { const a = g.scene; prep(a, 270); a.position.set(-280, 5, -100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 1" }); }, undefined, () => {});
-    loader.load("/antena.glb", (g) => { const a = g.scene; prep(a, 230); a.position.set(-720, 5, 100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 2" }); }, undefined, () => {});
 
+    // Wind turbines
     const turbines = []; s.turbines = turbines;
     const turbTowerMat = mat(0xeeeeee, 0.4, 0.3);
     const turbTowerGeo = new THREE.CylinderGeometry(0.85, 1.4, 68, 6);
@@ -1307,6 +741,8 @@ const SmartCity3D = forwardRef((props, ref) => {
     for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++)
       turbine(-650 + col * 200, -600 + row * 220, 1 + (row % 3) * 0.08);
 
+    // Solar panels
+    const solarPanelMat = new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.18, metalness: 0.7, emissive: 0x063b62, emissiveIntensity: 0.7 });
     const solarPark = new THREE.Group();
     solarPark.position.set(500, 0, 0); powerZone.add(solarPark);
     const solarGround = new THREE.Mesh(new THREE.BoxGeometry(650, 0.8, 1250), mat(0x2a4536, 0.92));
@@ -1324,26 +760,22 @@ const SmartCity3D = forwardRef((props, ref) => {
       solarPark.add(g);
     }
     for (let i = 0; i < 5; i++) { solarArray(-160, -480 + i * 220, 280, 180, 2, 4); solarArray(160, -480 + i * 220, 280, 180, 2, 4); }
-    const solarControl = new THREE.Mesh(new THREE.BoxGeometry(36, 58, 28), mat(0x15536a, 0.25, 0.35));
-    solarControl.position.set(0, 38, 0); solarPark.add(solarControl);
-    const solarScreen = new THREE.Mesh(new THREE.BoxGeometry(22, 13, 0.6), new THREE.MeshStandardMaterial({ color: 0x04151d, emissive: 0x20d9ff, emissiveIntensity: 2.6 }));
-    solarScreen.position.set(0, 42, -14.4); solarPark.add(solarScreen);
 
+    // Battery banks
     const batteryRings = []; s.batteryRings = batteryRings;
-    const batteryPositions = [[-500, 850], [-370, 850], [-240, 850], [-110, 850], [20, 850], [-500, 980], [-370, 980], [-240, 980], [-110, 980], [20, 980]];
+    const batteryPositions = [[-500, 850], [-370, 850], [-240, 850], [-110, 850], [20, 850]];
     batteryPositions.forEach((pos, i) => {
-      loader.load("/battery.glb", (g) => {
-        const b = g.scene; prep(b, 60); b.position.set(pos[0], 6, pos[1]); b.rotation.y = Math.PI / 2;
-        powerZone.add(b);
-        const rMat = new THREE.MeshStandardMaterial({ color: 0x22ff9d, emissive: 0x22ff9d, emissiveIntensity: 2.0 });
-        const r = new THREE.Mesh(new THREE.TorusGeometry(28, 0.8, 6, 16), rMat);
-        r.rotation.x = Math.PI / 2; r.position.set(pos[0], 7, pos[1]); powerZone.add(r);
-        batteryRings.push(rMat);
-        clickable.push({ object: b, type: "battery", name: "Battery " + (i + 1) });
-      }, undefined, () => {});
+      const b = new THREE.Mesh(new THREE.BoxGeometry(40, 50, 40), mat(0x2a5a4a, 0.4, 0.5));
+      b.position.set(pos[0], 25, pos[1]); powerZone.add(b);
+      const rMat = new THREE.MeshStandardMaterial({ color: 0x22ff9d, emissive: 0x22ff9d, emissiveIntensity: 2.0 });
+      const r = new THREE.Mesh(new THREE.TorusGeometry(28, 0.8, 6, 16), rMat);
+      r.rotation.x = Math.PI / 2; r.position.set(pos[0], 7, pos[1]); powerZone.add(r);
+      batteryRings.push(rMat);
     });
 
-    /* ===== FILTRATION SYSTEM — 9 STAGES ===== */
+    /* =====================================================================
+       FILTRATION SYSTEM — 9 stages
+       ===================================================================== */
     const filtZone = new THREE.Group();
     filtZone.position.set(3600, 0, -3600); scene.add(filtZone);
     board("FILTRATION SYSTEM", 3600, 5, -2700, 380, 18, 0x22cfff);
@@ -1356,760 +788,243 @@ const SmartCity3D = forwardRef((props, ref) => {
     const fzL = new THREE.Mesh(new THREE.BoxGeometry(6, 1.8, 950), filtBorderMat); fzL.position.set(-475, 6.5, 0); filtZone.add(fzL);
     const fzR = fzL.clone(); fzR.position.x = 475; filtZone.add(fzR);
 
-    const filtBoxGroup = new THREE.Group(); filtBoxGroup.position.set(0, 5, 0); filtZone.add(filtBoxGroup);
-    const filtBase = new THREE.Mesh(new THREE.BoxGeometry(260, 4, 260), mat(0x2c3e50, 0.7, 0.3));
-    filtBase.position.y = 2; filtBoxGroup.add(filtBase);
-    const glassMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 0.5, metalness: 0.3, roughness: 0.15, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
-    const wallFront = new THREE.Mesh(new THREE.BoxGeometry(260, 120, 3), glassMat); wallFront.position.set(0, 62, 130); filtBoxGroup.add(wallFront);
-    const wallBack = wallFront.clone(); wallBack.position.z = -130; filtBoxGroup.add(wallBack);
-    const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(3, 120, 260), glassMat); wallLeft.position.set(-130, 62, 0); filtBoxGroup.add(wallLeft);
-    const wallRight = wallLeft.clone(); wallRight.position.x = 130; filtBoxGroup.add(wallRight);
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, emissive: 0x22cfff, emissiveIntensity: 0.3, metalness: 0.6, roughness: 0.25, transparent: true, opacity: 0.6 });
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(270, 3, 270), roofMat); roof.position.y = 124; filtBoxGroup.add(roof);
-
-    loader.load("/skid_filtration_system.glb", (g) => {
-      const m = g.scene; prep(m, 170); m.position.set(0, 6, 0); filtBoxGroup.add(m);
-      clickable.push({ object: m, type: "filtrationMachine", name: "Filtration Machine" });
-    }, undefined, () => {});
-
     const tankGroup = new THREE.Group(); tankGroup.position.set(0, 5, 0); filtZone.add(tankGroup);
     s.filtrationStageMeshes = [];
-    const TANK_GRID = 3;
-    const TANK_SPACING = 75;
     for (let i = 0; i < FILTRATION_STAGES.length; i++) {
-      const row = Math.floor(i / TANK_GRID);
-      const col = i % TANK_GRID;
-      const tx = (col - 1) * TANK_SPACING;
-      const tz = (row - 1) * TANK_SPACING;
+      const row = Math.floor(i / 3), col = i % 3;
+      const tx = (col - 1) * 75, tz = (row - 1) * 75;
       const tankColor = FILTRATION_STAGES[i].color;
-      const tankMat = new THREE.MeshStandardMaterial({
-        color: tankColor, emissive: tankColor, emissiveIntensity: 0.4,
-        metalness: 0.3, roughness: 0.3, transparent: true, opacity: 0.75,
-      });
+      const tankMat = new THREE.MeshStandardMaterial({ color: tankColor, emissive: tankColor, emissiveIntensity: 0.4, metalness: 0.3, roughness: 0.3, transparent: true, opacity: 0.75 });
       const tankBody = new THREE.Mesh(new THREE.CylinderGeometry(22, 24, 40, 16), tankMat);
       tankBody.position.set(tx, 22, tz); tankGroup.add(tankBody);
-      const tankCap = new THREE.Mesh(new THREE.SphereGeometry(22, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), tankMat);
-      tankCap.position.set(tx, 42, tz); tankGroup.add(tankCap);
-      const waterMat = new THREE.MeshStandardMaterial({
-        color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.2,
-        transparent: true, opacity: 0.75, metalness: 0.4, roughness: 0.1,
-      });
+      const waterMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.2, transparent: true, opacity: 0.75 });
       const waterFill = new THREE.Mesh(new THREE.CylinderGeometry(19, 19, 1, 16), waterMat);
       waterFill.position.set(tx, 8, tz); tankGroup.add(waterFill);
-      s.filtrationStageMeshes.push({ tankBody, tankCap, waterFill, baseY: 8, stageIndex: i });
-      clickable.push({ object: tankBody, type: "filtrationStage", name: FILTRATION_STAGES[i].label, stageIndex: i });
+      s.filtrationStageMeshes.push({ tankBody, waterFill, baseY: 8, stageIndex: i });
     }
 
-    const flowMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.5, metalness: 0.6, roughness: 0.2 });
-    s.filtrationFlowMeshes = [];
-    for (let i = 0; i < FILTRATION_STAGES.length - 1; i++) {
-      const a = s.filtrationStageMeshes[i];
-      const b = s.filtrationStageMeshes[i + 1];
-      const ax = a.tankBody.position.x, az = a.tankBody.position.z;
-      const bx = b.tankBody.position.x, bz = b.tankBody.position.z;
-      const midX = (ax + bx) / 2, midZ = (az + bz) / 2;
-      const dx = bx - ax, dz = bz - az;
-      const len = Math.sqrt(dx * dx + dz * dz);
-      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, len, 8), flowMat);
-      pipe.position.set(midX, 14, midZ);
-      pipe.rotation.z = Math.PI / 2;
-      pipe.rotation.y = -Math.atan2(dz, dx);
-      tankGroup.add(pipe);
-      const flowDot = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x22cfff, emissiveIntensity: 4 }));
-      flowDot.position.set(ax, 14, az);
-      tankGroup.add(flowDot);
-      s.filtrationFlowMeshes.push({ pipe, dot: flowDot, from: { x: ax, z: az }, to: { x: bx, z: bz }, phase: i * 0.11 });
-    }
+    /* =====================================================================
+       FOOD SYSTEM (new) — at (2900, -1200)
+       ===================================================================== */
+    const foodZone = new THREE.Group();
+    foodZone.position.set(2900, 0, -1200); scene.add(foodZone);
+    board("AI FOOD PRODUCTION", 2900, 5, -400, 380, 18, 0x2ecc71);
 
-    const uvLight = new THREE.PointLight(0x9a6aff, 2, 250);
-    uvLight.position.set(0, 60, 0); tankGroup.add(uvLight);
-    s.filtrationUVLight = uvLight;
-    const uvBulb = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 12), new THREE.MeshStandardMaterial({ color: 0x9a6aff, emissive: 0x9a6aff, emissiveIntensity: 5 }));
-    uvBulb.position.set(0, 60, 0); tankGroup.add(uvBulb);
-    s.filtrationUVBulb = uvBulb;
+    const foodPad = new THREE.Mesh(new THREE.BoxGeometry(800, 1, 800), mat(0x2a3a2e, 0.95));
+    foodPad.position.y = 4.2; foodZone.add(foodPad);
+    const foodBorderMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 2.5, metalness: 0.6, roughness: 0.2 });
+    s.borderLights.push(foodBorderMat);
+    const foodF = new THREE.Mesh(new THREE.BoxGeometry(800, 1.8, 6), foodBorderMat); foodF.position.set(0, 6.5, -400); foodZone.add(foodF);
+    const foodB = foodF.clone(); foodB.position.z = 400; foodZone.add(foodB);
+    const foodL = new THREE.Mesh(new THREE.BoxGeometry(6, 1.8, 800), foodBorderMat); foodL.position.set(-400, 6.5, 0); foodZone.add(foodL);
+    const foodR = foodL.clone(); foodR.position.x = 400; foodZone.add(foodR);
 
-    s.filtrationUVRays = [];
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 35, 4), new THREE.MeshStandardMaterial({ color: 0x9a6aff, emissive: 0x9a6aff, emissiveIntensity: 3, transparent: true, opacity: 0.6 }));
-      ray.position.set(Math.cos(angle) * 15, 40, Math.sin(angle) * 15);
-      tankGroup.add(ray); s.filtrationUVRays.push(ray);
-    }
-
-    s.filtrationBubbles = [];
-    for (let i = 0; i < s.filtrationStageMeshes.length; i++) {
-      const sm = s.filtrationStageMeshes[i];
-      const tankX = sm.tankBody.position.x;
-      const tankZ = sm.tankBody.position.z;
-      const bubbles = [];
-      const bubbleCount = i === 3 ? 15 : (i === 2 ? 10 : 5);
-      for (let b = 0; b < bubbleCount; b++) {
-        const bubble = new THREE.Mesh(new THREE.SphereGeometry(1 + Math.random() * 1.2, 6, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x22cfff, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 }));
-        bubble.position.set(tankX + (Math.random() - 0.5) * 25, 10 + Math.random() * 25, tankZ + (Math.random() - 0.5) * 25);
-        bubble.userData = { speed: 4 + Math.random() * 8, baseX: tankX, baseZ: tankZ };
-        tankGroup.add(bubble); bubbles.push(bubble);
+    // Farming plots with crops
+    s.foodCropMeshes = [];
+    const cropColors = [0x2ecc71, 0x27ae60, 0xf1c40f, 0xe67e22];
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const plot = new THREE.Mesh(new THREE.BoxGeometry(80, 1, 80), mat(0x5a3a1a, 0.95));
+        plot.position.set(-260 + c * 100, 5, -260 + r * 100); foodZone.add(plot);
+        for (let k = 0; k < 6; k++) {
+          const crop = new THREE.Mesh(
+            new THREE.CylinderGeometry(3, 4, 12, 6),
+            new THREE.MeshStandardMaterial({ color: cropColors[Math.floor(Math.random() * cropColors.length)], emissive: 0x112211, emissiveIntensity: 0.3, roughness: 0.8 })
+          );
+          crop.position.set(-260 + c * 100 + (Math.random() - 0.5) * 60, 11, -260 + r * 100 + (Math.random() - 0.5) * 60);
+          foodZone.add(crop);
+          s.foodCropMeshes.push(crop);
+        }
       }
-      s.filtrationBubbles.push({ stageIndex: i, bubbles });
     }
 
-    const reservoirMat = new THREE.MeshStandardMaterial({ color: 0x0a4a6a, roughness: 0.3, metalness: 0.5, emissive: 0x0a2a4a, emissiveIntensity: 0.6 });
-    const reservoir = new THREE.Mesh(new THREE.CylinderGeometry(50, 55, 40, 24), reservoirMat);
-    reservoir.position.set(-320, 25, 0); filtZone.add(reservoir);
-    const resWaterMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.6, transparent: true, opacity: 0.8, metalness: 0.4, roughness: 0.1 });
-    const resWater = new THREE.Mesh(new THREE.CylinderGeometry(46, 46, 4, 24), resWaterMat);
-    resWater.position.set(-320, 42, 0); filtZone.add(resWater);
-    const resCap = new THREE.Mesh(new THREE.SphereGeometry(52, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2), reservoirMat);
-    resCap.position.set(-320, 45, 0); filtZone.add(resCap);
-    s.filtrationCleanReservoir = { reservoir, resWater, resCap };
+    // Food processing plant
+    const foodPlant = new THREE.Group();
+    foodPlant.position.set(0, 5, 0);
+    foodZone.add(foodPlant);
+    const plantBody = new THREE.Mesh(new THREE.BoxGeometry(120, 90, 120), mat(0x1a8a4e, 0.4, 0.5));
+    plantBody.position.y = 50; foodPlant.add(plantBody);
+    const plantRoof = new THREE.Mesh(new THREE.BoxGeometry(130, 4, 130), mat(0x0a3a1a, 0.5, 0.5));
+    plantRoof.position.y = 97; foodPlant.add(plantRoof);
+    const foodBeacon = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 12), new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 4 }));
+    foodBeacon.position.y = 108; foodPlant.add(foodBeacon);
 
-    const recyclePipeMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 1.5, metalness: 0.6, roughness: 0.25 });
-    const recyclePipe = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 280, 10), recyclePipeMat);
-    recyclePipe.rotation.z = Math.PI / 2; recyclePipe.rotation.y = 0.35;
-    recyclePipe.position.set(-180, 14, -20); filtZone.add(recyclePipe);
-
-    const inputPipe = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 200, 12), new THREE.MeshStandardMaterial({ color: 0x4a2a1a, emissive: 0x2a1a0a, emissiveIntensity: 1, metalness: 0.5, roughness: 0.3 }));
-    inputPipe.rotation.z = Math.PI / 2; inputPipe.position.set(-550, 14, 0); filtZone.add(inputPipe);
-    s.dirtyWaterParticles = [];
-    for (let i = 0; i < 15; i++) {
-      const p = new THREE.Mesh(new THREE.SphereGeometry(2, 6, 6), new THREE.MeshStandardMaterial({ color: 0x6a4a2a, emissive: 0x4a2a1a, emissiveIntensity: 1.5 }));
-      p.position.set(-550 + Math.random() * 200, 14, (Math.random() - 0.5) * 10);
-      p.userData = { speed: 30 + Math.random() * 20 };
-      filtZone.add(p); s.dirtyWaterParticles.push(p);
+    // Conveyor belt items (food boxes)
+    s.foodConveyorItems = [];
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(180, 2, 25), mat(0x2ecc71, 0.5, 0.4));
+    belt.position.set(0, 10, 80); foodPlant.add(belt);
+    for (let i = 0; i < 5; i++) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(12, 12, 12), new THREE.MeshStandardMaterial({ color: 0xe67e22, emissive: 0xe67e22, emissiveIntensity: 1.5 }));
+      box.position.set(-70 + i * 35, 18, 80);
+      box.userData = { speed: 0.4 + Math.random() * 0.3, offset: i * 35, startX: -70 };
+      foodPlant.add(box); s.foodConveyorItems.push(box);
     }
 
-    const outputPipe = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 200, 12), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.5, metalness: 0.5, roughness: 0.2 }));
-    outputPipe.rotation.z = Math.PI / 2; outputPipe.position.set(550, 14, 0); filtZone.add(outputPipe);
-    s.cleanWaterParticles = [];
-    for (let i = 0; i < 15; i++) {
-      const p = new THREE.Mesh(new THREE.SphereGeometry(2, 6, 6), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 3 }));
-      p.position.set(350 + Math.random() * 200, 14, (Math.random() - 0.5) * 10);
-      p.userData = { speed: 30 + Math.random() * 20 };
-      filtZone.add(p); s.cleanWaterParticles.push(p);
-    }
-
-    const waterParticles = []; s.waterParticles = waterParticles;
-    for (let i = 0; i < 24; i++) {
-      const p = new THREE.Mesh(new THREE.SphereGeometry(1.4, 6, 6), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5 }));
-      p.position.set((Math.random() - 0.5) * 200, 20 + Math.random() * 80, (Math.random() - 0.5) * 200);
-      filtBoxGroup.add(p);
-      waterParticles.push({ mesh: p, speed: 0.4 + Math.random() * 0.6, baseY: 18 + Math.random() * 80 });
-    }
-
-    const pumpRings = []; s.filtrationPumpRings = pumpRings;
-    for (let i = 0; i < 3; i++) {
-      const ringMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5, transparent: true, opacity: 0.7 });
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(90 + i * 22, 1.2, 8, 48), ringMat);
-      ring.rotation.x = Math.PI / 2; ring.position.set(0, 7 + i * 2, 0);
-      ring.userData = { phase: i * 0.4, baseScale: 1 };
-      filtZone.add(ring); pumpRings.push(ring);
-    }
-
-    /* ===== FERTILIZER SYSTEM ===== */
-    const fertZone = new THREE.Group();
-    fertZone.position.set(-3600, 0, -3600); scene.add(fertZone);
-    board("AI FERTILIZER SYSTEM", -3600, 5, -2700, 420, 22, 0x8e44ad);
-    const fertPad = new THREE.Mesh(new THREE.BoxGeometry(950, 1, 950), mat(0x2a1e3a, 0.95));
-    fertPad.position.y = 4.2; fertZone.add(fertPad);
-    const fertBorderMat = new THREE.MeshStandardMaterial({ color: 0xb266ff, emissive: 0xb266ff, emissiveIntensity: 2.2, metalness: 0.6, roughness: 0.2 });
-    s.borderLights.push(fertBorderMat);
-    const ftF = new THREE.Mesh(new THREE.BoxGeometry(950, 1.8, 6), fertBorderMat); ftF.position.set(0, 6.5, -475); fertZone.add(ftF);
-    const ftB = ftF.clone(); ftB.position.z = 475; fertZone.add(ftB);
-    const ftL = new THREE.Mesh(new THREE.BoxGeometry(6, 1.8, 950), fertBorderMat); ftL.position.set(-475, 6.5, 0); fertZone.add(ftL);
-    const ftR = ftL.clone(); ftR.position.x = 475; fertZone.add(ftR);
-    const fertOffice = new THREE.Mesh(new THREE.BoxGeometry(60, 80, 60), mat(0x4a2c6b, 0.3, 0.4));
-    fertOffice.position.set(0, 45, 0); fertZone.add(fertOffice);
-    const fertOfficeUpper = new THREE.Mesh(new THREE.BoxGeometry(50, 24, 50), new THREE.MeshStandardMaterial({ color: 0x2a1e3a, emissive: 0x8e44ad, emissiveIntensity: 1.5, metalness: 0.5, roughness: 0.15 }));
-    fertOfficeUpper.position.set(0, 97, 0); fertZone.add(fertOfficeUpper);
-    const fertBeacon = new THREE.Mesh(new THREE.SphereGeometry(5, 14, 14), new THREE.MeshStandardMaterial({ color: 0xb266ff, emissive: 0xb266ff, emissiveIntensity: 3.5 }));
-    fertBeacon.position.set(0, 118, 0); fertZone.add(fertBeacon);
-    for (const cx of [-200, -100, 100, 200]) {
-      const tank = new THREE.Mesh(new THREE.CylinderGeometry(22, 26, 60, 16), mat(0x5a3e7d, 0.4, 0.35));
-      tank.position.set(cx, 30, -350); fertZone.add(tank);
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(22, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x7a5a9d, 0.3, 0.5));
-      cap.position.set(cx, 60, -350); fertZone.add(cap);
-      const light = new THREE.Mesh(new THREE.SphereGeometry(2.5, 10, 10), new THREE.MeshStandardMaterial({ color: 0xb266ff, emissive: 0xb266ff, emissiveIntensity: 3 }));
-      light.position.set(cx, 72, -350); fertZone.add(light);
-    }
-
-    /* ===== WASTE MANAGEMENT — 6 STAGE CLEANING PROCESS ===== */
+    /* =====================================================================
+       WASTE + FERTILIZER (simplified)
+       ===================================================================== */
     const wasteZone = new THREE.Group();
     wasteZone.position.set(3600, 0, 3600); scene.add(wasteZone);
     board("WASTE MANAGEMENT", 3600, 5, 4500, 380, 18, 0x2ecc71);
     const wastePad = new THREE.Mesh(new THREE.BoxGeometry(950, 1, 950), mat(0x2a3a2e, 0.95));
     wastePad.position.y = 4.2; wasteZone.add(wastePad);
-    const wasteBorderMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 2.2, metalness: 0.6, roughness: 0.2 });
-    s.borderLights.push(wasteBorderMat);
-    const wbF = new THREE.Mesh(new THREE.BoxGeometry(950, 1.4, 5), wasteBorderMat); wbF.position.set(0, 6.5, -475); wasteZone.add(wbF);
-    const wbB = wbF.clone(); wbB.position.z = 475; wasteZone.add(wbB);
-    const wbL = new THREE.Mesh(new THREE.BoxGeometry(5, 1.4, 950), wasteBorderMat); wbL.position.set(-475, 6.5, 0); wasteZone.add(wbL);
-    const wbR = wbL.clone(); wbR.position.x = 475; wasteZone.add(wbR);
 
-    const segregationGroup = new THREE.Group();
-    segregationGroup.position.set(0, 5, 220);
-    wasteZone.add(segregationGroup);
-    const SEGREGATION_CATS = [
-      { name: "ORGANIC", color: 0x2ecc71, x: -240 },
-      { name: "RECYCLABLE", color: 0x3498db, x: -80 },
-      { name: "HAZARDOUS", color: 0xe74c3c, x: 80 },
-      { name: "GENERAL", color: 0x34495e, x: 240 },
-    ];
-    SEGREGATION_CATS.forEach((cat) => {
-      const belt = new THREE.Mesh(new THREE.BoxGeometry(140, 2, 30), new THREE.MeshStandardMaterial({ color: cat.color, emissive: cat.color, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.3 }));
-      belt.position.set(cat.x, 12, 0); segregationGroup.add(belt);
-      for (let i = 0; i < 4; i++) {
-        const item = new THREE.Mesh(new THREE.BoxGeometry(7, 7, 7), new THREE.MeshStandardMaterial({ color: cat.color, emissive: cat.color, emissiveIntensity: 1.5 }));
-        item.position.set(cat.x - 55 + i * 35, 18, 0);
-        item.userData = { beltX: cat.x, speed: 0.4 + Math.random() * 0.3, offset: i * 35 };
-        segregationGroup.add(item);
-        s.wasteConveyorItems.push(item);
+    const fertZone = new THREE.Group();
+    fertZone.position.set(-3600, 0, -3600); scene.add(fertZone);
+    board("AI FERTILIZER SYSTEM", -3600, 5, -2700, 420, 22, 0x8e44ad);
+    const fertPad = new THREE.Mesh(new THREE.BoxGeometry(950, 1, 950), mat(0x2a1e3a, 0.95));
+    fertPad.position.y = 4.2; fertZone.add(fertPad);
+
+    /* =====================================================================
+       CARS — STRAIGHT & BACK ONLY on main roads (no loops, avoid buildings)
+       ===================================================================== */
+    const intersectionCars = []; s.intersectionCars = intersectionCars;
+    const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c, 0x1abc9c, 0x3498db, 0xe91e63, 0x9b59b6, 0xff5722, 0x00bcd4, 0x795548, 0x607d8b, 0xff9800, 0x3f51b5];
+    const V_LEN = 26, V_WID = 10, V_HGT = 5.5;
+    const carBodyGeo = new THREE.BoxGeometry(V_LEN, V_HGT, V_WID);
+    const carCabinGeo = new THREE.BoxGeometry(V_LEN * 0.42, V_HGT * 0.85, V_WID * 0.88);
+    const carWheelGeo = new THREE.CylinderGeometry(2.4, 2.4, 1.6, 10);
+    const carGlassMat = new THREE.MeshStandardMaterial({ color: 0x1a3a4a, emissive: 0x0a2535, emissiveIntensity: 0.6, roughness: 0.12, metalness: 0.5 });
+    const wheelMat = mat(0x0c1012, 0.6, 0.1);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff8e0, emissiveIntensity: 3.0 });
+    const tailMat = new THREE.MeshStandardMaterial({ color: 0xff1e1e, emissive: 0xff1010, emissiveIntensity: 3.0 });
+
+    function makeCar(colorHex) {
+      const g = new THREE.Group();
+      const bMat = mat(colorHex, 0.35, 0.5);
+      const body = new THREE.Mesh(carBodyGeo, bMat); body.position.y = 4.2; g.add(body);
+      const cabin = new THREE.Mesh(carCabinGeo, carGlassMat); cabin.position.set(-1, 8.8, 0); g.add(cabin);
+      for (const wp of [[V_LEN * 0.32, V_WID * 0.48], [V_LEN * 0.32, -V_WID * 0.48], [-V_LEN * 0.32, V_WID * 0.48], [-V_LEN * 0.32, -V_WID * 0.48]]) {
+        const w = new THREE.Mesh(carWheelGeo, wheelMat); w.rotation.x = Math.PI / 2; w.position.set(wp[0], 2.8, wp[1]); g.add(w);
       }
-      board(cat.name, 3600 + cat.x, 5, 3600 + 280, 120, 8, cat.color);
+      for (const z of [-3.2, 3.2]) {
+        const l = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.6, 1.9), headMat); l.position.set(V_LEN * 0.49, 4.5, z); g.add(l);
+        const t = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.6, 1.9), tailMat); t.position.set(-V_LEN * 0.49, 4.5, z); g.add(t);
+      }
+      return g;
+    }
+
+    // Straight-line routes (back & forth)
+    const STRAIGHT_ROUTES = [
+      // Horizontal roads (E-W), cars move along X axis
+      { axis: "x", fixedCoord: -2400, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "x", fixedCoord: -2400, laneOffset: 30, min: 3500, max: -3500 },
+      { axis: "x", fixedCoord: -1200, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "x", fixedCoord: -1200, laneOffset: 30, min: 3500, max: -3500 },
+      { axis: "x", fixedCoord: 1200, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "x", fixedCoord: 1200, laneOffset: 30, min: 3500, max: -3500 },
+      { axis: "x", fixedCoord: 2400, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "x", fixedCoord: 2400, laneOffset: 30, min: 3500, max: -3500 },
+      // Vertical roads (N-S), cars move along Z axis
+      { axis: "z", fixedCoord: -2400, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "z", fixedCoord: -2400, laneOffset: 30, min: 3500, max: -3500 },
+      { axis: "z", fixedCoord: -1200, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "z", fixedCoord: -1200, laneOffset: 30, min: 3500, max: -3500 },
+      { axis: "z", fixedCoord: 1200, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "z", fixedCoord: 1200, laneOffset: 30, min: 3500, max: -3500 },
+      { axis: "z", fixedCoord: 2400, laneOffset: -30, min: -3500, max: 3500 },
+      { axis: "z", fixedCoord: 2400, laneOffset: 30, min: 3500, max: -3500 },
+    ];
+
+    function spawnStraightCar(route) {
+      const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)]);
+      scene.add(car);
+      const startPos = route.min + Math.random() * (route.max - route.min);
+      const speed = 80 + Math.random() * 40; // units/sec
+      const carObj = {
+        car, route, pos: startPos, speed, dir: Math.sign(route.max - route.min),
+      };
+      intersectionCars.push(carObj);
+      updateStraightCarTransform(carObj);
+    }
+
+    function updateStraightCarTransform(c) {
+      const { route, pos } = c;
+      if (route.axis === "x") {
+        c.car.position.set(pos, CAR_Y, route.fixedCoord + route.laneOffset);
+        c.car.rotation.y = route.max > route.min ? 0 : Math.PI;
+      } else {
+        c.car.position.set(route.fixedCoord + route.laneOffset, CAR_Y, pos);
+        c.car.rotation.y = route.max > route.min ? Math.PI / 2 : -Math.PI / 2;
+      }
+    }
+
+    // Spawn cars on each route
+    STRAIGHT_ROUTES.forEach((route) => {
+      for (let i = 0; i < 4; i++) spawnStraightCar(route);
     });
 
-    const recycleMachineGroup = new THREE.Group();
-    recycleMachineGroup.position.set(0, 5, -80);
-    wasteZone.add(recycleMachineGroup);
-    const recycleBody = new THREE.Mesh(new THREE.BoxGeometry(100, 90, 100), mat(0x1a8a4e, 0.4, 0.5));
-    recycleBody.position.y = 50; recycleMachineGroup.add(recycleBody);
-    const recycleHopper = new THREE.Mesh(new THREE.CylinderGeometry(35, 22, 25, 8), mat(0x2ecc71, 0.5, 0.4));
-    recycleHopper.position.y = 108; recycleMachineGroup.add(recycleHopper);
-    s.wasteRecycleGears = [];
-    for (let i = 0; i < 3; i++) {
-      const gear = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 4, 8), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.8, roughness: 0.2 }));
-      gear.rotation.x = Math.PI / 2; gear.position.set(-25 + i * 25, 50, 0);
-      recycleMachineGroup.add(gear); s.wasteRecycleGears.push(gear);
-    }
-    const outputBelt = new THREE.Mesh(new THREE.BoxGeometry(120, 2, 25), mat(0x2ecc71, 0.5, 0.4));
-    outputBelt.position.set(0, 10, 70); recycleMachineGroup.add(outputBelt);
-    for (let i = 0; i < 4; i++) {
-      const block = new THREE.Mesh(new THREE.BoxGeometry(12, 12, 12), new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 1.5 }));
-      block.position.set(-40 + i * 28, 18, 70); recycleMachineGroup.add(block);
-    }
-    board("RECYCLING PLANT", 3600, 5, 3600 - 180, 200, 14, 0x2ecc71);
-
-    const biogasGroup = new THREE.Group();
-    biogasGroup.position.set(-280, 5, -80);
-    wasteZone.add(biogasGroup);
-    const digester = new THREE.Mesh(new THREE.SphereGeometry(50, 16, 12), mat(0x4a7a3a, 0.6, 0.3));
-    digester.position.y = 50; biogasGroup.add(digester);
-    const digesterCap = new THREE.Mesh(new THREE.CylinderGeometry(25, 32, 15, 12), mat(0x2a5a2a, 0.5, 0.4));
-    digesterCap.position.y = 100; biogasGroup.add(digesterCap);
-    const biogasFlame = new THREE.Mesh(new THREE.ConeGeometry(7, 22, 8), new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 5, transparent: true, opacity: 0.85 }));
-    biogasFlame.position.y = 122; biogasGroup.add(biogasFlame);
-    s.wasteBiogasFlame = biogasFlame;
-    const generator = new THREE.Mesh(new THREE.BoxGeometry(60, 45, 50), mat(0x5a5a6a, 0.4, 0.5));
-    generator.position.set(100, 27, 0); biogasGroup.add(generator);
-    const genCoil = new THREE.Mesh(new THREE.TorusGeometry(16, 2.5, 8, 16), new THREE.MeshStandardMaterial({ color: 0xffdd00, emissive: 0xffdd00, emissiveIntensity: 2 }));
-    genCoil.rotation.x = Math.PI / 2; genCoil.position.set(100, 52, 0);
-    biogasGroup.add(genCoil); s.wasteGeneratorCoil = genCoil;
-    board("BIOGAS PLANT", 3600 - 280, 5, 3600 - 180, 180, 14, 0x4a7a3a);
-
-    const compostGroup = new THREE.Group();
-    compostGroup.position.set(280, 5, -80);
-    wasteZone.add(compostGroup);
-    for (let i = 0; i < 3; i++) {
-      const pit = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 10, 16), mat(0x5a3a1a, 0.9));
-      pit.position.set(-60 + i * 60, 8, 0); compostGroup.add(pit);
-      const compost = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, 6, 16), new THREE.MeshStandardMaterial({ color: 0x4a2a0a, roughness: 0.95 }));
-      compost.position.set(-60 + i * 60, 14, 0); compostGroup.add(compost);
-      const steam = new THREE.Mesh(new THREE.SphereGeometry(7, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }));
-      steam.position.set(-60 + i * 60, 28, 0);
-      compostGroup.add(steam); s.wasteSteamParticles.push(steam);
-    }
-    board("COMPOSTING", 3600 + 280, 5, 3600 - 180, 160, 12, 0x5a3a1a);
-
-    const incineratorGroup = new THREE.Group();
-    incineratorGroup.position.set(0, 5, -280);
-    wasteZone.add(incineratorGroup);
-    const incBody = new THREE.Mesh(new THREE.CylinderGeometry(35, 35, 90, 16), mat(0x8a3a3a, 0.5, 0.4));
-    incBody.position.y = 50; incineratorGroup.add(incBody);
-    const incChimney = new THREE.Mesh(new THREE.CylinderGeometry(10, 13, 110, 12), mat(0x5a5a5a, 0.6, 0.3));
-    incChimney.position.set(0, 160, 0); incineratorGroup.add(incChimney);
-    for (let i = 0; i < 10; i++) {
-      const smoke = new THREE.Mesh(new THREE.SphereGeometry(7 + Math.random() * 4, 6, 6), new THREE.MeshStandardMaterial({ color: 0xcccccc, transparent: true, opacity: 0.4 }));
-      smoke.position.set((Math.random() - 0.5) * 15, 220 + i * 15, (Math.random() - 0.5) * 15);
-      incineratorGroup.add(smoke); s.wasteSmokeParticles.push(smoke);
-    }
-    board("SAFE DISPOSAL", 3600, 5, 3600 - 420, 180, 14, 0x8a3a3a);
-
-    /* ===== TRUCKS ===== */
+    /* =====================================================================
+       TRUCKS — simple straight routes
+       ===================================================================== */
     function buildTruck(c1, c2, label, txtColor) {
       const truck = new THREE.Group();
       const box = new THREE.Mesh(new THREE.BoxGeometry(100, 68, 44), mat(c1, 0.4, 0.3)); box.position.y = 45; truck.add(box);
       const cabin = new THREE.Mesh(new THREE.BoxGeometry(38, 44, 44), mat(c2, 0.4, 0.4)); cabin.position.set(65, 35, 0); truck.add(cabin);
-      const win = new THREE.Mesh(new THREE.BoxGeometry(2, 20, 34), new THREE.MeshStandardMaterial({ color: 0x8be8ff, transparent: true, opacity: 0.7, roughness: 0.1, metalness: 0.3 }));
-      win.position.set(84, 42, 0); truck.add(win);
-      const wm = mat(0x0c1012, 0.6, 0.1);
-      const wg = new THREE.CylinderGeometry(12, 12, 8, 12);
-      for (const wx of [-36, 36, 60]) for (const wz of [-20, 20]) {
-        const w = new THREE.Mesh(wg, wm); w.rotation.x = Math.PI / 2; w.position.set(wx, 12, wz); truck.add(w);
-      }
-      const chassis = new THREE.Mesh(new THREE.BoxGeometry(135, 8, 42), darkMaterial); chassis.position.set(16, 18, 0); truck.add(chassis);
-      const canvas = document.createElement("canvas"); canvas.width = 1400; canvas.height = 280;
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = txtColor; ctx.fillRect(0, 0, 1400, 280);
-      ctx.fillStyle = "#fff"; ctx.font = "bold 115px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      const lines = label.split("|");
-      if (lines.length === 2) { ctx.fillText(lines[0], 700, 80); ctx.fillText(lines[1], 700, 200); }
-      else ctx.fillText(label, 700, 140);
-      const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
-      const tMat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-      const t1 = new THREE.Mesh(new THREE.PlaneGeometry(95, 48), tMat); t1.position.set(0, 45, 22.5); truck.add(t1);
-      const t2 = new THREE.Mesh(new THREE.PlaneGeometry(95, 48), tMat); t2.position.set(0, 45, -22.5); t2.rotation.y = Math.PI; truck.add(t2);
       const warn = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 10), new THREE.MeshStandardMaterial({ color: 0xff8a00, emissive: 0xff8a00, emissiveIntensity: 3 }));
       warn.position.set(0, 82, 0); truck.add(warn);
       return { truck, warn };
     }
 
-    const g1 = buildTruck(0x3498db, 0x2980b9, "WASTE|MANAGEMENT", "#3498db");
-    const garbageTruck = g1.truck; scene.add(garbageTruck); s.trucks.garbage = garbageTruck; s.garbageWarn = g1.warn;
-    const g2 = buildTruck(0xb266ff, 0x7a3b9d, "AI FERTILIZER", "#8e44ad");
-    const fertTruck1 = g2.truck; scene.add(fertTruck1); s.trucks.fert1 = fertTruck1; s.fertWarn1 = g2.warn;
-    const g3 = buildTruck(0xd8b3ff, 0x8e44ad, "AI FERTILIZER", "#8e44ad");
-    const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
+    const g1 = buildTruck(0x3498db, 0x2980b9, "WASTE", "#3498db");
+    const garbageTruck = g1.truck; scene.add(garbageTruck); s.trucks.garbage = garbageTruck;
+    const g2 = buildTruck(0xb266ff, 0x7a3b9d, "FERTILIZER", "#8e44ad");
+    const fertTruck = g2.truck; scene.add(fertTruck); s.trucks.fert = fertTruck;
 
-    /* ===== CITY CARS ===== */
-    const cityCars = []; s.cityCars = cityCars;
-    const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad, 0xf39c12, 0xe74c3c, 0x1abc9c, 0x3498db, 0xe91e63, 0x9b59b6, 0xff5722, 0x00bcd4, 0x795548, 0x607d8b, 0xff9800, 0x3f51b5];
-    const V_LEN = 26, V_WID = 10, V_HGT = 5.5;
-    const carBodyGeo = new THREE.BoxGeometry(V_LEN, V_HGT, V_WID);
-    const carHoodGeo = new THREE.BoxGeometry(V_LEN * 0.25, V_HGT * 0.55, V_WID * 0.95);
-    const carCabinGeo = new THREE.BoxGeometry(V_LEN * 0.42, V_HGT * 0.85, V_WID * 0.88);
-    const carWindshieldGeo = new THREE.BoxGeometry(1.8, V_HGT * 0.75, V_WID * 0.82);
-    const carWheelGeo = new THREE.CylinderGeometry(2.4, 2.4, 1.6, 10);
-    const carWheelHubGeo = new THREE.CylinderGeometry(0.9, 0.9, 1.7, 8);
-    const carLightGeo = new THREE.BoxGeometry(1.5, 1.6, 1.9);
-    const carGlassMat = new THREE.MeshStandardMaterial({ color: 0x1a3a4a, emissive: 0x0a2535, emissiveIntensity: 0.6, roughness: 0.12, metalness: 0.5 });
-    const wheelMat = mat(0x0c1012, 0.6, 0.1);
-    const hubMat = mat(0xa0a8ac, 0.3, 0.7);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff8e0, emissiveIntensity: 3.0 });
-    const tailMat = new THREE.MeshStandardMaterial({ color: 0xff1e1e, emissive: 0xff1010, emissiveIntensity: 3.0 });
-
-    function makeCar(colorHex, style = "sedan") {
-      const g = new THREE.Group();
-      const bMat = mat(colorHex, 0.35, 0.5);
-      const roofColor = [0x1a1a1a, 0x2a2a2a, 0x3a3a3a][Math.floor(Math.random() * 3)];
-      if (style === "suv") {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 1.1, V_HGT * 1.1, V_WID * 1.05), bMat); body.position.y = 4.4; g.add(body);
-        const cabin = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.6, V_HGT * 1.1, V_WID * 0.92), carGlassMat); cabin.position.set(-1, 10, 0); g.add(cabin);
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.55, 0.5, V_WID * 0.7), mat(roofColor, 0.5, 0.4)); roof.position.set(-1, 13.5, 0); g.add(roof);
-      } else if (style === "sport") {
-        const body = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 1.05, V_HGT * 0.85, V_WID * 1.05), bMat); body.position.y = 3.8; g.add(body);
-        const hood = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.35, V_HGT * 0.4, V_WID * 0.98), bMat); hood.position.set(V_LEN * 0.4, 4, 0); g.add(hood);
-        const cabin = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.35, V_HGT * 0.7, V_WID * 0.85), carGlassMat); cabin.position.set(-3, 8, 0); g.add(cabin);
-        const spoiler = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.25, 0.6, V_WID * 1.05), mat(roofColor, 0.4, 0.5)); spoiler.position.set(-V_LEN * 0.42, 7.5, 0); g.add(spoiler);
-        const spoilerLeg = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 0.8), mat(roofColor, 0.5, 0.5)); spoilerLeg.position.set(-V_LEN * 0.42, 6, 0); g.add(spoilerLeg);
-      } else {
-        const body = new THREE.Mesh(carBodyGeo, bMat); body.position.y = 4.2; g.add(body);
-        const hood = new THREE.Mesh(carHoodGeo, bMat); hood.position.set(V_LEN * 0.36, 4, 0); g.add(hood);
-        const trunk = new THREE.Mesh(carHoodGeo, bMat); trunk.position.set(-V_LEN * 0.36, 4, 0); g.add(trunk);
-        const cabin = new THREE.Mesh(carCabinGeo, carGlassMat); cabin.position.set(-1, 8.8, 0); g.add(cabin);
-        const ws = new THREE.Mesh(carWindshieldGeo, carGlassMat); ws.position.set(V_LEN * 0.18, 8.5, 0); g.add(ws);
-        const rw = new THREE.Mesh(carWindshieldGeo, carGlassMat); rw.position.set(-V_LEN * 0.22, 8.5, 0); g.add(rw);
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.35, 0.4, V_WID * 0.6), mat(roofColor, 0.5, 0.3));
-        roof.position.set(-1, 12, 0); g.add(roof);
-      }
-      for (const wp of [[V_LEN * 0.32, V_WID * 0.48], [V_LEN * 0.32, -V_WID * 0.48], [-V_LEN * 0.32, V_WID * 0.48], [-V_LEN * 0.32, -V_WID * 0.48]]) {
-        const w = new THREE.Mesh(carWheelGeo, wheelMat); w.rotation.x = Math.PI / 2; w.position.set(wp[0], 2.8, wp[1]); g.add(w);
-        const h = new THREE.Mesh(carWheelHubGeo, hubMat); h.rotation.x = Math.PI / 2; h.position.set(wp[0], 2.8, wp[1]); g.add(h);
-      }
-      for (const z of [-3.2, 3.2]) {
-        const l = new THREE.Mesh(carLightGeo, headMat); l.position.set(V_LEN * 0.49, 4.5, z); g.add(l);
-        const t = new THREE.Mesh(carLightGeo, tailMat); t.position.set(-V_LEN * 0.49, 4.5, z); g.add(t);
-      }
-      return g;
-    }
-
-    const outerRoutePoints = [{ x: -2400, z: -2400 }, { x: 2400, z: -2400 }, { x: 2400, z: 2400 }, { x: -2400, z: 2400 }];
-    const midRoutePoints = [{ x: -1200, z: -1200 }, { x: 1200, z: -1200 }, { x: 1200, z: 1200 }, { x: -1200, z: 1200 }];
-    const innerRoutePoints = [{ x: -600, z: -600 }, { x: 600, z: -600 }, { x: 600, z: 600 }, { x: -600, z: 600 }];
-
-    function createRoutePath(points, laneOffset) {
-      const segments = [];
-      for (let i = 0; i < points.length; i++) {
-        const a = points[i];
-        const b = points[(i + 1) % points.length];
-        const dx = b.x - a.x, dz = b.z - a.z;
-        const len = Math.sqrt(dx * dx + dz * dz);
-        const nx = dx / len, nz = dz / len;
-        const perpX = -nz, perpZ = nx;
-        segments.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, nx, nz, perpX, perpZ, len, startX: a.x + perpX * laneOffset, startZ: a.z + perpZ * laneOffset, endX: b.x + perpX * laneOffset, endZ: b.z + perpZ * laneOffset });
-      }
-      return segments;
-    }
-
-    function getPointOnRoute(segments, progress) {
-      const totalLen = segments.reduce((sum, s) => sum + s.len, 0);
-      let dist = progress * totalLen;
-      for (let i = 0; i < segments.length; i++) {
-        const seg = segments[i];
-        if (dist <= seg.len) {
-          const t = dist / seg.len;
-          return { x: seg.startX + (seg.endX - seg.startX) * t, z: seg.startZ + (seg.endZ - seg.startZ) * t, angle: Math.atan2(seg.nz, seg.nx), seg };
-        }
-        dist -= seg.len;
-      }
-      const last = segments[segments.length - 1];
-      return { x: last.endX, z: last.endZ, angle: Math.atan2(last.nz, last.nx), seg: last };
-    }
-
-    const outerSegmentsCW = createRoutePath(outerRoutePoints, LANE_OFFSET);
-    const outerSegmentsCCW = createRoutePath([...outerRoutePoints].reverse(), -LANE_OFFSET);
-    const midSegmentsCW = createRoutePath(midRoutePoints, LANE_OFFSET);
-    const midSegmentsCCW = createRoutePath([...midRoutePoints].reverse(), -LANE_OFFSET);
-    const innerSegmentsCW = createRoutePath(innerRoutePoints, LANE_OFFSET);
-    const innerSegmentsCCW = createRoutePath([...innerRoutePoints].reverse(), -LANE_OFFSET);
-
-    function spawnCarOnRoute(segments, progress, direction, speed) {
-      const styleRoll = Math.random();
-      const style = styleRoll < 0.6 ? "sedan" : (styleRoll < 0.85 ? "suv" : "sport");
-      const c = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
-      scene.add(c);
-      const p = getPointOnRoute(segments, progress);
-      c.position.set(p.x, CAR_Y, p.z);
-      c.rotation.y = direction > 0 ? -p.angle : -p.angle + Math.PI;
-      cityCars.push({ car: c, segments, progress, direction, speed, baseSpeed: speed });
-    }
-
-    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCW, i / 16, 1, CAR_SPEED_OUTER);
-    for (let i = 0; i < 16; i++) spawnCarOnRoute(outerSegmentsCCW, i / 16, 1, CAR_SPEED_OUTER);
-    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCW, i / 12, 1, CAR_SPEED_MID);
-    for (let i = 0; i < 12; i++) spawnCarOnRoute(midSegmentsCCW, i / 12, 1, CAR_SPEED_MID);
-    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCW, i / 8, 1, CAR_SPEED_INNER);
-    for (let i = 0; i < 8; i++) spawnCarOnRoute(innerSegmentsCCW, i / 8, 1, CAR_SPEED_INNER);
-
-    function updateCarMovement() {
-      for (const d of cityCars) {
-        d.progress += d.speed * d.direction;
-        if (d.progress > 1) d.progress -= 1;
-        if (d.progress < 0) d.progress += 1;
-        const p = getPointOnRoute(d.segments, d.progress);
-        d.car.position.set(p.x, CAR_Y, p.z);
-        d.car.rotation.y = -p.angle;
-      }
-    }
-
-    const intersectionCars = []; s.intersectionCars = intersectionCars;
-    const ROAD_LANES = [
-      { id: 1, dir: "north", axis: "z", sign: -1, xOffset: -30, startPos: -1000, endPos: 400 },
-      { id: 2, dir: "south", axis: "z", sign: 1, xOffset: 30, startPos: 1000, endPos: -400 },
-      { id: 3, dir: "east", axis: "x", sign: 1, zOffset: 30, startPos: 1000, endPos: -400 },
-      { id: 4, dir: "west", axis: "x", sign: -1, zOffset: -30, startPos: -1000, endPos: 400 },
-    ];
-
-    function spawnIntersectionCar(roadId, startPos, lane) {
-      const styleRoll = Math.random();
-      const style = styleRoll < 0.6 ? "sedan" : (styleRoll < 0.85 ? "suv" : "sport");
-      const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)], style);
-      scene.add(car);
-      const spd = 0.04 + Math.random() * 0.03;
-      const carObj = { car, roadId, axis: lane.axis, sign: lane.sign, xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0, pos: startPos, speed: spd, baseSpeed: spd, waiting: false, targetSpeed: spd };
-      intersectionCars.push(carObj);
-      updateIntersectionCarTransform(carObj);
-    }
-
-    function updateIntersectionCarTransform(c) {
-      if (c.axis === "z") {
-        c.car.position.set(c.xOffset, CAR_Y, c.pos);
-        c.car.rotation.y = c.sign < 0 ? 0 : Math.PI;
-      } else {
-        c.car.position.set(c.pos, CAR_Y, c.zOffset);
-        c.car.rotation.y = c.sign < 0 ? Math.PI : 0;
-      }
-    }
-
-    for (let i = 0; i < 60; i++) {
-      const roadId = (i % 4) + 1;
-      const lane = ROAD_LANES[roadId - 1];
-      const startPos = lane.startPos + (i * 40) * Math.sign(lane.endPos - lane.startPos);
-      spawnIntersectionCar(roadId, startPos, lane);
-    }
-
-    function updateIntersectionCars(delta, aiSystem) {
-      for (const c of intersectionCars) {
-        const isGreen = aiSystem.isGreen(c.roadId);
-        const isYellow = aiSystem.isYellowRoad(c.roadId);
-        const stopLinePos = c.axis === "z" ? (c.sign < 0 ? 180 : -180) : (c.sign < 0 ? -180 : 180);
-        const distToStop = Math.abs(c.pos - stopLinePos);
-        let targetSpeed = c.baseSpeed;
-        if (isYellow) targetSpeed = c.baseSpeed * 0.6;
-        else if (!isGreen) {
-          if (distToStop < 60) { targetSpeed = 0; c.waiting = true; }
-          else if (distToStop < 180) { targetSpeed = c.baseSpeed * 0.3; c.waiting = false; }
-          else { targetSpeed = c.baseSpeed * 0.7; c.waiting = false; }
-        } else c.waiting = false;
-        c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 4);
-        c.pos += c.sign * c.speed * delta * 15;
-        const range = 1200;
-        if (c.sign < 0 && c.pos < -range) c.pos = range;
-        else if (c.sign > 0 && c.pos > range) c.pos = -range;
-        updateIntersectionCarTransform(c);
-      }
-    }
-
-    /* ===== PEOPLE ===== */
-    const people = []; s.people = people;
+    /* =====================================================================
+       PEOPLE (short)
+       ===================================================================== */
+    const people = [];
     const skinColors = [0xf2c9a0, 0xd9a373, 0xa06a3c, 0x6b4a2f, 0xffd8b8];
-    const shirtColors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf1c40f, 0x9b59b6, 0x1abc9c, 0xe67e22, 0x34495e, 0xc0392b, 0x16a085];
-    const pantsColors = [0x2c3e50, 0x34495e, 0x1a252f, 0x4a4a4a];
+    const shirtColors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf1c40f, 0x9b59b6, 0x1abc9c];
 
     function makePerson() {
       const g = new THREE.Group();
-      const skin = skinColors[Math.floor(Math.random() * skinColors.length)];
-      const shirt = shirtColors[Math.floor(Math.random() * shirtColors.length)];
-      const pants = pantsColors[Math.floor(Math.random() * pantsColors.length)];
-      const skinMat = mat(skin, 0.9);
-      const shirtMat = mat(shirt, 0.85);
-      const pantsMat = mat(pants, 0.85);
+      const skinMat = mat(skinColors[Math.floor(Math.random() * skinColors.length)], 0.9);
+      const shirtMat = mat(shirtColors[Math.floor(Math.random() * shirtColors.length)], 0.85);
       const head = new THREE.Mesh(new THREE.SphereGeometry(1.8, 6, 5), skinMat); head.position.y = 9; g.add(head);
       const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 5, 1.8), shirtMat); body.position.y = 5.5; g.add(body);
-      const legL = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), pantsMat); legL.position.set(-0.7, 2, 0); g.add(legL);
-      const legR = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), pantsMat); legR.position.set(0.7, 2, 0); g.add(legR);
-      const armL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.6, 0.8), shirtMat); armL.position.set(-2.1, 5.5, 0); g.add(armL);
-      const armR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.6, 0.8), shirtMat); armR.position.set(2.1, 5.5, 0); g.add(armR);
-      return { g, legL, legR, armL, armR };
+      const legL = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), mat(0x2c3e50, 0.85)); legL.position.set(-0.7, 2, 0); g.add(legL);
+      const legR = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), mat(0x2c3e50, 0.85)); legR.position.set(0.7, 2, 0); g.add(legR);
+      return { g, legL, legR };
     }
 
     function spawnPeople(cx, cz, count, radius) {
       for (let i = 0; i < count; i++) {
+        if (isOnBuilding(cx, cz)) continue;
         const p = makePerson();
         const angle = Math.random() * Math.PI * 2;
         const r = radius * (0.5 + Math.random() * 0.5);
         p.g.position.set(cx + Math.cos(angle) * r, 5, cz + Math.sin(angle) * r);
-        p.g.rotation.y = angle;
         scene.add(p.g);
-        people.push({ obj: p.g, legL: p.legL, legR: p.legR, armL: p.armL, armR: p.armR, cx, cz, r, angle, dir: Math.random() > 0.5 ? 1 : -1, speed: 0.005 + Math.random() * 0.008, phase: Math.random() * Math.PI * 2 });
+        people.push({ obj: p.g, legL: p.legL, legR: p.legR, cx, cz, r, angle, dir: Math.random() > 0.5 ? 1 : -1, speed: 0.008 + Math.random() * 0.01, phase: Math.random() * Math.PI * 2 });
       }
     }
-    spawnPeople(-600, -600, 10, 180);
-    spawnPeople(600, -600, 10, 180);
-    spawnPeople(-600, 600, 16, 350);
-    spawnPeople(600, 600, 8, 180);
-    spawnPeople(1800, -600, 6, 240);
-    spawnPeople(600, 1800, 10, 220);
-    spawnPeople(0, 0, 5, 130);
-    spawnPeople(-1800, 1800, 12, 200);
-    spawnPeople(-3900, -2400, 4, 200);
-    spawnPeople(-3600, -800, 4, 200);
-    spawnPeople(-3600, 800, 4, 200);
-    spawnPeople(2900, 1000, 5, 180);
-    spawnPeople(-2900, -300, 4, 180);
-    spawnPeople(2800, -1600, 4, 180);
+    // Spawn people near buildings (not ON buildings)
+    spawnPeople(-600, -900, 8, 150);
+    spawnPeople(600, -900, 8, 150);
+    spawnPeople(-600, 900, 10, 200);
+    spawnPeople(600, 900, 6, 150);
+    spawnPeople(1800, -900, 5, 200);
+    spawnPeople(600, 1500, 8, 180);
+    spawnPeople(0, 0, 4, 100);
 
-    const tourists = []; s.tourists = tourists;
-    const touristShirtColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0x00cec9, 0xff9f43];
-
-    function makeTourist() {
-      const g = new THREE.Group();
-      const skin = skinColors[Math.floor(Math.random() * skinColors.length)];
-      const shirt = touristShirtColors[Math.floor(Math.random() * touristShirtColors.length)];
-      const skinMat = mat(skin, 0.9);
-      const shirtMat = mat(shirt, 0.85);
-      const shortMat = mat(0xf5c84b, 0.85);
-      const head = new THREE.Mesh(new THREE.SphereGeometry(1.8, 6, 5), skinMat); head.position.y = 9; g.add(head);
-      const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 5, 1.8), shirtMat); body.position.y = 5.5; g.add(body);
-      const legL = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), shortMat); legL.position.set(-0.7, 2, 0); g.add(legL);
-      const legR = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), shortMat); legR.position.set(0.7, 2, 0); g.add(legR);
-      const armL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.6, 0.8), shirtMat); armL.position.set(-2.1, 5.5, 0); g.add(armL);
-      const armR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.6, 0.8), shirtMat); armR.position.set(2.1, 5.5, 0); g.add(armR);
-      const cam = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 0.8), mat(0x222222, 0.4, 0.7));
-      cam.position.set(0, 5.5, 1.5); g.add(cam);
-      const hat = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.4, 12), mat(0xf5c84b, 0.7));
-      hat.position.y = 11; g.add(hat);
-      const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1, 12), mat(0xf5c84b, 0.7));
-      hatTop.position.y = 11.7; g.add(hatTop);
-      return { g, legL, legR, armL, armR };
-    }
-
-    function spawnTourists(count) {
-      for (let i = 0; i < count; i++) {
-        const p = makeTourist();
-        const angle = Math.random() * Math.PI * 2;
-        const r = 200 + Math.random() * 600;
-        p.g.position.set(-3600 + Math.cos(angle) * r, 5, -200 + Math.sin(angle) * r);
-        p.g.rotation.y = angle;
-        scene.add(p.g);
-        tourists.push({ obj: p.g, legL: p.legL, legR: p.legR, armL: p.armL, armR: p.armR, cx: -3600, cz: -200, r, angle, dir: Math.random() > 0.5 ? 1 : -1, speed: 0.004 + Math.random() * 0.006, phase: Math.random() * Math.PI * 2 });
-      }
-    }
-    spawnTourists(20);
-
-    let touristMsgShown = false;
-    setTimeout(() => {
-      if (!touristMsgShown) {
-        touristMsgShown = true;
-        onTouristMessage?.("Tourist has been joined our city");
-      }
-    }, 30000);
-
-    for (let i = 0; i < 650; i++) {
-      const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
-      const z = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
-      if (isFree(x, z)) tree(x, z, 0.8 + Math.random() * 0.6);
-    }
-    for (let i = 0; i < 280; i++) {
-      const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
-      const z = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
-      if (isFree(x, z)) bush(x, z, 0.7 + Math.random() * 0.6);
-    }
-
-    function addLandscaping() {
-      const grassPatchMat = new THREE.MeshStandardMaterial({ color: 0x3d7f45, roughness: 0.95 });
-      const sidewalkPatchMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9 });
-      const buildingPlots = [
-        { x: -600, z: -600, w: 500, d: 500, sidewalk: true, trees: 6 },
-        { x: 600, z: -600, w: 480, d: 480, sidewalk: true, trees: 5 },
-        { x: 600, z: 600, w: 520, d: 520, sidewalk: true, trees: 6 },
-        { x: 1800, z: -600, w: 700, d: 700, sidewalk: true, trees: 10 },
-        { x: 600, z: 1800, w: 560, d: 560, sidewalk: true, trees: 6 },
-        { x: 1800, z: 1750, w: 600, d: 600, sidewalk: true, trees: 5 },
-        { x: 1800, z: 600, w: 560, d: 560, sidewalk: true, trees: 6 },
-        { x: -1800, z: 1800, w: 620, d: 620, sidewalk: true, trees: 8 },
-        { x: -1600, z: 800, w: 480, d: 480, sidewalk: true, trees: 5 },
-        { x: -3900, z: -2400, w: 700, d: 700, sidewalk: true, trees: 10 },
-        { x: -3600, z: -800, w: 720, d: 720, sidewalk: true, trees: 10 },
-        { x: -3600, z: 800, w: 700, d: 700, sidewalk: true, trees: 10 },
-      ];
-      buildingPlots.forEach(plot => {
-        const grass = new THREE.Mesh(new THREE.BoxGeometry(plot.w + 60, 0.35, plot.d + 60), grassPatchMat);
-        grass.position.set(plot.x, 4.5, plot.z); scene.add(grass);
-        if (plot.sidewalk) {
-          const swW = 12;
-          const f1 = new THREE.Mesh(new THREE.BoxGeometry(plot.w + 60, 0.5, swW), sidewalkPatchMat);
-          f1.position.set(plot.x, 4.7, plot.z + plot.d / 2 + 30 + swW / 2); scene.add(f1);
-          const f2 = f1.clone(); f2.position.z = plot.z - plot.d / 2 - 30 - swW / 2; scene.add(f2);
-          const f3 = new THREE.Mesh(new THREE.BoxGeometry(swW, 0.5, plot.d + 60), sidewalkPatchMat);
-          f3.position.set(plot.x - plot.w / 2 - 30 - swW / 2, 4.7, plot.z); scene.add(f3);
-          const f4 = f3.clone(); f4.position.x = plot.x + plot.w / 2 + 30 + swW / 2; scene.add(f4);
-        }
-        for (let i = 0; i < plot.trees; i++) {
-          const angle = (i / plot.trees) * Math.PI * 2;
-          const rx = Math.cos(angle) * (plot.w / 2 + 40);
-          const rz = Math.sin(angle) * (plot.d / 2 + 40);
-          const tx = plot.x + rx;
-          const tz = plot.z + rz;
-          if (!isOnRoad(tx, tz)) tree(tx, tz, 0.7 + Math.random() * 0.4);
-        }
-      });
-      const walkwayMat = new THREE.MeshStandardMaterial({ color: 0xa8a8a8, roughness: 0.9 });
-      const crosswalks = [
-        { x: 0, z: -1200, w: 90, d: 24, horizontal: true },
-        { x: 0, z: 0, w: 90, d: 24, horizontal: true },
-        { x: 0, z: 1200, w: 90, d: 24, horizontal: true },
-        { x: -1200, z: 0, w: 24, d: 90, horizontal: false },
-        { x: 1200, z: 0, w: 24, d: 90, horizontal: false },
-        { x: -2400, z: 0, w: 24, d: 90, horizontal: false },
-        { x: 2400, z: 0, w: 24, d: 90, horizontal: false },
-        { x: 0, z: -2400, w: 90, d: 24, horizontal: true },
-        { x: 0, z: 2400, w: 90, d: 24, horizontal: true },
-      ];
-      crosswalks.forEach(cw => {
-        for (let i = 0; i < 6; i++) {
-          const stripe = new THREE.Mesh(new THREE.BoxGeometry(cw.horizontal ? 6 : cw.w - 10, 0.55, cw.horizontal ? cw.d - 10 : 6), walkwayMat);
-          const offset = (i - 2.5) * 10;
-          if (cw.horizontal) stripe.position.set(cw.x + offset, 5.15, cw.z);
-          else stripe.position.set(cw.x, 5.15, cw.z + offset);
-          scene.add(stripe);
-        }
-      });
-      const flowerBedMat = new THREE.MeshStandardMaterial({ color: 0x8b5a3c, roughness: 0.95 });
-      const flowerColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0xffffff];
-      const benchMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.85 });
-      const benchLegMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6, metalness: 0.5 });
-      function createPark(cx, cz, radius) {
-        const parkBase = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.6, 32), new THREE.MeshStandardMaterial({ color: 0x4a9d5a, roughness: 0.95 }));
-        parkBase.position.set(cx, 4.55, cz); scene.add(parkBase);
-        const bedRing = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.6, 4, 8, 32), flowerBedMat);
-        bedRing.rotation.x = Math.PI / 2; bedRing.position.set(cx, 4.9, cz); scene.add(bedRing);
-        for (let i = 0; i < 20; i++) {
-          const angle = (i / 20) * Math.PI * 2;
-          const r = radius * 0.6 + (Math.random() - 0.5) * 12;
-          const flower = new THREE.Mesh(new THREE.SphereGeometry(1.2, 6, 6), new THREE.MeshStandardMaterial({ color: flowerColors[Math.floor(Math.random() * flowerColors.length)], emissive: 0x222222, emissiveIntensity: 0.3, roughness: 0.7 }));
-          flower.position.set(cx + Math.cos(angle) * r, 5.8, cz + Math.sin(angle) * r); scene.add(flower);
-        }
-        for (let i = 0; i < 6; i++) {
-          const angle = (i / 6) * Math.PI * 2 + Math.PI / 6;
-          const tx = cx + Math.cos(angle) * (radius * 0.85);
-          const tz = cz + Math.sin(angle) * (radius * 0.85);
-          tree(tx, tz, 0.7 + Math.random() * 0.3);
-        }
-        const fountainBase = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.25, radius * 0.3, 5, 24), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.6 }));
-        fountainBase.position.set(cx, 6.5, cz); scene.add(fountainBase);
-        const waterMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x0a6a9a, emissiveIntensity: 0.8, transparent: true, opacity: 0.75, metalness: 0.4, roughness: 0.1 });
-        const water = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.22, radius * 0.22, 1, 24), waterMat);
-        water.position.set(cx, 8.8, cz); scene.add(water);
-        for (let i = 0; i < 4; i++) {
-          const angle = (i / 4) * Math.PI * 2;
-          const bx = cx + Math.cos(angle) * (radius * 0.45);
-          const bz = cz + Math.sin(angle) * (radius * 0.45);
-          const bench = new THREE.Group();
-          bench.position.set(bx, 5, bz); bench.rotation.y = -angle;
-          const seat = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 4), benchMat); seat.position.y = 2.5; bench.add(seat);
-          const back = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 0.5), benchMat); back.position.set(0, 4.5, -1.8); bench.add(back);
-          for (const lx of [-5, 5]) {
-            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), benchLegMat); leg.position.set(lx, 1.25, 0); bench.add(leg);
-          }
-          scene.add(bench);
-        }
-      }
-      createPark(-1800, -600, 180);
-      createPark(1200, 1800, 150);
-      createPark(-1500, 1300, 160);
-      createPark(300, -1800, 150);
-      createPark(-900, -1700, 140);
-      createPark(1800, -1500, 160);
-    }
-    addLandscaping();
-
+    /* =====================================================================
+       AI TRAFFIC SYSTEM
+       ===================================================================== */
     const aiSystem = createAITrafficSystem({
       onTrafficUpdate: (data) => {
-        onAITrafficUpdate?.(data);
-        if (data.decisionLog) onAITrafficLog?.(data.decisionLog);
+        setTrafficData(data);
       },
     });
     s.aiSystem = aiSystem;
 
-    const garbageRoute = [
-      [-1200, -1200], [0, -1200], [1200, -1200], [1200, 0], [1200, 1200],
-      [900, 1400], [600, 1800], [600, 2400], [1200, 2400], [2400, 2400],
-      [2400, 1200], [2400, 0], [2400, -1200], [1200, -1200], [0, -1200], [-1200, -1200],
-      [-2400, -1200], [-2400, -2400], [-1200, -2400], [0, -2400],
-      [1200, -2400], [2400, -2400], [3300, -2400], [3300, 0],
-      [3300, 2400], [2400, 2400], [1200, 2400], [0, 1200], [-1200, 0], [-1200, -1200],
-    ];
-    const fertRoute1 = [
-      [1800, -1200], [1200, -1200], [1200, 0], [1200, 1200], [0, 1200],
-      [-1200, 1200], [-2400, 1200], [-2400, 0], [-2400, -1200], [-2400, -2400],
-      [-3600, -2400], [-3600, -3600], [-2400, -3600], [-1200, -3600], [0, -3600],
-      [1200, -3600], [1200, -2400], [1200, -1200], [1800, -1200],
-    ];
-    const fertRoute2 = [
-      [-3600, -3600], [-3600, -2400], [-3600, -1200], [-2400, -1200], [-1200, -1200],
-      [-1200, 0], [-1200, 1200], [-1200, 2400], [-2400, 2400], [-3600, 2400],
-      [-3600, 3600], [-2400, 3600], [-1200, 3600], [0, 3600], [1200, 3600],
-      [1200, 2400], [1200, 1200], [1200, 0], [1200, -1200], [0, -1200],
-      [-1200, -1200], [-2400, -1200], [-3600, -1200], [-3600, -2400], [-3600, -3600],
-    ];
-    const garbageState = { idx: 0, prog: 0 };
-    const fert1State = { idx: 0, prog: 0 };
-    const fert2State = { idx: 0, prog: 0 };
-
-    function moveTruck(truck, route, state, delta, speed) {
-      const from = route[state.idx];
-      const to = route[(state.idx + 1) % route.length];
-      state.prog += delta * speed;
-      if (state.prog >= 1) { state.prog = 0; state.idx = (state.idx + 1) % route.length; }
-      const x = from[0] + (to[0] - from[0]) * state.prog;
-      const z = from[1] + (to[1] - from[1]) * state.prog;
-      truck.position.set(x, CAR_Y, z);
-      const dx = to[0] - from[0], dz = to[1] - from[1];
-      if (Math.abs(dx) + Math.abs(dz) > 0.1) truck.rotation.y = -Math.atan2(dz, dx);
-    }
-
+    /* =====================================================================
+       CLICK HANDLER
+       ===================================================================== */
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     const onClick = (e) => {
-      if (s.isLocked) return;
       if (e.target !== renderer.domElement) return;
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -2117,26 +1032,16 @@ const SmartCity3D = forwardRef((props, ref) => {
       for (const item of clickable) {
         const hit = raycaster.intersectObject(item.object, true);
         if (hit.length) {
-          let title = item.name || "Location";
-          let type = "INFO";
-          let text = "Details available.";
-          if (item.type === "filtrationStage") {
-            const stage = FILTRATION_STAGES[item.stageIndex];
-            const purityAtStage = ((item.stageIndex + 1) / FILTRATION_STAGES.length) * 100;
-            text = `Water purity at this stage: ${Math.round(purityAtStage)}%. Duration: ${stage.duration}s.`;
-            type = `STAGE ${item.stageIndex + 1} OF 9`;
-          }
-          onPanel?.({ title, type, text });
+          showToast(`${item.name}`, "info");
           return;
         }
-      }
-      const ctrlHit = raycaster.intersectObject(controller, true);
-      if (ctrlHit.length) {
-        onPanel?.({ title: "AI Traffic Management Center", type: "INTELLIGENT TRANSPORTATION", text: "Monitors all 4 city entry routes. 24 sensors online. Adaptive 4-phase AI system with emergency priority." });
       }
     };
     renderer.domElement.addEventListener("click", onClick);
 
+    /* =====================================================================
+       ANIMATE LOOP
+       ===================================================================== */
     const clock = new THREE.Clock();
     let fc = 0;
     let rafId;
@@ -2148,9 +1053,16 @@ const SmartCity3D = forwardRef((props, ref) => {
       fc++;
 
       aiSystem.tick(delta);
-      updateCarMovement();
-      updateIntersectionCars(delta, aiSystem);
 
+      // Cars move straight & back
+      for (const c of intersectionCars) {
+        c.pos += c.speed * c.dir * delta;
+        if (c.dir > 0 && c.pos > c.route.max) { c.pos = c.route.max; c.dir = -1; }
+        else if (c.dir < 0 && c.pos < c.route.min) { c.pos = c.route.min; c.dir = 1; }
+        updateStraightCarTransform(c);
+      }
+
+      // Intersection lights
       for (const l of intersectionLights) {
         l.r.material.emissiveIntensity = 0;
         l.y.material.emissiveIntensity = 0;
@@ -2160,197 +1072,80 @@ const SmartCity3D = forwardRef((props, ref) => {
         else l.r.material.emissiveIntensity = 4.5;
       }
 
+      // People
       for (const p of people) {
         p.angle += p.speed * p.dir;
         if (p.angle > Math.PI * 2) p.angle -= Math.PI * 2;
         if (p.angle < 0) p.angle += Math.PI * 2;
         p.obj.position.x = p.cx + Math.cos(p.angle) * p.r;
         p.obj.position.z = p.cz + Math.sin(p.angle) * p.r;
-        p.obj.rotation.y = p.angle + (p.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
         const swing = Math.sin(t * 6 + p.phase) * 0.4;
         p.legL.rotation.x = swing; p.legR.rotation.x = -swing;
-        p.armL.rotation.x = -swing * 0.7; p.armR.rotation.x = swing * 0.7;
       }
 
-      for (const p of tourists) {
-        p.angle += p.speed * p.dir;
-        if (p.angle > Math.PI * 2) p.angle -= Math.PI * 2;
-        if (p.angle < 0) p.angle += Math.PI * 2;
-        p.obj.position.x = p.cx + Math.cos(p.angle) * p.r;
-        p.obj.position.z = p.cz + Math.sin(p.angle) * p.r;
-        p.obj.rotation.y = p.angle + (p.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
-        const swing = Math.sin(t * 6 + p.phase) * 0.5;
-        p.legL.rotation.x = swing; p.legR.rotation.x = -swing;
-        p.armL.rotation.x = -swing * 0.8; p.armR.rotation.x = swing * 0.8;
-      }
-
-      for (const wp of waterParticles) {
-        wp.mesh.position.y += wp.speed * 0.4;
-        if (wp.mesh.position.y > 105) {
-          wp.mesh.position.y = 18;
-          wp.mesh.position.x = (Math.random() - 0.5) * 180;
-          wp.mesh.position.z = (Math.random() - 0.5) * 180;
-        }
-      }
-
-      for (const l of trafficLights) {
-        const cyc = (t + l.phase) % 12;
-        l.r.material.emissiveIntensity = 0;
-        l.y.material.emissiveIntensity = 0;
-        l.gr.material.emissiveIntensity = 0;
-        if (cyc < 5) l.r.material.emissiveIntensity = 4;
-        else if (cyc < 7) l.y.material.emissiveIntensity = 4;
-        else l.gr.material.emissiveIntensity = 4;
-      }
-
-      moveTruck(garbageTruck, garbageRoute, garbageState, delta, 0.015);
-      moveTruck(fertTruck1, fertRoute1, fert1State, delta, 0.013);
-      moveTruck(fertTruck2, fertRoute2, fert2State, delta, 0.012);
-      const blink = Math.floor(t * 2) % 2 === 0 ? 3 : 0.5;
-      if (s.garbageWarn) s.garbageWarn.material.emissiveIntensity = blink;
-      if (s.fertWarn1) s.fertWarn1.material.emissiveIntensity = blink;
-      if (s.fertWarn2) s.fertWarn2.material.emissiveIntensity = blink;
-
+      // Turbines
       if (fc % 3 === 0) for (const bl of turbines) bl.rotation.z = t * 2.4;
 
+      // Radar
       radar.rotation.z = t * 1.7;
       controllerRing.rotation.z = t * 0.5;
-      controllerRing2.rotation.z = -t * 0.4;
       controllerSig.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
 
-      /* FILTRATION ANIMATION */
+      // Filtration stages
       s.filtrationStageElapsed += delta;
-      const currentStage = FILTRATION_STAGES[s.filtrationStageIndex];
-      if (s.filtrationStageElapsed >= currentStage.duration) {
+      const curFilt = FILTRATION_STAGES[s.filtrationStageIndex];
+      if (s.filtrationStageElapsed >= curFilt.duration) {
         s.filtrationStageElapsed = 0;
         s.filtrationStageIndex = (s.filtrationStageIndex + 1) % FILTRATION_STAGES.length;
-        onFiltrationUpdate?.({ stageIndex: s.filtrationStageIndex, stage: FILTRATION_STAGES[s.filtrationStageIndex], allStages: FILTRATION_STAGES, progress: 0 });
-      } else if (fc % 4 === 0) {
-        onFiltrationUpdate?.({ stageIndex: s.filtrationStageIndex, stage: currentStage, allStages: FILTRATION_STAGES, progress: s.filtrationStageElapsed / currentStage.duration });
       }
+      setFiltrationData({
+        stageIndex: s.filtrationStageIndex,
+        stage: FILTRATION_STAGES[s.filtrationStageIndex],
+        allStages: FILTRATION_STAGES,
+        progress: s.filtrationStageElapsed / curFilt.duration,
+      });
 
-      for (let i = 0; i < s.filtrationStageMeshes.length; i++) {
-        const sm = s.filtrationStageMeshes[i];
-        const isActive = i === s.filtrationStageIndex;
-        const isPast = i < s.filtrationStageIndex;
-        if (isActive) {
-          sm.tankBody.material.emissiveIntensity = 1.2 + Math.sin(t * 4) * 0.6;
-          sm.tankCap.material.emissiveIntensity = 1.2 + Math.sin(t * 4) * 0.6;
-          sm.waterFill.material.color.setHex(STAGE_WATER_COLORS[i]);
-          sm.waterFill.material.emissive.setHex(STAGE_WATER_COLORS[i]);
-          sm.waterFill.material.emissiveIntensity = 2.0 + Math.sin(t * 5) * 0.8;
-          const fillH = 30 + Math.sin(t * 2.5) * 10;
-          sm.waterFill.scale.y = fillH;
-          sm.waterFill.position.y = sm.baseY + fillH / 2;
-        } else if (isPast) {
-          sm.tankBody.material.emissiveIntensity = 0.4;
-          sm.tankCap.material.emissiveIntensity = 0.4;
-          sm.waterFill.material.color.setHex(0x22cfff);
-          sm.waterFill.material.emissive.setHex(0x22cfff);
-          sm.waterFill.material.emissiveIntensity = 1.5;
-          sm.waterFill.scale.y = 8;
-          sm.waterFill.position.y = sm.baseY + 4;
-        } else {
-          sm.tankBody.material.emissiveIntensity = 0.25;
-          sm.tankCap.material.emissiveIntensity = 0.25;
-          sm.waterFill.material.color.setHex(0x4a2a1a);
-          sm.waterFill.material.emissive.setHex(0x2a1a0a);
-          sm.waterFill.material.emissiveIntensity = 0.3;
-          sm.waterFill.scale.y = 8;
-          sm.waterFill.position.y = sm.baseY + 4;
-        }
+      // Power stages
+      s.powerStageElapsed += delta;
+      const curPower = POWER_STAGES[s.powerStageIndex];
+      if (s.powerStageElapsed >= curPower.duration) {
+        s.powerStageElapsed = 0;
+        s.powerStageIndex = (s.powerStageIndex + 1) % POWER_STAGES.length;
       }
+      setPowerData({
+        stageIndex: s.powerStageIndex,
+        stage: POWER_STAGES[s.powerStageIndex],
+        allStages: POWER_STAGES,
+        progress: s.powerStageElapsed / curPower.duration,
+      });
 
-      for (const flow of s.filtrationFlowMeshes) {
-        const phase = (t * 0.6 + flow.phase) % 1;
-        const fx = flow.from.x + (flow.to.x - flow.from.x) * phase;
-        const fz = flow.from.z + (flow.to.z - flow.from.z) * phase;
-        flow.dot.position.set(fx, 14, fz);
-        const active = s.filtrationStageIndex >= Math.floor(flow.phase * FILTRATION_STAGES.length);
-        flow.dot.material.emissiveIntensity = active ? 4 : 1;
+      // Food stages
+      s.foodStageElapsed += delta;
+      const curFood = FOOD_STAGES[s.foodStageIndex];
+      if (s.foodStageElapsed >= curFood.duration) {
+        s.foodStageElapsed = 0;
+        s.foodStageIndex = (s.foodStageIndex + 1) % FOOD_STAGES.length;
       }
+      setFoodData({
+        stageIndex: s.foodStageIndex,
+        stage: FOOD_STAGES[s.foodStageIndex],
+        allStages: FOOD_STAGES,
+        progress: s.foodStageElapsed / curFood.duration,
+      });
 
-      for (const stageBubbles of s.filtrationBubbles) {
-        const isActive = stageBubbles.stageIndex === s.filtrationStageIndex;
-        for (const bubble of stageBubbles.bubbles) {
-          bubble.visible = isActive;
-          if (isActive) {
-            bubble.position.y += bubble.userData.speed * delta;
-            if (bubble.position.y > 45) {
-              bubble.position.y = 8;
-              bubble.position.x = bubble.userData.baseX + (Math.random() - 0.5) * 10;
-              bubble.position.z = bubble.userData.baseZ + (Math.random() - 0.5) * 10;
-            }
-          }
-        }
-      }
-
-      const isUVStage = FILTRATION_STAGES[s.filtrationStageIndex]?.id === "uv";
-      if (s.filtrationUVLight) s.filtrationUVLight.intensity = isUVStage ? 4 + Math.sin(t * 8) * 2 : 0;
-      if (s.filtrationUVBulb) s.filtrationUVBulb.material.emissiveIntensity = isUVStage ? 5 + Math.sin(t * 10) * 2 : 0.5;
-      for (const ray of s.filtrationUVRays) {
-        ray.rotation.y += delta * 2;
-        ray.material.opacity = isUVStage ? 0.6 : 0.1;
-      }
-
-      for (const p of s.dirtyWaterParticles) {
-        p.position.x += p.userData.speed * delta;
-        if (p.position.x > -350) { p.position.x = -550; p.position.z = (Math.random() - 0.5) * 10; }
-      }
-      for (const p of s.cleanWaterParticles) {
-        p.position.x += p.userData.speed * delta;
-        if (p.position.x > 550) { p.position.x = 350; p.position.z = (Math.random() - 0.5) * 10; }
-      }
-
-      if (s.filtrationCleanReservoir) {
-        const stageId = FILTRATION_STAGES[s.filtrationStageIndex]?.id;
-        const isFilling = stageId === "storage" || stageId === "recycling";
-        const targetY = isFilling ? 52 : 42;
-        s.filtrationCleanReservoir.resWater.position.y += (targetY - s.filtrationCleanReservoir.resWater.position.y) * Math.min(1, delta * 2);
-        s.filtrationCleanReservoir.resWater.material.emissiveIntensity = isFilling ? 2.2 + Math.sin(t * 4) * 0.6 : 1.2;
-      }
-
-      for (const ring of s.filtrationPumpRings) {
-        const phase = (t * 0.5 + ring.userData.phase) % 2;
-        ring.scale.setScalar(1 + phase * 0.4);
-        ring.material.opacity = Math.max(0, 0.7 - phase * 0.35);
-      }
-
-      /* WASTE ANIMATION */
-      s.wasteStageElapsed += delta;
-      const currentWasteStage = WASTE_STAGES[s.wasteStageIndex];
-      if (s.wasteStageElapsed >= currentWasteStage.duration) {
-        s.wasteStageElapsed = 0;
-        s.wasteStageIndex = (s.wasteStageIndex + 1) % WASTE_STAGES.length;
-        onWasteUpdate?.({ stageIndex: s.wasteStageIndex, stage: WASTE_STAGES[s.wasteStageIndex], allStages: WASTE_STAGES, progress: 0 });
-      } else if (fc % 4 === 0) {
-        onWasteUpdate?.({ stageIndex: s.wasteStageIndex, stage: currentWasteStage, allStages: WASTE_STAGES, progress: s.wasteStageElapsed / currentWasteStage.duration });
-      }
-
-      for (const item of s.wasteConveyorItems) {
+      // Food conveyor items
+      for (const item of s.foodConveyorItems) {
         item.position.x += item.userData.speed * delta * 30;
-        if (item.position.x > item.userData.beltX + 70) item.position.x = item.userData.beltX - 70;
+        if (item.position.x > item.userData.startX + 140) item.position.x = item.userData.startX;
         item.position.y = 18 + Math.sin(t * 5 + item.userData.offset) * 2;
       }
-      for (const gear of s.wasteRecycleGears) gear.rotation.z += delta * 2;
-      if (s.wasteBiogasFlame) {
-        s.wasteBiogasFlame.scale.y = 1 + Math.sin(t * 8) * 0.3;
-        s.wasteBiogasFlame.material.emissiveIntensity = 4 + Math.sin(t * 8) * 2;
-      }
-      if (s.wasteGeneratorCoil) s.wasteGeneratorCoil.rotation.z += delta * 5;
-      for (const steam of s.wasteSteamParticles) {
-        steam.position.y += delta * 5;
-        steam.scale.setScalar(1 + (steam.position.y - 28) * 0.02);
-        steam.material.opacity = Math.max(0, 0.3 - (steam.position.y - 28) * 0.005);
-        if (steam.position.y > 50) { steam.position.y = 28; steam.scale.setScalar(1); steam.material.opacity = 0.3; }
-      }
-      for (const smoke of s.wasteSmokeParticles) {
-        smoke.position.y += delta * 8;
-        smoke.scale.setScalar(1 + (smoke.position.y - 220) * 0.01);
-        smoke.material.opacity = Math.max(0, 0.4 - (smoke.position.y - 220) * 0.003);
-        if (smoke.position.y > 400) { smoke.position.y = 220; smoke.scale.setScalar(1); smoke.material.opacity = 0.4; }
+
+      // Crop bobbing
+      for (let i = 0; i < s.foodCropMeshes.length; i++) {
+        s.foodCropMeshes[i].rotation.y = Math.sin(t * 2 + i) * 0.1;
       }
 
+      // Camera transition
       if (s.camTransition) {
         const now = performance.now();
         const elapsed = now - s.camTransition.startTime;
@@ -2359,12 +1154,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         camera.position.lerpVectors(s.camTransition.startPos, s.camTransition.targetPos, ease);
         controls.target.lerpVectors(s.camTransition.startLook, s.camTransition.targetLook, ease);
         if (tt >= 1) s.camTransition = null;
-      }
-
-      if (s.followTarget) {
-        const target = s.followTarget.position.clone();
-        camera.position.lerp(target.clone().add(new THREE.Vector3(120, 90, 120)), 0.05);
-        controls.target.lerp(target, 0.08);
       }
 
       controls.update();
@@ -2389,298 +1178,293 @@ const SmartCity3D = forwardRef((props, ref) => {
     };
   }, []);
 
-  const formatRecTime = (s) => {
-    const m = Math.floor(s / 60).toString().padStart(2, "0");
-    const sec = (s % 60).toString().padStart(2, "0");
-    return `${m}:${sec}`;
+  const formatRecTime = (sec) => {
+    const m = Math.floor(sec / 60).toString().padStart(2, "0");
+    const s2 = (sec % 60).toString().padStart(2, "0");
+    return `${m}:${s2}`;
   };
 
-  const handleTrafficHUD = (data) => {
-    setTrafficHUD(data);
+  const getRoadSignal = (roadId) => {
+    if (!trafficData) return "red";
+    if (trafficData.inYellow) return trafficData.currentGreenRoads?.includes(roadId) ? "yellow" : "red";
+    if (trafficData.inPedestrian || trafficData.inAllRed) return "ped";
+    return trafficData.currentGreenRoads?.includes(roadId) ? "green" : "red";
   };
 
-  // Wire the traffic HUD callback
-  useEffect(() => {
-    if (!s.aiSystem) {
-      // Will be set after mount; poll until ready
-      const id = setInterval(() => {
-        if (s.aiSystem) clearInterval(id);
-      }, 200);
-      return () => clearInterval(id);
-    }
-  }, [s]);
+  const getSignalColor = (sig) => {
+    if (sig === "green") return "#22ff66";
+    if (sig === "yellow") return "#ffcc22";
+    if (sig === "ped") return "#ffdd57";
+    return "#ff2222";
+  };
 
   return (
     <>
       <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />
 
-      {/* ── RECORDING INDICATOR — top-left ── */}
-      <div style={{
-        position: "fixed",
-        top: 16,
-        left: 16,
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        background: "rgba(5, 10, 18, 0.82)",
-        border: "1px solid rgba(34, 207, 255, 0.35)",
-        borderRadius: 10,
-        padding: "8px 14px",
-        backdropFilter: "blur(10px)",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-      }}>
-        <span style={{
-          width: 10, height: 10, borderRadius: "50%",
-          background: recording ? "#ff3b3b" : "#3bff7a",
-          boxShadow: recording ? "0 0 12px #ff3b3b" : "0 0 8px #3bff7a",
-          animation: recording ? "pulse 1.2s ease-in-out infinite" : "none",
-          display: "inline-block",
-        }} />
-        <span style={{ color: "#cfe9f5", fontSize: 12, fontWeight: 600, letterSpacing: 1 }}>
-          {recording ? "REC" : "LIVE"}
-        </span>
-        <span style={{ color: "#7fe3ff", fontSize: 12, fontVariantNumeric: "tabular-nums", minWidth: 44 }}>
-          {formatRecTime(recTime)}
-        </span>
-        <button
-          onClick={() => { setRecording((r) => !r); if (!recording) setRecTime(0); }}
-          style={{
-            background: recording ? "rgba(255, 59, 59, 0.2)" : "rgba(34, 207, 255, 0.15)",
-            border: `1px solid ${recording ? "rgba(255,80,80,0.6)" : "rgba(34,207,255,0.5)"}`,
-            color: recording ? "#ff6b6b" : "#22cfff",
-            borderRadius: 6,
-            padding: "3px 10px",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: "pointer",
-            letterSpacing: 0.5,
-          }}
-        >
-          {recording ? "STOP" : "REC"}
-        </button>
+      {/* ═════ RECORDING BAR (top-left) ═════ */}
+      <div style={{ position: "fixed", top: 16, left: 16, zIndex: 9999, display: "flex", alignItems: "center", gap: 10, background: "rgba(5, 10, 18, 0.82)", border: "1px solid rgba(34, 207, 255, 0.35)", borderRadius: 10, padding: "8px 14px", backdropFilter: "blur(10px)", fontFamily: "system-ui" }}>
+        <span style={{ width: 10, height: 10, borderRadius: "50%", background: recording ? "#ff3b3b" : "#3bff7a", boxShadow: recording ? "0 0 12px #ff3b3b" : "0 0 8px #3bff7a", animation: recording ? "recPulse 1.2s ease-in-out infinite" : "none" }} />
+        <span style={{ color: "#cfe9f5", fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>{recording ? "REC" : "LIVE"}</span>
+        <span style={{ color: "#7fe3ff", fontSize: 12, fontVariantNumeric: "tabular-nums", minWidth: 44 }}>{formatRecTime(recTime)}</span>
+        <button onClick={handleToggleRecording} style={{ background: recording ? "rgba(255,59,59,0.2)" : "rgba(34,207,255,0.15)", border: `1px solid ${recording ? "rgba(255,80,80,0.6)" : "rgba(34,207,255,0.5)"}`, color: recording ? "#ff6b6b" : "#22cfff", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{recording ? "STOP" : "REC"}</button>
       </div>
 
-      {/* ── AI TRAFFIC HUD — top-right, compact & collapsible ── */}
-      <AITrafficHUD onData={handleTrafficHUD} expanded={hudExpanded} onToggle={() => setHudExpanded((e) => !e)} data={trafficHUD} />
-    </>
-  );
-});
-
-/* =====================================================================
-   COMPACT AI TRAFFIC HUD — small menu for recording, focus on AI status
-   ===================================================================== */
-function AITrafficHUD({ onData, expanded, onToggle, data }) {
-  const [hud, setHud] = useState(null);
-  const [log, setLog] = useState([]);
-  const lastLogRef = useRef([]);
-
-  // Poll from parent-provided data
-  useEffect(() => {
-    if (data) {
-      setHud(data);
-      if (data.decisionLog && data.decisionLog !== lastLogRef.current) {
-        lastLogRef.current = data.decisionLog;
-        setLog(data.decisionLog.slice(0, 5));
-      }
-    }
-  }, [data]);
-
-  const stat = hud?.stats || {};
-
-  return (
-    <div style={{
-      position: "fixed",
-      top: 16,
-      right: 16,
-      zIndex: 9999,
-      width: expanded ? 300 : 150,
-      fontFamily: "system-ui, -apple-system, sans-serif",
-      transition: "width 0.35s cubic-bezier(0.4,0,0.2,1)",
-    }}>
-      {/* Header bar */}
-      <div
-        onClick={onToggle}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "rgba(5, 10, 18, 0.88)",
-          border: "1px solid rgba(34, 207, 255, 0.4)",
-          borderRadius: expanded ? "10px 10px 0 0" : 10,
-          padding: "8px 12px",
-          cursor: "pointer",
-          backdropFilter: "blur(10px)",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 16 }}>🤖</span>
-          <span style={{ color: "#22cfff", fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>AI TRAFFIC</span>
-          {stat.emergencyMode && (
-            <span style={{
-              background: "rgba(255,50,50,0.9)",
-              color: "#fff",
-              fontSize: 9,
-              fontWeight: 800,
-              padding: "2px 6px",
-              borderRadius: 4,
-              animation: "pulse 0.8s ease-in-out infinite",
-              letterSpacing: 0.5,
-            }}>EMERGENCY</span>
-          )}
-        </div>
-        <span style={{ color: "#7fe3ff", fontSize: 14, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.3s" }}>
-          ▾
-        </span>
+      {/* ═════ SYSTEM BUTTONS (top-center) — 4 systems ═════ */}
+      <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 9999, display: "flex", gap: 8, fontFamily: "system-ui" }}>
+        <SystemBtn label="🚦 TRAFFIC" active={showTraffic} onClick={() => setShowTraffic(v => !v)} color="#22cfff" />
+        <SystemBtn label="⚡ POWER" active={showPower} onClick={() => setShowPower(v => !v)} color="#ffcc22" />
+        <SystemBtn label="💧 WATER" active={showFiltration} onClick={() => setShowFiltration(v => !v)} color="#22cfff" />
+        <SystemBtn label="🍎 FOOD" active={showFood} onClick={() => setShowFood(v => !v)} color="#2ecc71" />
       </div>
 
-      {/* Collapsible body */}
-      <div style={{
-        maxHeight: expanded ? 620 : 0,
-        overflow: "hidden",
-        transition: "max-height 0.4s cubic-bezier(0.4,0,0.2,1)",
-      }}>
-        <div style={{
-          background: "rgba(5, 12, 22, 0.92)",
-          border: "1px solid rgba(34, 207, 255, 0.3)",
-          borderTop: "none",
-          borderRadius: "0 0 10px 10px",
-          padding: 12,
-          backdropFilter: "blur(12px)",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-        }}>
+      {/* ═════ AI TRAFFIC PANEL (left) ═════ */}
+      {showTraffic && trafficData && (
+        <div style={{ position: "fixed", top: 80, left: 16, zIndex: 9998, width: 300, background: "rgba(5, 12, 22, 0.92)", border: "1px solid rgba(34, 207, 255, 0.4)", borderRadius: 12, padding: 14, backdropFilter: "blur(12px)", fontFamily: "system-ui", color: "#e8f7ff", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+          <CloseBtn onClick={() => setShowTraffic(false)} />
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#22cfff", letterSpacing: 1, marginBottom: 10, paddingRight: 24 }}>🤖 AI TRAFFIC CONTROL</div>
 
-          {/* Phase label + progress */}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-              <span style={{ color: "#b8e8ff", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>CURRENT PHASE</span>
-              <span style={{ color: "#22cfff", fontSize: 11, fontWeight: 700 }}>
-                {hud?.phase ? `PHASE ${hud.phase}/4` : "—"}
-              </span>
-            </div>
-            <div style={{
-              background: "rgba(34, 207, 255, 0.08)",
-              border: "1px solid rgba(34, 207, 255, 0.25)",
-              borderRadius: 6,
-              padding: "6px 10px",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              textAlign: "center",
-              marginBottom: 6,
-            }}>
-              {stat.currentPhaseLabel || "Initializing…"}
-            </div>
-            {/* Progress bar */}
-            <div style={{ height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
-              <div style={{
-                height: "100%",
-                width: `${Math.min(100, (hud?.phaseProgress || 0) * 100)}%`,
-                background: hud?.inYellow ? "#ffcc22" : hud?.inAllRed ? "#ff4444" : hud?.inPedestrian ? "#ffdd57" : "#22cfff",
-                transition: "width 0.2s linear",
-                boxShadow: "0 0 8px rgba(34,207,255,0.6)",
-              }} />
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-              <span style={{ color: "#7fe3ff", fontSize: 9 }}>
-                {hud?.inYellow ? "⚠️ YELLOW" : hud?.inAllRed ? "⛔ ALL RED" : hud?.inPedestrian ? "🚶 WALK" : "🟢 GREEN"}
-              </span>
-              <span style={{ color: "#7fe3ff", fontSize: 9, fontVariantNumeric: "tabular-nums" }}>
-                {stat.phaseTimeRemaining?.toFixed(1) || "0.0"}s
-              </span>
+          <div style={{ background: "rgba(34,207,255,0.08)", border: "1px solid rgba(34,207,255,0.25)", borderRadius: 6, padding: "8px 10px", textAlign: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{trafficData.phaseLabel || "—"}</div>
+            <div style={{ marginTop: 6, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(trafficData.phaseProgress || 0) * 100}%`, background: trafficData.inYellow ? "#ffcc22" : trafficData.inAllRed ? "#ff4444" : trafficData.inPedestrian ? "#ffdd57" : "#22cfff", transition: "width 0.2s linear" }} />
             </div>
           </div>
 
-          {/* Stats grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 10 }}>
-            <HUDStat label="🚗 Moving" value={stat.vehiclesMoving ?? "—"} color="#3bff7a" />
-            <HUDStat label="⏳ Waiting" value={stat.vehiclesWaiting ?? "—"} color="#ffcc22" />
-            <HUDStat label="📊 Density" value={stat.density ?? "—"} color="#22cfff" />
-            <HUDStat label="⏱️ Avg Wait" value={stat.avgWaitTime ? `${stat.avgWaitTime}s` : "—"} color="#b266ff" />
-            <HUDStat label="📈 Throughput" value={stat.throughput ? `${stat.throughput}/h` : "—"} color="#3bff7a" />
-            <HUDStat label="🧠 AI Conf" value={stat.aiConfidence ? `${stat.aiConfidence}%` : "—"} color="#22cfff" />
-          </div>
-
-          {/* Road queue bars */}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ color: "#b8e8ff", fontSize: 10, fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>ROAD QUEUES</div>
-            {[1, 2, 3, 4].map((r) => {
-              const q = hud?.roadQueues?.[r] || 0;
-              const pct = Math.min(100, (q / 25) * 100);
-              const isGreen = hud?.currentGreenRoads?.includes(r);
+          {/* Road signals */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+            {[1, 2, 3, 4].map(r => {
+              const sig = getRoadSignal(r);
+              const col = getSignalColor(sig);
               return (
-                <div key={r} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <span style={{ color: isGreen ? "#3bff7a" : "#ff6b6b", fontSize: 10, width: 46, fontWeight: 600 }}>
-                    {isGreen ? "🟢" : "🔴"} R{r}
-                  </span>
-                  <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{
-                      height: "100%",
-                      width: `${pct}%`,
-                      background: pct > 70 ? "#ff4444" : pct > 40 ? "#ffcc22" : "#3bff7a",
-                      transition: "width 0.3s ease",
-                    }} />
-                  </div>
-                  <span style={{ color: "#7fe3ff", fontSize: 9, width: 22, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                    {Math.round(q)}
-                  </span>
+                <div key={r} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: `1px solid ${col}40`, borderRadius: 5, padding: "6px 4px", textAlign: "center" }}>
+                  <div style={{ fontSize: 9, color: "#8fd8f0", marginBottom: 3 }}>R{r}</div>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: col, boxShadow: `0 0 10px ${col}`, margin: "0 auto" }} />
                 </div>
               );
             })}
           </div>
 
-          {/* AI Decision Log */}
-          <div>
-            <div style={{ color: "#b8e8ff", fontSize: 10, fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>
-              🧠 AI DECISION LOG
-            </div>
-            <div style={{ maxHeight: 110, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
-              {log.length === 0 && (
-                <span style={{ color: "#4a6a7a", fontSize: 10, fontStyle: "italic" }}>Monitoring…</span>
-              )}
-              {log.map((entry, i) => (
-                <div key={i} style={{
-                  fontSize: 10,
-                  color: entry.type === "emergency" ? "#ff6b6b" : entry.type === "adaptive" ? "#ffcc22" : entry.type === "pedestrian" ? "#ffdd57" : "#7fe3ff",
-                  background: "rgba(255,255,255,0.03)",
-                  borderLeft: `2px solid ${entry.type === "emergency" ? "#ff4444" : entry.type === "adaptive" ? "#ffcc22" : "#22cfff"}`,
-                  padding: "3px 6px",
-                  borderRadius: "0 4px 4px 0",
-                  lineHeight: 1.3,
-                }}>
-                  {entry.message}
+          {/* Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 10 }}>
+            <StatBox label="Moving" value={trafficData.stats?.vehiclesMoving ?? 0} color="#3bff7a" />
+            <StatBox label="Waiting" value={trafficData.stats?.vehiclesWaiting ?? 0} color="#ffcc22" />
+            <StatBox label="Density" value={trafficData.stats?.density ?? "—"} color="#22cfff" />
+            <StatBox label="AI Conf" value={`${trafficData.stats?.aiConfidence ?? 0}%`} color="#b266ff" />
+          </div>
+
+          {/* Queue bars */}
+          <div style={{ fontSize: 10, color: "#b8e8ff", fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>ROAD QUEUES</div>
+          {[1, 2, 3, 4].map(r => {
+            const q = trafficData.roadQueues?.[r] || 0;
+            const pct = Math.min(100, (q / 25) * 100);
+            const isGreen = trafficData.currentGreenRoads?.includes(r);
+            return (
+              <div key={r} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                <span style={{ color: isGreen ? "#3bff7a" : "#ff6b6b", fontSize: 10, width: 32 }}>{isGreen ? "🟢" : "🔴"} R{r}</span>
+                <div style={{ flex: 1, height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: pct > 70 ? "#ff4444" : pct > 40 ? "#ffcc22" : "#3bff7a", transition: "width 0.3s" }} />
                 </div>
-              ))}
-            </div>
+              </div>
+            );
+          })}
+
+          {/* Decision log */}
+          <div style={{ fontSize: 10, color: "#b8e8ff", fontWeight: 700, letterSpacing: 1, marginTop: 8, marginBottom: 5 }}>🧠 AI LOG</div>
+          <div style={{ maxHeight: 90, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
+            {(trafficData.decisionLog || []).slice(0, 5).map((e, i) => (
+              <div key={i} style={{ fontSize: 10, color: e.type === "emergency" ? "#ff6b6b" : e.type === "adaptive" ? "#ffcc22" : "#7fe3ff", background: "rgba(255,255,255,0.03)", borderLeft: `2px solid ${e.type === "emergency" ? "#ff4444" : e.type === "adaptive" ? "#ffcc22" : "#22cfff"}`, padding: "3px 6px", borderRadius: "0 4px 4px 0" }}>{e.message}</div>
+            ))}
           </div>
         </div>
+      )}
+
+      {/* ═════ POWER PANEL ═════ */}
+      {showPower && (
+        <SystemPanel
+          title="⚡ POWER SUPPLY"
+          color="#ffcc22"
+          data={powerData}
+          onClose={() => setShowPower(false)}
+          right={true}
+          extraStats={[
+            ["☀️ Solar", "42 MW"],
+            ["💨 Wind", "28 MW"],
+            ["🔋 Batteries", "78%"],
+            ["⚡ Total Output", "70 MW"],
+          ]}
+        />
+      )}
+
+      {/* ═════ FILTRATION PANEL ═════ */}
+      {showFiltration && (
+        <SystemPanel
+          title="💧 WATER FILTRATION"
+          color="#22cfff"
+          data={filtrationData}
+          onClose={() => setShowFiltration(false)}
+          right={false}
+          extraStats={[
+            ["💧 Processed", "12M L/day"],
+            ["🧪 Purity", "99.7%"],
+            ["🔬 Sensors", "24 active"],
+            ["♻️ Recycle", "82%"],
+          ]}
+        />
+      )}
+
+      {/* ═════ FOOD PANEL ═════ */}
+      {showFood && (
+        <SystemPanel
+          title="🍎 FOOD PRODUCTION"
+          color="#2ecc71"
+          data={foodData}
+          onClose={() => setShowFood(false)}
+          right={true}
+          extraStats={[
+            ["🌾 Crops", "9 fields"],
+            ["🚚 Deliveries", "48/day"],
+            ["🍎 Quality", "98%"],
+            ["🤖 AI Mode", "Active"],
+          ]}
+        />
+      )}
+
+      {/* ═════ BOTTOM-RIGHT CONTROL CLUSTER ═════ */}
+      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, display: "flex", flexDirection: "column", gap: 8 }}>
+        <CtrlBtn icon="🏠" title="Overview" onClick={() => smoothCameraTo(new THREE.Vector3(1400, 950, 1400), new THREE.Vector3(0, 5, 0), 1500)} />
+        <CtrlBtn icon="🛰" title="Top-Down" onClick={() => smoothCameraTo(new THREE.Vector3(0, 2800, 500), new THREE.Vector3(0, 0, 0), 1500)} />
+        <CtrlBtn icon={isNight ? "🌙" : "☀"} title="Day / Night" active={isNight} onClick={() => { const n = !isNight; setIsNight(n); setDayNight(n); }} />
       </div>
 
+      {/* ═════ BOTTOM-LEFT STATUS LINE ═════ */}
+      <div style={{ position: "fixed", bottom: 24, left: 24, zIndex: 9998, display: "flex", alignItems: "center", gap: 8, background: "rgba(5, 10, 18, 0.78)", border: "1px solid rgba(34, 207, 255, 0.25)", borderRadius: 999, padding: "6px 14px", backdropFilter: "blur(10px)", fontFamily: "system-ui", fontSize: 11, color: "#b8e8ff" }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: getSignalColor(getRoadSignal(1)), boxShadow: `0 0 8px ${getSignalColor(getRoadSignal(1))}` }} />
+        <span style={{ fontWeight: 700, color: "#e8f7ff" }}>{trafficData?.phaseLabel || "AI MONITORING"}</span>
+      </div>
+
+      {/* ═════ TOAST ═════ */}
+      {toast && (
+        <div key={toastKey} style={{ position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)", zIndex: 10000, background: "rgba(8, 20, 35, 0.95)", border: "1.5px solid #22cfff", borderRadius: 10, padding: "10px 18px", color: "#e8f7ff", fontFamily: "system-ui", fontSize: 12, fontWeight: 600, boxShadow: "0 0 30px rgba(34, 207, 255, 0.45)", backdropFilter: "blur(12px)", maxWidth: 460, textAlign: "center", animation: "toastUp 0.3s ease-out" }}>
+          {toast.msg}
+        </div>
+      )}
+
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
+        @keyframes recPulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        @keyframes toastUp { from{opacity:0;transform:translateX(-50%) translateY(16px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
       `}</style>
+    </>
+  );
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   SMALL UI COMPONENTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+function CloseBtn({ onClick }) {
+  return (
+    <button onClick={onClick} title="Close" style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: "50%", background: "rgba(255, 60, 60, 0.15)", border: "1px solid rgba(255, 100, 100, 0.5)", color: "#ff8a8a", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+  );
+}
+
+function SystemBtn({ label, active, onClick, color }) {
+  return (
+    <button onClick={onClick} style={{ padding: "8px 14px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5, borderRadius: 8, cursor: "pointer", background: active ? `${color}25` : "rgba(5, 12, 22, 0.8)", border: `1.5px solid ${active ? color : "rgba(255,255,255,0.15)"}`, color: active ? color : "#7fe3ff", boxShadow: active ? `0 0 14px ${color}80` : "none", transition: "all 0.2s", backdropFilter: "blur(10px)" }}>{label}</button>
+  );
+}
+
+function CtrlBtn({ icon, title, onClick, active }) {
+  return (
+    <button onClick={onClick} title={title} style={{ width: 44, height: 44, borderRadius: "50%", background: active ? "rgba(255,204,34,0.2)" : "rgba(5, 12, 22, 0.85)", border: `1px solid ${active ? "#ffcc22" : "rgba(34, 207, 255, 0.35)"}`, color: "#fff", fontSize: 18, cursor: "pointer", backdropFilter: "blur(10px)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</button>
+  );
+}
+
+function StatBox({ label, value, color }) {
+  return (
+    <div style={{ background: "rgba(34,207,255,0.06)", border: "1px solid rgba(34,207,255,0.18)", borderRadius: 5, padding: "5px 7px" }}>
+      <div style={{ color: "#8fd8f0", fontSize: 9 }}>{label}</div>
+      <div style={{ color, fontSize: 12, fontWeight: 700 }}>{value}</div>
     </div>
   );
 }
 
-function HUDStat({ label, value, color }) {
+/* Generic panel for POWER / FILTRATION / FOOD */
+function SystemPanel({ title, color, data, onClose, right, extraStats = [] }) {
+  if (!data?.stage) return null;
+  const stages = data.allStages || [];
+  const progress = data.progress || 0;
+  const pct = ((data.stageIndex + progress) / stages.length) * 100;
+
   return (
     <div style={{
-      background: "rgba(34, 207, 255, 0.06)",
-      border: "1px solid rgba(34, 207, 255, 0.18)",
-      borderRadius: 5,
-      padding: "5px 7px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 1,
+      position: "fixed",
+      top: 80,
+      [right ? "right" : "left"]: 16,
+      zIndex: 9998,
+      width: 300,
+      background: "rgba(5, 12, 22, 0.92)",
+      border: `1px solid ${color}66`,
+      borderRadius: 12,
+      padding: 14,
+      backdropFilter: "blur(12px)",
+      fontFamily: "system-ui",
+      color: "#e8f7ff",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
     }}>
-      <span style={{ color: "#8fd8f0", fontSize: 9, letterSpacing: 0.3 }}>{label}</span>
-      <span style={{ color, fontSize: 12, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+      <CloseBtn onClick={onClose} />
+
+      <div style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: 1, marginBottom: 10, paddingRight: 24 }}>{title}</div>
+
+      <div style={{ fontSize: 10, color: "#b8e8ff", fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>CURRENT STAGE</div>
+      <div style={{ background: `${color}15`, border: `1px solid ${color}40`, borderRadius: 6, padding: "8px 10px", textAlign: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{data.stage.label}</div>
+      </div>
+
+      {/* Overall progress */}
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#b8e8ff", marginBottom: 4 }}>
+        <span>Overall</span>
+        <span style={{ color, fontWeight: 700 }}>{Math.round(pct)}%</span>
+      </div>
+      <div style={{ height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden", marginBottom: 10 }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: color, transition: "width 0.3s", boxShadow: `0 0 8px ${color}` }} />
+      </div>
+
+      {/* Stage progress */}
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#b8e8ff", marginBottom: 4 }}>
+        <span>Stage Progress</span>
+        <span>{Math.round(progress * 100)}%</span>
+      </div>
+      <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginBottom: 10 }}>
+        <div style={{ height: "100%", width: `${progress * 100}%`, background: "#fff", opacity: 0.7 }} />
+      </div>
+
+      {/* Extra stats */}
+      {extraStats.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 10 }}>
+          {extraStats.map(([l, v], i) => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}25`, borderRadius: 5, padding: "5px 7px" }}>
+              <div style={{ fontSize: 9, color: "#8fd8f0" }}>{l}</div>
+              <div style={{ fontSize: 11, color, fontWeight: 700 }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Stages list */}
+      <div style={{ fontSize: 10, color: "#b8e8ff", fontWeight: 700, letterSpacing: 1, marginBottom: 5 }}>PIPELINE</div>
+      <div style={{ maxHeight: 130, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
+        {stages.map((st, i) => {
+          const done = i < data.stageIndex;
+          const active = i === data.stageIndex;
+          return (
+            <div key={st.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", borderRadius: 5, background: active ? `${color}20` : "rgba(255,255,255,0.02)", border: `1px solid ${active ? color : "rgba(255,255,255,0.05)"}`, fontSize: 10, color: active ? "#fff" : done ? "#7fe3ff" : "#4a6a7a" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: done ? "#3bff7a" : active ? color : "#4a6a7a", boxShadow: active ? `0 0 8px ${color}` : "none" }} />
+              <span style={{ fontWeight: active ? 700 : 500 }}>{st.label}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
