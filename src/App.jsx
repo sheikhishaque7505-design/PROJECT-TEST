@@ -22,7 +22,7 @@ export default function App() {
     phase: 1, inYellow: false, inPedestrian: false, inAllRed: false,
     currentGreenRoads: [1, 2], currentRedRoads: [3, 4],
     phaseProgress: 0, phaseLabel: "Initializing…",
-    stats: { vehiclesDetected: 80, vehiclesMoving: 40, vehiclesWaiting: 40, density: "HIGH", aiConfidence: 94 },
+    stats: { vehiclesDetected: 80, vehiclesMoving: 40, vehiclesWaiting: 40, density: "HIGH" },
     roadQueues: { 1: 0, 2: 0, 3: 0, 4: 0 },
     decisionLog: [],
   });
@@ -30,7 +30,6 @@ export default function App() {
   const [powerData, setPowerData] = useState(null);
   const [filtrationData, setFiltrationData] = useState(null);
   const [foodData, setFoodData] = useState(null);
-  const [simTime, setSimTime] = useState("00:00");
 
   const cityRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -50,18 +49,6 @@ export default function App() {
       }
     }, 200);
     return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const hh = String(now.getUTCHours()).padStart(2, "0");
-      const mm = String(now.getUTCMinutes()).padStart(2, "0");
-      setSimTime(`${hh}:${mm}`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
   }, []);
 
   const handleToggleRecording = () => {
@@ -144,7 +131,7 @@ export default function App() {
   const handleViewLiveTraffic = () => {
     setMenuOpen(false);
     setLiveTrafficMode(true);
-    setCamIndicator({ text: "🔴 LIVE TRAFFIC — MONITORING" });
+    setCamIndicator({ text: "🔴 LIVE TRAFFIC" });
     cityRef.current?.goToLiveTraffic?.();
   };
 
@@ -154,71 +141,58 @@ export default function App() {
     cityRef.current?.goToOverview?.();
   };
 
-  const handleAITrafficUpdate = useCallback((data) => setAiTraffic(data), []);
-  const handlePowerUpdate = useCallback((data) => setPowerData(data), []);
-  const handleFiltrationUpdate = useCallback((data) => setFiltrationData(data), []);
-  const handleFoodUpdate = useCallback((data) => setFoodData(data), []);
-
   const formatRecTime = (s) => {
     const m = Math.floor(s / 60).toString().padStart(2, "0");
     const sec = (s % 60).toString().padStart(2, "0");
     return `${m}:${sec}`;
   };
 
-  const getRoadSignal = (roadId) => {
+  const getRoadSignal = (r) => {
     if (aiTraffic.inPedestrian || aiTraffic.inAllRed) return "ped";
-    if (aiTraffic.inYellow) return aiTraffic.currentGreenRoads?.includes(roadId) ? "yellow" : "red";
-    return aiTraffic.currentGreenRoads?.includes(roadId) ? "green" : "red";
+    if (aiTraffic.inYellow) return aiTraffic.currentGreenRoads?.includes(r) ? "yellow" : "red";
+    return aiTraffic.currentGreenRoads?.includes(r) ? "green" : "red";
   };
-
-  const getSignalColor = (s) => {
-    if (s === "green") return "#22ff66";
-    if (s === "yellow") return "#ffcc22";
-    if (s === "ped") return "#ffdd57";
-    return "#ff2222";
-  };
+  const getSignalColor = (s) => s === "green" ? "#22ff66" : s === "yellow" ? "#ffcc22" : s === "ped" ? "#ffdd57" : "#ff2222";
 
   return (
     <div className="app-root">
       <SmartCity3D
         ref={cityRef}
         onPanel={setPanel}
-        onAITrafficUpdate={handleAITrafficUpdate}
-        onPowerUpdate={handlePowerUpdate}
-        onFiltrationUpdate={handleFiltrationUpdate}
-        onFoodUpdate={handleFoodUpdate}
+        onAITrafficUpdate={setAiTraffic}
+        onPowerUpdate={setPowerData}
+        onFiltrationUpdate={setFiltrationData}
+        onFoodUpdate={setFoodData}
       />
 
-      {/* ═════ BRAND ═════ */}
+      {/* BRAND */}
       <div className="ui-brand">
         <div className="title">BSS WORLD</div>
-        <div className="sub">3D SMART CITY • AI CONTROL</div>
+        <div className="sub">3D SMART CITY</div>
       </div>
 
-      {/* ═════ RECORDING BAR (top-left) ═════ */}
-      <div className="rec-bar">
-        <span className={`rec-dot ${recording ? "on" : "off"}`} />
-        <span className="rec-label">{recording ? "REC" : "LIVE"}</span>
-        <span className="rec-time">{formatRecTime(recTime)}</span>
-        <button className={`rec-btn ${recording ? "stop" : ""}`} onClick={handleToggleRecording}>
-          {recording ? "STOP" : "REC"}
-        </button>
+      {/* RECORDING BAR */}
+      <div style={{ position: "fixed", top: 16, left: 16, zIndex: 9999, display: "flex", alignItems: "center", gap: 10, background: "rgba(5,10,18,0.85)", border: "1px solid rgba(34,207,255,0.4)", borderRadius: 10, padding: "8px 14px", fontFamily: "system-ui" }}>
+        <span style={{ width: 10, height: 10, borderRadius: "50%", background: recording ? "#ff3b3b" : "#3bff7a", boxShadow: recording ? "0 0 12px #ff3b3b" : "0 0 8px #3bff7a" }} />
+        <span style={{ color: "#cfe9f5", fontSize: 12, fontWeight: 700 }}>{recording ? "REC" : "LIVE"}</span>
+        <span style={{ color: "#7fe3ff", fontSize: 12, fontVariantNumeric: "tabular-nums", minWidth: 44 }}>{formatRecTime(recTime)}</span>
+        <button onClick={handleToggleRecording} style={{ background: recording ? "rgba(255,59,59,0.2)" : "rgba(34,207,255,0.15)", border: `1px solid ${recording ? "rgba(255,80,80,0.6)" : "rgba(34,207,255,0.5)"}`, color: recording ? "#ff6b6b" : "#22cfff", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{recording ? "STOP" : "REC"}</button>
       </div>
 
-      {/* ═════ SYSTEM BUTTONS (top-center) ═════ */}
-      <div className="sys-btns">
-        <SystemBtn label="🚦 TRAFFIC" active={showTraffic} onClick={() => setShowTraffic(v => !v)} color="#22cfff" />
-        <SystemBtn label="⚡ POWER" active={showPower} onClick={() => setShowPower(v => !v)} color="#ffcc22" />
-        <SystemBtn label="💧 WATER" active={showFiltration} onClick={() => setShowFiltration(v => !v)} color="#22cfff" />
-        <SystemBtn label="🍎 FOOD" active={showFood} onClick={() => setShowFood(v => !v)} color="#2ecc71" />
+      {/* SYSTEM BUTTONS */}
+      <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 9999, display: "flex", gap: 8, fontFamily: "system-ui" }}>
+        <SysBtn label="🚦 TRAFFIC" active={showTraffic} onClick={() => setShowTraffic(v => !v)} color="#22cfff" />
+        <SysBtn label="⚡ POWER" active={showPower} onClick={() => setShowPower(v => !v)} color="#ffcc22" />
+        <SysBtn label="💧 WATER" active={showFiltration} onClick={() => setShowFiltration(v => !v)} color="#22cfff" />
+        <SysBtn label="🍎 FOOD" active={showFood} onClick={() => setShowFood(v => !v)} color="#2ecc71" />
       </div>
 
-      {/* ═════ DAY / NIGHT ═════ */}
+      {/* DAY/NIGHT */}
       <button className={`day-night-btn ${isNight ? "night" : ""}`} onClick={handleToggleDayNight}>
         {isNight ? "🌙 NIGHT" : "☀ DAY"}
       </button>
 
-      {/* ═════ LIVE TRAFFIC BTN ═════ */}
+      {/* LIVE TRAFFIC */}
       {!liveTrafficMode && (
         <button className="live-traffic-btn" onClick={handleViewLiveTraffic}>
           <span className="live-dot"></span>
@@ -226,12 +200,10 @@ export default function App() {
         </button>
       )}
       {liveTrafficMode && (
-        <button className="back-to-city-btn" onClick={handleBackToCity}>
-          ← BACK TO CITY
-        </button>
+        <button className="back-to-city-btn" onClick={handleBackToCity}>← BACK</button>
       )}
 
-      {/* ═════ CAMERA INDICATOR ═════ */}
+      {/* CAMERA INDICATOR */}
       {camIndicator && !liveTrafficMode && (
         <div className="cam-indicator show">
           <span className="rec"></span>
@@ -240,35 +212,17 @@ export default function App() {
         </div>
       )}
 
-      {/* ═════ AI TRAFFIC PANEL ═════ */}
+      {/* TRAFFIC PANEL */}
       {showTraffic && !liveTrafficMode && (
         <div className="filtration-panel" style={{ right: "auto", left: 24 }}>
-          <button className="close-x-btn" onClick={() => setShowTraffic(false)} title="Close">✕</button>
-          <div className="fp-title">🤖 AI TRAFFIC CONTROL</div>
+          <button className="close-x-btn" onClick={() => setShowTraffic(false)}>✕</button>
+          <div className="fp-title">🤖 AI TRAFFIC</div>
           <div className="fp-stage-label">CURRENT PHASE</div>
           <div className="fp-stage-name">{aiTraffic.phaseLabel || "—"}</div>
-
-          <div className="fp-meter-row">
-            <span>Phase Progress</span>
-            <span>{Math.round((aiTraffic.phaseProgress || 0) * 100)}%</span>
-          </div>
-          <div className="fp-meter">
-            <div className="fp-meter-fill" style={{ width: `${(aiTraffic.phaseProgress || 0) * 100}%`, background: "#22cfff" }} />
-          </div>
-
-          <div className="fp-meter-row" style={{ marginTop: 10 }}>
-            <span>Moving Vehicles</span>
-            <span style={{ color: "#3bff7a", fontWeight: 700 }}>{aiTraffic.stats?.vehiclesMoving ?? 0}</span>
-          </div>
-          <div className="fp-meter-row">
-            <span>Waiting</span>
-            <span style={{ color: "#ffcc22", fontWeight: 700 }}>{aiTraffic.stats?.vehiclesWaiting ?? 0}</span>
-          </div>
-          <div className="fp-meter-row">
-            <span>Density</span>
-            <span style={{ color: "#22cfff", fontWeight: 700 }}>{aiTraffic.stats?.density ?? "—"}</span>
-          </div>
-
+          <div className="fp-meter-row"><span>Progress</span><span>{Math.round((aiTraffic.phaseProgress || 0) * 100)}%</span></div>
+          <div className="fp-meter"><div className="fp-meter-fill" style={{ width: `${(aiTraffic.phaseProgress || 0) * 100}%`, background: "#22cfff" }} /></div>
+          <div className="fp-meter-row" style={{ marginTop: 8 }}><span>Moving</span><span style={{ color: "#3bff7a", fontWeight: 700 }}>{aiTraffic.stats?.vehiclesMoving ?? 0}</span></div>
+          <div className="fp-meter-row"><span>Waiting</span><span style={{ color: "#ffcc22", fontWeight: 700 }}>{aiTraffic.stats?.vehiclesWaiting ?? 0}</span></div>
           <div className="fp-stages-list" style={{ marginTop: 10 }}>
             {[1, 2, 3, 4].map(r => {
               const sig = getRoadSignal(r);
@@ -281,44 +235,27 @@ export default function App() {
               );
             })}
           </div>
-
-          {(aiTraffic.decisionLog || []).length > 0 && (
-            <>
-              <div className="fp-stage-label" style={{ marginTop: 10 }}>🧠 AI DECISION LOG</div>
-              <div style={{ maxHeight: 100, overflowY: "auto", fontSize: 10 }}>
-                {aiTraffic.decisionLog.slice(0, 4).map((e, i) => (
-                  <div key={i} style={{ color: e.type === "emergency" ? "#ff6b6b" : e.type === "adaptive" ? "#ffcc22" : "#7fe3ff", padding: "3px 6px", borderLeft: `2px solid ${e.type === "emergency" ? "#ff4444" : "#22cfff"}`, marginBottom: 2 }}>
-                    {e.message}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </div>
       )}
 
-      {/* ═════ POWER PANEL ═════ */}
+      {/* SYSTEM PANELS */}
       {showPower && powerData?.stage && !liveTrafficMode && (
-        <SystemPanel title="⚡ POWER SUPPLY" color="#ffcc22" data={powerData} onClose={() => setShowPower(false)}
-          extraStats={[["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]]} />
+        <SysPanel title="⚡ POWER SUPPLY" color="#ffcc22" data={powerData} onClose={() => setShowPower(false)}
+          extras={[["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]]} />
       )}
-
-      {/* ═════ FILTRATION PANEL ═════ */}
       {showFiltration && filtrationData?.stage && !liveTrafficMode && (
-        <SystemPanel title="💧 WATER FILTRATION" color="#22cfff" data={filtrationData} onClose={() => setShowFiltration(false)} left
-          extraStats={[["💧 Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24"], ["♻️ Recycle", "82%"]]} />
+        <SysPanel title="💧 WATER FILTRATION" color="#22cfff" data={filtrationData} onClose={() => setShowFiltration(false)} left
+          extras={[["💧 Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24"], ["♻️ Recycle", "82%"]]} />
       )}
-
-      {/* ═════ FOOD PANEL ═════ */}
       {showFood && foodData?.stage && !liveTrafficMode && (
-        <SystemPanel title="🍎 FOOD PRODUCTION" color="#2ecc71" data={foodData} onClose={() => setShowFood(false)}
-          extraStats={[["🌾 Crops", "9 fields"], ["🚚 Deliveries", "48/day"], ["🍎 Quality", "98%"], ["🤖 AI", "Active"]]} />
+        <SysPanel title="🍎 FOOD PRODUCTION" color="#2ecc71" data={foodData} onClose={() => setShowFood(false)}
+          extras={[["🌾 Crops", "9 fields"], ["🚚 Deliveries", "48/day"], ["🍎 Quality", "98%"], ["🤖 AI", "Active"]]} />
       )}
 
-      {/* ═════ LIVE TRAFFIC PANEL ═════ */}
+      {/* LIVE TRAFFIC PANEL */}
       {liveTrafficMode && (
         <div className="live-traffic-panel">
-          <button className="close-x-btn" onClick={handleBackToCity} title="Close">✕</button>
+          <button className="close-x-btn" onClick={handleBackToCity}>✕</button>
           <div className="ltp-header">
             <div className="ai-dot"></div>
             <div>
@@ -340,16 +277,10 @@ export default function App() {
               );
             })}
           </div>
-          <div className="ltp-phase-bar">
-            <div className="ltp-phase-label">{aiTraffic.phaseLabel}</div>
-            <div className="ltp-track">
-              <div className="ltp-fill" style={{ width: `${(aiTraffic.phaseProgress || 0) * 100}%` }}></div>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* ═════ INFO PANEL ═════ */}
+      {/* INFO PANEL */}
       {panel && (
         <div className="panel">
           <button className="close" onClick={() => setPanel(null)}>×</button>
@@ -359,13 +290,13 @@ export default function App() {
         </div>
       )}
 
-      {/* ═════ MENU BUTTON ═════ */}
+      {/* MENU BUTTON */}
       <button className="menu-btn" onClick={() => setMenuOpen(v => !v)}>
         <span className="icon">☰</span>
         <span>SMART CITY MENU</span>
       </button>
 
-      {/* ═════ MAIN MENU ═════ */}
+      {/* MAIN MENU */}
       <div className={`main-menu ${menuOpen ? "open" : ""}`}>
         <div className="menu-header">
           <div className="menu-title">🏙 SMART CITY</div>
@@ -387,7 +318,6 @@ export default function App() {
         <div className="menu-sub">🚗 VEHICLES</div>
         <div className="menu-list">
           {[
-            { key: "cityCars", label: "City Cars", icon: "🚗" },
             { key: "garbage", label: "Garbage Truck", icon: "🚛" },
             { key: "fert", label: "Fertilizer Truck", icon: "🌱" },
           ].map((v) => (
@@ -401,23 +331,20 @@ export default function App() {
         <div className="menu-sub">🌍 CITY VIEW</div>
         <div className="menu-list">
           <div className="menu-item" onClick={handleViewLiveTraffic}>
-            <span className="m-icon">🔴</span>
-            <span className="m-label">VIEW LIVE TRAFFIC</span>
+            <span className="m-icon">🔴</span><span className="m-label">VIEW LIVE TRAFFIC</span>
           </div>
           <div className="menu-item" onClick={handleOverview}>
-            <span className="m-icon">🌐</span>
-            <span className="m-label">360° CITY OVERVIEW</span>
+            <span className="m-icon">🌐</span><span className="m-label">360° CITY OVERVIEW</span>
           </div>
           <div className="menu-item" onClick={handleTopDown}>
-            <span className="m-icon">🛰</span>
-            <span className="m-label">TOP-DOWN VIEW</span>
+            <span className="m-icon">🛰</span><span className="m-label">TOP-DOWN VIEW</span>
           </div>
         </div>
 
         <div className="menu-sub">📊 SYSTEM PANELS</div>
         <div className="menu-list">
           {[
-            { label: "AI Traffic Panel", icon: "🚦", val: showTraffic, set: setShowTraffic },
+            { label: "AI Traffic", icon: "🚦", val: showTraffic, set: setShowTraffic },
             { label: "Power Supply", icon: "⚡", val: showPower, set: setShowPower },
             { label: "Water Filtration", icon: "💧", val: showFiltration, set: setShowFiltration },
             { label: "Food Production", icon: "🍎", val: showFood, set: setShowFood },
@@ -430,13 +357,6 @@ export default function App() {
           ))}
         </div>
       </div>
-
-      {/* ═════ HINT ═════ */}
-      {!liveTrafficMode && (
-        <div className="hint">
-          Drag = Rotate · Wheel = Zoom · Click buildings · ☰ Menu
-        </div>
-      )}
     </div>
   );
 }
@@ -459,7 +379,7 @@ function LocationItem({ loc, onCameraClick, onLocationClick }) {
         <div className="camera-options">
           {loc.cameras.map((cam) => (
             <div key={cam.name} className="cam-option" onClick={(e) => { e.stopPropagation(); onCameraClick(loc.key, cam.name); }}>
-              <span className="cam-icon">{cam.inside ? "🎯" : cam.top ? "🔭" : "📹"}</span>
+              <span className="cam-icon">{cam.top ? "🔭" : "📹"}</span>
               <span>{cam.name}</span>
             </div>
           ))}
@@ -469,57 +389,39 @@ function LocationItem({ loc, onCameraClick, onLocationClick }) {
   );
 }
 
-function SystemBtn({ label, active, onClick, color }) {
+function SysBtn({ label, active, onClick, color }) {
   return (
     <button onClick={onClick} style={{
       padding: "8px 14px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
       borderRadius: 8, cursor: "pointer",
-      background: active ? `${color}25` : "rgba(5,12,22,0.8)",
+      background: active ? `${color}25` : "rgba(5,12,22,0.85)",
       border: `1.5px solid ${active ? color : "rgba(255,255,255,0.15)"}`,
       color: active ? color : "#7fe3ff",
       boxShadow: active ? `0 0 14px ${color}80` : "none",
-      transition: "all 0.2s", backdropFilter: "blur(10px)",
+      transition: "all 0.2s",
     }}>{label}</button>
   );
 }
 
-function SystemPanel({ title, color, data, onClose, extraStats = [], left }) {
+function SysPanel({ title, color, data, onClose, extras = [], left }) {
   if (!data?.stage) return null;
   const stages = data.allStages || [];
   const progress = data.progress || 0;
   const pct = ((data.stageIndex + progress) / stages.length) * 100;
 
   return (
-    <div className="filtration-panel" style={{
-      [left ? "left" : "right"]: 24,
-      [left ? "right" : "left"]: "auto",
-      top: 90,
-      borderColor: color,
-    }}>
-      <button className="close-x-btn" onClick={onClose} title="Close">✕</button>
+    <div className="filtration-panel" style={{ [left ? "left" : "right"]: 24, [left ? "right" : "left"]: "auto" }}>
+      <button className="close-x-btn" onClick={onClose}>✕</button>
       <div className="fp-title" style={{ color }}>{title}</div>
       <div className="fp-stage-label">CURRENT STAGE</div>
       <div className="fp-stage-name">{data.stage.label}</div>
-
-      <div className="fp-meter-row">
-        <span>Overall</span>
-        <span style={{ color, fontWeight: 700 }}>{Math.round(pct)}%</span>
-      </div>
-      <div className="fp-meter">
-        <div className="fp-meter-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
-
-      <div className="fp-meter-row" style={{ marginTop: 8 }}>
-        <span>Stage Progress</span>
-        <span>{Math.round(progress * 100)}%</span>
-      </div>
-      <div className="fp-meter">
-        <div className="fp-meter-fill" style={{ width: `${progress * 100}%`, background: "#fff", opacity: 0.7 }} />
-      </div>
-
-      {extraStats.length > 0 && (
+      <div className="fp-meter-row"><span>Overall</span><span style={{ color, fontWeight: 700 }}>{Math.round(pct)}%</span></div>
+      <div className="fp-meter"><div className="fp-meter-fill" style={{ width: `${pct}%`, background: color }} /></div>
+      <div className="fp-meter-row" style={{ marginTop: 8 }}><span>Stage</span><span>{Math.round(progress * 100)}%</span></div>
+      <div className="fp-meter"><div className="fp-meter-fill" style={{ width: `${progress * 100}%`, background: "#fff", opacity: 0.7 }} /></div>
+      {extras.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 10 }}>
-          {extraStats.map(([l, v], i) => (
+          {extras.map(([l, v], i) => (
             <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}25`, borderRadius: 5, padding: "5px 7px" }}>
               <div style={{ fontSize: 9, color: "#8fd8f0" }}>{l}</div>
               <div style={{ fontSize: 11, color, fontWeight: 700 }}>{v}</div>
@@ -527,7 +429,6 @@ function SystemPanel({ title, color, data, onClose, extraStats = [], left }) {
           ))}
         </div>
       )}
-
       <div className="fp-stage-label" style={{ marginTop: 10 }}>PIPELINE</div>
       <div className="fp-stages-list">
         {stages.map((st, i) => {
