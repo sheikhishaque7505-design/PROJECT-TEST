@@ -30,12 +30,12 @@ const POWER_STAGES = [
 ];
 
 const FOOD_STAGES = [
-  { id: "planting", label: "Smart Planting", color: 0x2ecc71, duration: 5, desc: "9 fields · seeds placed with AI" },
-  { id: "irrigation", label: "Smart Irrigation", color: 0x22cfff, duration: 5, desc: "Sprinklers active · 68% soil moisture" },
-  { id: "monitoring", label: "Drone Monitoring", color: 0xffcc22, duration: 5, desc: "3 drones scanning · 94% crop health" },
-  { id: "harvest", label: "Robotic Harvest", color: 0xe67e22, duration: 5, desc: "Auto-harvesters collecting produce" },
-  { id: "processing", label: "Food Processing", color: 0x9b59b6, duration: 5, desc: "Washing · cutting · packaging line" },
-  { id: "distribution", label: "City Distribution", color: 0xff6b6b, duration: 5, desc: "48 deliveries to city daily" },
+  { id: "planting", label: "Smart Planting", color: 0x2ecc71, duration: 5, desc: "9 fields · AI seed placement" },
+  { id: "irrigation", label: "Smart Irrigation", color: 0x22cfff, duration: 5, desc: "Sprinklers · 68% moisture" },
+  { id: "monitoring", label: "Drone Monitoring", color: 0xffcc22, duration: 5, desc: "3 drones · 94% crop health" },
+  { id: "harvest", label: "Robotic Harvest", color: 0xe67e22, duration: 5, desc: "Auto-harvesters collecting" },
+  { id: "processing", label: "Food Processing", color: 0x9b59b6, duration: 5, desc: "Washing · cutting · packing" },
+  { id: "distribution", label: "City Distribution", color: 0xff6b6b, duration: 5, desc: "48 deliveries daily" },
 ];
 
 /* ============ AI TRAFFIC SYSTEM ============ */
@@ -367,8 +367,10 @@ const SmartCity3D = forwardRef((props, ref) => {
 
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 24, 8), mat(0x1a1a1a, 0.5, 0.6));
       pole.position.y = 12; g.add(pole);
+
       const arm = new THREE.Mesh(new THREE.BoxGeometry(20, 0.7, 0.7), mat(0x1a1a1a, 0.5, 0.6));
       arm.position.set(10, 23, 0); g.add(arm);
+
       const box = new THREE.Mesh(new THREE.BoxGeometry(4, 11, 4), mat(0x0a0a0a, 0.7, 0.4));
       box.position.set(18, 23, 0); g.add(box);
 
@@ -569,9 +571,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     board("WATER FILTRATION", 3600, 5, -2700, 460, 20, 0x22cfff);
     board("AI FOOD PRODUCTION", 2900, 5, -400, 420, 22, 0x2ecc71);
 
-    /* ═══════════════════════════════════════════════════════════
-       POWER ZONE
-       ═══════════════════════════════════════════════════════════ */
+    /* ═══════════ POWER ZONE ═══════════ */
     const powerZone = new THREE.Group();
     powerZone.position.set(-5400, 0, 3600);
     scene.add(powerZone);
@@ -656,10 +656,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       s.batteryRings.push(rMat);
       s.powerRings.push(r);
     });
-
-    /* ═══════════════════════════════════════════════════════════
-       FILTRATION ZONE
-       ═══════════════════════════════════════════════════════════ */
+        /* ═══════════ FILTRATION ZONE ═══════════ */
     const filtZone = new THREE.Group();
     filtZone.position.set(3600, 5, -3600);
     scene.add(filtZone);
@@ -709,7 +706,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     filtZone.add(reservoir);
 
     /* ═══════════════════════════════════════════════════════════
-       ★★★ AI FOOD PRODUCTION SYSTEM — FULL IMPLEMENTATION ★★★
+       AI FOOD PRODUCTION SYSTEM — FULL DETAILED VERSION
        ═══════════════════════════════════════════════════════════ */
     const foodZone = new THREE.Group();
     foodZone.position.set(2900, 5, -1200);
@@ -719,16 +716,17 @@ const SmartCity3D = forwardRef((props, ref) => {
     const foodPad = new THREE.Mesh(new THREE.BoxGeometry(1000, 1, 1000), mat(0x1a2e1e, 0.95));
     foodPad.position.y = 0; foodZone.add(foodPad);
 
-    // Border lights
+    // Border
     const foodBorderMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 3.5, metalness: 0.6, roughness: 0.2 });
     s.borderLights.push(foodBorderMat);
-    const fzF2 = new THREE.Mesh(new THREE.BoxGeometry(1000, 3, 10), foodBorderMat);
-    fzF2.position.set(0, 2, -500); foodZone.add(fzF2);
-    const fzB2 = fzF2.clone(); fzB2.position.z = 500; foodZone.add(fzB2);
-    const fzL2 = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 1000), foodBorderMat);
-    fzL2.position.set(-500, 2, 0); foodZone.add(fzL2);
-    const fzR2 = fzL2.clone(); fzR2.position.x = 500; foodZone.add(fzR2);
+    const foodF = new THREE.Mesh(new THREE.BoxGeometry(1000, 3, 10), foodBorderMat);
+    foodF.position.set(0, 2, -500); foodZone.add(foodF);
+    const foodB = foodF.clone(); foodB.position.z = 500; foodZone.add(foodB);
+    const foodL = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 1000), foodBorderMat);
+    foodL.position.set(-500, 2, 0); foodZone.add(foodL);
+    const foodR = foodL.clone(); foodR.position.x = 500; foodZone.add(foodR);
 
+    // Corner posts
     for (const cx of [-500, 500]) for (const cz of [-500, 500]) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 30, 12), foodBorderMat);
       post.position.set(cx, 15, cz); foodZone.add(post);
@@ -738,6 +736,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       s.borderLights.push(capMat);
     }
 
+    // Click hit
     const foodHit = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshBasicMaterial({ visible: false }));
     foodHit.rotation.x = -Math.PI / 2;
     foodHit.position.set(0, 2, 0);
@@ -773,11 +772,7 @@ const SmartCity3D = forwardRef((props, ref) => {
             new THREE.MeshStandardMaterial({ color: cropColor, emissive: cropColor, emissiveIntensity: 0.3, roughness: 0.8 })
           );
           crop.position.set(px + (Math.random() - 0.5) * 80, 11, pz + (Math.random() - 0.5) * 80);
-          crop.userData = {
-            baseY: 11,
-            phase: Math.random() * Math.PI * 2,
-            scale: 0.7 + Math.random() * 0.6,
-          };
+          crop.userData = { baseY: 11, phase: Math.random() * Math.PI * 2, scale: 0.7 + Math.random() * 0.6 };
           crop.scale.setScalar(crop.userData.scale);
           foodZone.add(crop);
           s.foodCropMeshes.push(crop);
@@ -842,7 +837,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     plant.add(plantBeacon);
     s.foodBeacon = plantBeacon;
 
-    // Rotating gears on plant
     s.foodGears = [];
     for (let i = 0; i < 3; i++) {
       const gear = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 3, 12), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.9, roughness: 0.2 }));
@@ -890,9 +884,9 @@ const SmartCity3D = forwardRef((props, ref) => {
       post.position.set(sx, 30, 0);
       scannerArch.add(post);
     }
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(40, 4, 4), mat(0x3a4a5a, 0.5, 0.6));
-    beam.position.y = 58;
-    scannerArch.add(beam);
+    const scannerBeam = new THREE.Mesh(new THREE.BoxGeometry(40, 4, 4), mat(0x3a4a5a, 0.5, 0.6));
+    scannerBeam.position.y = 58;
+    scannerArch.add(scannerBeam);
     const laserEmit = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 12), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 4 }));
     laserEmit.position.y = 55;
     scannerArch.add(laserEmit);
@@ -938,7 +932,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.foodDrone = drone;
 
     /* ═══════════════════════════════════════════════════════════
-       CARS — PERFECT DIRECTION (no tilt, no wrong way)
+       CARS — PERFECT DIRECTION (locked, no tilt, no wrong way)
        ═══════════════════════════════════════════════════════════ */
     s.cars = [];
     const carColors = [
@@ -993,11 +987,11 @@ const SmartCity3D = forwardRef((props, ref) => {
       { id: "W2", axis: "x", dir: -1, fixed: -65, road: 4, start: 3600, end: -3600 },
     ];
 
-    /* ★★★ PERFECTLY LOCKED CAR DIRECTION ★★★ */
+    /* ═════════ PERFECTLY LOCKED CAR DIRECTION ═════════ */
     function updateCarTransform(c) {
       const { lane, pos } = c;
       const lockedPos = Math.round(pos * 10) / 10;
-      
+
       if (lane.axis === "z") {
         c.car.position.set(lane.fixed, CAR_Y, lockedPos);
         c.car.rotation.y = lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
@@ -1005,7 +999,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         c.car.position.set(lockedPos, CAR_Y, lane.fixed);
         c.car.rotation.y = lane.dir > 0 ? 0 : Math.PI;
       }
-      
       // Lock x and z rotations (no tilt)
       c.car.rotation.x = 0;
       c.car.rotation.z = 0;
@@ -1091,7 +1084,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     };
     renderer.domElement.addEventListener("click", onClick);
 
-    /* ANIMATE */
+    /* ═══════════════════ ANIMATE LOOP ═══════════════════ */
     const clock = new THREE.Clock();
     let fc = 0;
     let rafId;
@@ -1152,7 +1145,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           }
         }
 
-        /* TRAFFIC LIGHTS */
+        /* TRAFFIC LIGHTS — blink */
         const blinkFast = Math.floor(t * 4) % 2 === 0;
         const blinkMed = Math.floor(t * 2) % 2 === 0;
         for (const l of s.intersectionLights) {
@@ -1250,7 +1243,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           });
         }
 
-        /* ═══════════════ FOOD SYSTEM ANIMATION ═══════════════ */
+        /* ═══════════════ FOOD SYSTEM ═══════════════ */
         s.foodStageElapsed += delta;
         const curFood = FOOD_STAGES[s.foodStageIndex];
         if (s.foodStageElapsed >= curFood.duration) {
@@ -1266,69 +1259,66 @@ const SmartCity3D = forwardRef((props, ref) => {
           });
         }
 
-        // Crops sway + grow with stage
-        const foodStage = FOOD_STAGES[s.foodStageIndex].id;
+        const foodStageId = FOOD_STAGES[s.foodStageIndex].id;
+
+        /* Crops sway + grow */
         for (let i = 0; i < s.foodCropMeshes.length; i++) {
           const crop = s.foodCropMeshes[i];
+          if (!crop) continue;
           const sway = Math.sin(t * 1.5 + crop.userData.phase) * 0.08;
           crop.rotation.z = sway;
-          // Growth animation: crops grow during planting/irrigation stage
-          const growthBoost = (foodStage === "planting" || foodStage === "irrigation") ? 
-            (1 + Math.sin(t * 0.8 + crop.userData.phase) * 0.15) : 1;
+          const growthBoost = (foodStageId === "planting" || foodStageId === "irrigation")
+            ? (1 + Math.sin(t * 0.8 + crop.userData.phase) * 0.15) : 1;
           crop.scale.y = crop.userData.scale * growthBoost;
         }
 
-        // Sprinkler spray rings pulse + expand
+        /* Sprinkler rings */
         for (const spr of s.foodSprinklers) {
           const phase = (t * 0.8 + spr.phase) % 2;
           const scale = 1 + phase * 0.8;
           spr.ring.scale.setScalar(scale);
           spr.ring.material.opacity = Math.max(0, 0.7 - phase * 0.35);
-          // Sprinkler only active during irrigation stage
-          spr.ring.visible = foodStage === "irrigation" || foodStage === "planting";
+          spr.ring.visible = foodStageId === "irrigation" || foodStageId === "planting";
         }
 
-        // Conveyor items move (faster during processing stage)
-        const beltSpeed = foodStage === "processing" ? 1.5 : 0.5;
+        /* Conveyor items */
+        const beltSpeed = foodStageId === "processing" ? 1.5 : 0.5;
         for (const item of s.foodConveyorItems) {
           item.position.x += beltSpeed * delta * 30;
           if (item.position.x > item.userData.endX) item.position.x = item.userData.startX;
           item.position.y = 23 + Math.sin(t * 5 + item.userData.offset) * 1.5;
-          // Visible only during processing/quality stages
-          item.visible = foodStage === "processing" || foodStage === "quality" || foodStage === "harvest";
+          item.visible = foodStageId === "processing" || foodStageId === "quality" || foodStageId === "harvest";
         }
 
-        // Gears rotate (faster during processing)
-        const gearSpeed = foodStage === "processing" ? 4 : 1.5;
+        /* Gears */
+        const gearSpeed = foodStageId === "processing" ? 4 : 1.5;
         for (const gear of s.foodGears) {
           gear.rotation.y += delta * gearSpeed;
         }
 
-        // Laser beam flicker during quality stage
+        /* Laser */
         if (s.foodLaser) {
-          const isQuality = foodStage === "quality";
+          const isQuality = foodStageId === "quality";
           s.foodLaser.visible = isQuality;
-          if (isQuality) {
-            s.foodLaser.material.opacity = 0.5 + Math.sin(t * 20) * 0.3;
-          }
+          if (isQuality) s.foodLaser.material.opacity = 0.5 + Math.sin(t * 20) * 0.3;
         }
 
-        // Packaging arm moves during packaging stage
+        /* Packaging arm */
         if (s.foodPackArm) {
-          const isPacking = foodStage === "processing" || foodStage === "distribution";
+          const isPacking = foodStageId === "processing" || foodStageId === "distribution";
           const targetY = isPacking ? 85 + Math.sin(t * 3) * 15 : 100;
           s.foodPackArm.position.y += (targetY - s.foodPackArm.position.y) * 0.1;
         }
 
-        // Beacon pulse
+        /* Beacon */
         if (s.foodBeacon) {
           s.foodBeacon.scale.setScalar(1 + Math.sin(t * 3) * 0.3);
           s.foodBeacon.material.emissiveIntensity = 5 + Math.sin(t * 3) * 2;
         }
 
-        // Drone flies in circle above fields (active during monitoring)
+        /* Drone */
         if (s.foodDrone) {
-          const droneActive = foodStage === "monitoring" || foodStage === "planting";
+          const droneActive = foodStageId === "monitoring" || foodStageId === "planting";
           const droneSpeed = droneActive ? 0.5 : 0.15;
           const droneAngle = t * droneSpeed;
           const droneRadius = 320;
@@ -1336,7 +1326,6 @@ const SmartCity3D = forwardRef((props, ref) => {
           s.foodDrone.position.z = Math.sin(droneAngle) * droneRadius;
           s.foodDrone.position.y = 80 + Math.sin(t * 1.5) * 10;
           s.foodDrone.rotation.y = -droneAngle + Math.PI / 2;
-          // Rotors spin faster when active
           for (const rotor of s.foodDroneRotors) {
             rotor.rotation.y += delta * (droneActive ? 30 : 5);
           }
