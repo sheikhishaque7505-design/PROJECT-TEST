@@ -10,7 +10,6 @@ export default function App() {
   const [locations, setLocations] = useState([]);
   const [liveTrafficMode, setLiveTrafficMode] = useState(false);
 
-  // Panel visibility states (✕ buttons ke liye)
   const [showTraffic, setShowTraffic] = useState(true);
   const [showFiltration, setShowFiltration] = useState(true);
   const [showWaste, setShowWaste] = useState(true);
@@ -51,7 +50,6 @@ export default function App() {
   const [touristMsg, setTouristMsg] = useState("");
   const [touristMsgVisible, setTouristMsgVisible] = useState(false);
 
-  // ===== FILTRATION & WASTE STATE =====
   const [filtrationData, setFiltrationData] = useState({
     stageIndex: 0,
     stage: null,
@@ -263,7 +261,6 @@ export default function App() {
       {/* ===== FILTRATION PANEL ===== */}
       {showFiltration && filtrationData.stage && !liveTrafficMode && (
         <div className="filtration-panel">
-          {/* ✕ CLOSE BUTTON */}
           <button
             className="close-x-btn"
             onClick={() => setShowFiltration(false)}
@@ -337,12 +334,11 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== REOPEN FILTRATION BUTTON ===== */}
+      {/* ===== REOPEN FILTRATION ===== */}
       {!showFiltration && filtrationData.stage && !liveTrafficMode && (
         <button
           className="reopen-btn filtration-reopen"
           onClick={() => setShowFiltration(true)}
-          title="Show Filtration Panel"
         >
           💧 FILTRATION
         </button>
@@ -351,7 +347,6 @@ export default function App() {
       {/* ===== WASTE PANEL ===== */}
       {showWaste && wasteStage.stage && !liveTrafficMode && (
         <div className="waste-panel">
-          {/* ✕ CLOSE BUTTON */}
           <button
             className="close-x-btn"
             onClick={() => setShowWaste(false)}
@@ -393,12 +388,11 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== REOPEN WASTE BUTTON ===== */}
+      {/* ===== REOPEN WASTE ===== */}
       {!showWaste && wasteStage.stage && !liveTrafficMode && (
         <button
           className="reopen-btn waste-reopen"
           onClick={() => setShowWaste(true)}
-          title="Show Waste Panel"
         >
           ♻️ WASTE
         </button>
@@ -407,7 +401,6 @@ export default function App() {
       {/* ===== LIVE TRAFFIC PANEL ===== */}
       {liveTrafficMode && (
         <div className="live-traffic-panel">
-          {/* ✕ CLOSE BUTTON */}
           <button
             className="close-x-btn"
             onClick={handleBackToCity}
@@ -520,10 +513,9 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== TRAFFIC STATUS (normal mode) ===== */}
+      {/* ===== TRAFFIC STATUS ===== */}
       {showTraffic && !liveTrafficMode && (
         <div className="traffic-status">
-          {/* ✕ CLOSE BUTTON */}
           <button
             className="close-x-btn"
             onClick={() => setShowTraffic(false)}
@@ -556,12 +548,11 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== REOPEN TRAFFIC BUTTON ===== */}
+      {/* ===== REOPEN TRAFFIC ===== */}
       {!showTraffic && !liveTrafficMode && (
         <button
           className="reopen-btn traffic-reopen"
           onClick={() => setShowTraffic(true)}
-          title="Show Traffic Panel"
         >
           🚦 TRAFFIC
         </button>
@@ -708,7 +699,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* ===== INFO PANEL (Click popup) ===== */}
+      {/* ===== INFO PANEL ===== */}
       {panel && (
         <div className="panel">
           <button className="close" onClick={() => setPanel(null)}>
