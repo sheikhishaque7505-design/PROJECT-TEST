@@ -10,6 +10,11 @@ export default function App() {
   const [locations, setLocations] = useState([]);
   const [liveTrafficMode, setLiveTrafficMode] = useState(false);
 
+  // Panel visibility states (✕ buttons ke liye)
+  const [showTraffic, setShowTraffic] = useState(true);
+  const [showFiltration, setShowFiltration] = useState(true);
+  const [showWaste, setShowWaste] = useState(true);
+
   const [traffic, setTraffic] = useState({
     state: "TRAFFIC NORMAL",
     stateColor: "#63ddff",
@@ -256,8 +261,15 @@ export default function App() {
       )}
 
       {/* ===== FILTRATION PANEL ===== */}
-      {filtrationData.stage && !liveTrafficMode && (
+      {showFiltration && filtrationData.stage && !liveTrafficMode && (
         <div className="filtration-panel">
+          {/* ✕ CLOSE BUTTON */}
+          <button
+            className="close-x-btn"
+            onClick={() => setShowFiltration(false)}
+            title="Close"
+          >✕</button>
+
           <div className="fp-title">💧 WATER FILTRATION</div>
           <div className="fp-stage-label">CURRENT STAGE</div>
           <div className="fp-stage-name">{filtrationData.stage.label}</div>
@@ -325,9 +337,27 @@ export default function App() {
         </div>
       )}
 
+      {/* ===== REOPEN FILTRATION BUTTON ===== */}
+      {!showFiltration && filtrationData.stage && !liveTrafficMode && (
+        <button
+          className="reopen-btn filtration-reopen"
+          onClick={() => setShowFiltration(true)}
+          title="Show Filtration Panel"
+        >
+          💧 FILTRATION
+        </button>
+      )}
+
       {/* ===== WASTE PANEL ===== */}
-      {wasteStage.stage && !liveTrafficMode && (
+      {showWaste && wasteStage.stage && !liveTrafficMode && (
         <div className="waste-panel">
+          {/* ✕ CLOSE BUTTON */}
+          <button
+            className="close-x-btn"
+            onClick={() => setShowWaste(false)}
+            title="Close"
+          >✕</button>
+
           <div className="wp-title">♻️ WASTE MANAGEMENT</div>
           <div className="wp-stage-label">CURRENT PROCESS</div>
           <div className="wp-stage-name">{wasteStage.stage.label}</div>
@@ -363,9 +393,27 @@ export default function App() {
         </div>
       )}
 
+      {/* ===== REOPEN WASTE BUTTON ===== */}
+      {!showWaste && wasteStage.stage && !liveTrafficMode && (
+        <button
+          className="reopen-btn waste-reopen"
+          onClick={() => setShowWaste(true)}
+          title="Show Waste Panel"
+        >
+          ♻️ WASTE
+        </button>
+      )}
+
       {/* ===== LIVE TRAFFIC PANEL ===== */}
       {liveTrafficMode && (
         <div className="live-traffic-panel">
+          {/* ✕ CLOSE BUTTON */}
+          <button
+            className="close-x-btn"
+            onClick={handleBackToCity}
+            title="Close"
+          >✕</button>
+
           <div className="ltp-header">
             <div className="ai-dot"></div>
             <div>
@@ -473,8 +521,15 @@ export default function App() {
       )}
 
       {/* ===== TRAFFIC STATUS (normal mode) ===== */}
-      {!liveTrafficMode && (
+      {showTraffic && !liveTrafficMode && (
         <div className="traffic-status">
+          {/* ✕ CLOSE BUTTON */}
+          <button
+            className="close-x-btn"
+            onClick={() => setShowTraffic(false)}
+            title="Close"
+          >✕</button>
+
           <div className="heading">AI TRAFFIC MANAGEMENT</div>
           <div className="state" style={{ color: traffic.stateColor }}>
             {traffic.state}
@@ -501,6 +556,17 @@ export default function App() {
         </div>
       )}
 
+      {/* ===== REOPEN TRAFFIC BUTTON ===== */}
+      {!showTraffic && !liveTrafficMode && (
+        <button
+          className="reopen-btn traffic-reopen"
+          onClick={() => setShowTraffic(true)}
+          title="Show Traffic Panel"
+        >
+          🚦 TRAFFIC
+        </button>
+      )}
+
       {/* ===== AI MESSAGE ===== */}
       <div className={`ai-message ${aiMsgVisible ? "show" : ""}`}>{aiMsg}</div>
 
@@ -516,16 +582,6 @@ export default function App() {
           dangerouslySetInnerHTML={{ __html: traffic.incident }}
         />
       )}
-
-      {/* ===== CYCLE BAR — DISABLED (traffic event removed) ===== */}
-      {/* {cycleVisible && !liveTrafficMode && (
-        <div className="cycle-bar">
-          <div className="label">{cycleLabel}</div>
-          <div className="bar">
-            <div className="fill" style={{ width: `${cyclePct}%` }} />
-          </div>
-        </div>
-      )} */}
 
       {/* ===== AI REASON ===== */}
       {aiReason.visible && !liveTrafficMode && (
@@ -620,6 +676,34 @@ export default function App() {
           <div className="menu-item" onClick={handleTopDown}>
             <span className="m-icon">🛰</span>
             <span className="m-label">TOP-DOWN VIEW</span>
+          </div>
+        </div>
+
+        <div className="menu-sub">📊 PANELS</div>
+        <div className="menu-list">
+          <div
+            className={`menu-item ${showTraffic ? "active" : ""}`}
+            onClick={() => setShowTraffic((v) => !v)}
+          >
+            <span className="m-icon">🚦</span>
+            <span className="m-label">Traffic Panel</span>
+            <span className="arrow">{showTraffic ? "ON" : "OFF"}</span>
+          </div>
+          <div
+            className={`menu-item ${showFiltration ? "active" : ""}`}
+            onClick={() => setShowFiltration((v) => !v)}
+          >
+            <span className="m-icon">💧</span>
+            <span className="m-label">Filtration Panel</span>
+            <span className="arrow">{showFiltration ? "ON" : "OFF"}</span>
+          </div>
+          <div
+            className={`menu-item ${showWaste ? "active" : ""}`}
+            onClick={() => setShowWaste((v) => !v)}
+          >
+            <span className="m-icon">♻️</span>
+            <span className="m-label">Waste Panel</span>
+            <span className="arrow">{showWaste ? "ON" : "OFF"}</span>
           </div>
         </div>
       </div>
