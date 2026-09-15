@@ -12,7 +12,10 @@ export default function App() {
     phase: 1, inYellow: false, inAllRed: false,
     currentGreenRoads: [1, 2], currentRedRoads: [3, 4],
     phaseProgress: 0, phaseLabel: "NORTH-SOUTH GREEN",
-    stats: { vehiclesDetected: 0, vehiclesMoving: 0, vehiclesWaiting: 0, density: "LOW" },
+    stats: {
+      vehiclesDetected: 0, vehiclesMoving: 0, vehiclesWaiting: 0,
+      density: "LOW", phaseTimeRemaining: 8,
+    },
     roadQueues: { 1: 0, 2: 0, 3: 0, 4: 0 },
     decisionLog: [],
   });
@@ -25,6 +28,7 @@ export default function App() {
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
 
+  // Recording timer
   useEffect(() => {
     if (!recording) return;
     const id = setInterval(() => setRecTime(t => t + 1), 1000);
@@ -41,7 +45,9 @@ export default function App() {
           ? "video/webm;codecs=vp9" : "video/webm";
         const rec = new MediaRecorder(stream, { mimeType: mime });
         chunksRef.current = [];
-        rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+        rec.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
         rec.onstop = () => {
           const blob = new Blob(chunksRef.current, { type: "video/webm" });
           const url = URL.createObjectURL(blob);
@@ -55,7 +61,9 @@ export default function App() {
         mediaRef.current = rec;
         setRecTime(0);
         setRecording(true);
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error("Recording error:", e);
+      }
     } else {
       mediaRef.current?.stop();
       mediaRef.current = null;
@@ -63,7 +71,8 @@ export default function App() {
     }
   };
 
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const fmt = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   const handlePanel = useCallback((data) => {
     setPanel({ type: data.type, name: data.name });
@@ -84,10 +93,14 @@ export default function App() {
 
   const getRoadSignal = (r) => {
     if (aiTraffic.inAllRed) return "red";
-    if (aiTraffic.inYellow) return aiTraffic.currentGreenRoads?.includes(r) ? "yellow" : "red";
+    if (aiTraffic.inYellow) {
+      return aiTraffic.currentGreenRoads?.includes(r) ? "yellow" : "red";
+    }
     return aiTraffic.currentGreenRoads?.includes(r) ? "green" : "red";
   };
-  const sigColor = (s) => s === "green" ? "#22ff66" : s === "yellow" ? "#ffcc22" : "#ff2222";
+
+  const sigColor = (s) =>
+    s === "green" ? "#22ff66" : s === "yellow" ? "#ffcc22" : "#ff2222";
 
   return (
     <div className="app">
@@ -112,14 +125,20 @@ export default function App() {
 
         <div className="topbar-center">
           <div className="sys-pill">
-            <span className="pill-dot" style={{ background: sigColor(getRoadSignal(1)) }} />
+            <span
+              className="pill-dot"
+              style={{ background: sigColor(getRoadSignal(1)) }}
+            />
             <span className="pill-label">AI TRAFFIC:</span>
             <span className="pill-phase">{aiTraffic.phaseLabel}</span>
           </div>
         </div>
 
         <div className="topbar-right">
-          <button className={`rec-btn ${recording ? "on" : ""}`} onClick={toggleRecording}>
+          <button
+            className={`rec-btn ${recording ? "on" : ""}`}
+            onClick={toggleRecording}
+          >
             <span className={`rec-dot ${recording ? "on" : ""}`} />
             <span>{recording ? fmt(recTime) : "REC"}</span>
           </button>
@@ -128,7 +147,10 @@ export default function App() {
 
       {/* ═══ 4 SYSTEM CARDS — RIGHT SIDE ═══ */}
       <div className="sys-cards">
-        <button className="sys-card traffic" onClick={() => openSystem("traffic")}>
+        <button
+          className="sys-card traffic"
+          onClick={() => openSystem("traffic")}
+        >
           <div className="card-icon">🚦</div>
           <div className="card-info">
             <div className="card-title">AI Traffic</div>
@@ -137,7 +159,10 @@ export default function App() {
           <div className="card-arrow">›</div>
         </button>
 
-        <button className="sys-card power" onClick={() => openSystem("power")}>
+        <button
+          className="sys-card power"
+          onClick={() => openSystem("power")}
+        >
           <div className="card-icon">⚡</div>
           <div className="card-info">
             <div className="card-title">Power Supply</div>
@@ -146,7 +171,10 @@ export default function App() {
           <div className="card-arrow">›</div>
         </button>
 
-        <button className="sys-card water" onClick={() => openSystem("filtration")}>
+        <button
+          className="sys-card water"
+          onClick={() => openSystem("filtration")}
+        >
           <div className="card-icon">💧</div>
           <div className="card-info">
             <div className="card-title">Filtration</div>
@@ -155,7 +183,10 @@ export default function App() {
           <div className="card-arrow">›</div>
         </button>
 
-        <button className="sys-card food" onClick={() => openSystem("food")}>
+        <button
+          className="sys-card food"
+          onClick={() => openSystem("food")}
+        >
           <div className="card-icon">🍎</div>
           <div className="card-info">
             <div className="card-title">Food System</div>
@@ -167,15 +198,24 @@ export default function App() {
 
       {/* ═══ BOTTOM CONTROLS ═══ */}
       <div className="bottom-controls">
-        <button className="ctrl-btn" onClick={() => cityRef.current?.goToOverview?.()}>
+        <button
+          className="ctrl-btn"
+          onClick={() => cityRef.current?.goToOverview?.()}
+        >
           <span className="ctrl-icon">🏠</span>
           <span className="ctrl-label">Overview</span>
         </button>
-        <button className="ctrl-btn" onClick={() => cityRef.current?.goToTopDown?.()}>
+        <button
+          className="ctrl-btn"
+          onClick={() => cityRef.current?.goToTopDown?.()}
+        >
           <span className="ctrl-icon">🛰</span>
           <span className="ctrl-label">Top View</span>
         </button>
-        <button className={`ctrl-btn ${isNight ? "active" : ""}`} onClick={toggleDayNight}>
+        <button
+          className={`ctrl-btn ${isNight ? "active" : ""}`}
+          onClick={toggleDayNight}
+        >
           <span className="ctrl-icon">{isNight ? "🌙" : "☀"}</span>
           <span className="ctrl-label">{isNight ? "Night" : "Day"}</span>
         </button>
@@ -197,15 +237,22 @@ export default function App() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PANEL — Detailed popup for each system
+   PANEL — Detailed popup
    ═══════════════════════════════════════════════════════════════ */
 function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }) {
   const content = getPanelContent(data, aiTraffic, powerData, filtrationData, foodData);
 
   return (
     <div className="panel-backdrop" onClick={onClose}>
-      <div className="panel" onClick={(e) => e.stopPropagation()} style={{ "--accent": content.color }}>
-        <div className="panel-header" style={{ background: content.headerBg }}>
+      <div
+        className="panel"
+        onClick={(e) => e.stopPropagation()}
+        style={{ "--accent": content.color }}
+      >
+        <div
+          className="panel-header"
+          style={{ background: content.headerBg }}
+        >
           <div className="panel-icon">{content.icon}</div>
           <div className="panel-title-group">
             <div className="panel-title">{content.title}</div>
@@ -227,27 +274,38 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     const stats = aiTraffic.stats || {};
     const roadSignal = (r) => {
       if (aiTraffic.inAllRed) return "red";
-      if (aiTraffic.inYellow) return aiTraffic.currentGreenRoads?.includes(r) ? "yellow" : "red";
+      if (aiTraffic.inYellow) {
+        return aiTraffic.currentGreenRoads?.includes(r) ? "yellow" : "red";
+      }
       return aiTraffic.currentGreenRoads?.includes(r) ? "green" : "red";
     };
-    const colorFor = (s) => s === "green" ? "#22ff66" : s === "yellow" ? "#ffcc22" : "#ff2222";
+    const colorFor = (s) =>
+      s === "green" ? "#22ff66" : s === "yellow" ? "#ffcc22" : "#ff2222";
 
     return {
       icon: "🚦",
       title: "AI Traffic Control Center",
-      subtitle: "2-phase adaptive system · Emergency override ready",
+      subtitle: "2-phase adaptive system · Real-time signals",
       color: "#22cfff",
       headerBg: "linear-gradient(135deg, #0a2a3a, #04141c)",
       body: (
         <>
           <div className="p-section">
             <div className="p-label">CURRENT PHASE</div>
-            <div className="p-big" style={{ color: "#22cfff" }}>{aiTraffic.phaseLabel}</div>
+            <div className="p-big" style={{ color: "#22cfff" }}>
+              {aiTraffic.phaseLabel}
+            </div>
             <div className="p-progress">
-              <div className="p-progress-fill" style={{ width: `${(aiTraffic.phaseProgress || 0) * 100}%`, background: "#22cfff" }} />
+              <div
+                className="p-progress-fill"
+                style={{
+                  width: `${(aiTraffic.phaseProgress || 0) * 100}%`,
+                  background: "#22cfff",
+                }}
+              />
             </div>
             <div className="p-timer">
-              Phase timer: {Math.max(0, (aiTraffic.stats?.phaseTimeRemaining || 0)).toFixed(1)}s
+              Phase timer: {Math.max(0, stats.phaseTimeRemaining || 0).toFixed(1)}s
             </div>
           </div>
 
@@ -259,15 +317,27 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
                 { id: 2, name: "South", icon: "⬇️" },
                 { id: 3, name: "East", icon: "➡️" },
                 { id: 4, name: "West", icon: "⬅️" },
-              ].map(r => {
+              ].map((r) => {
                 const sig = roadSignal(r.id);
                 const col = colorFor(sig);
                 return (
-                  <div key={r.id} className="signal-box" style={{ borderColor: col + "60" }}>
+                  <div
+                    key={r.id}
+                    className="signal-box"
+                    style={{ borderColor: col + "60" }}
+                  >
                     <div className="signal-icon">{r.icon}</div>
                     <div className="signal-name">{r.name}</div>
-                    <div className="signal-light" style={{ background: col, boxShadow: `0 0 16px ${col}` }} />
-                    <div className="signal-state" style={{ color: col }}>{sig.toUpperCase()}</div>
+                    <div
+                      className="signal-light"
+                      style={{ background: col, boxShadow: `0 0 16px ${col}` }}
+                    />
+                    <div
+                      className="signal-state"
+                      style={{ color: col }}
+                    >
+                      {sig.toUpperCase()}
+                    </div>
                   </div>
                 );
               })}
@@ -289,12 +359,22 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             <div className="log-list">
               {(aiTraffic.decisionLog || []).length === 0 ? (
                 <div className="log-empty">Monitoring traffic…</div>
-              ) : (aiTraffic.decisionLog || []).slice(0, 6).map((e, i) => (
-                <div key={i} className="log-item" style={{
-                  borderLeftColor: e.type === "emergency" ? "#ff4444" : e.type === "phase" ? "#ffcc22" : "#22cfff",
-                  color: e.type === "emergency" ? "#ff8888" : "#b8e8ff",
-                }}>{e.message}</div>
-              ))}
+              ) : (
+                (aiTraffic.decisionLog || []).slice(0, 6).map((e, i) => (
+                  <div
+                    key={i}
+                    className="log-item"
+                    style={{
+                      borderLeftColor:
+                        e.type === "emergency" ? "#ff4444" :
+                        e.type === "phase" ? "#ffcc22" : "#22cfff",
+                      color: e.type === "emergency" ? "#ff8888" : "#b8e8ff",
+                    }}
+                  >
+                    {e.message}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </>
@@ -312,6 +392,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
       { name: "City Load Balance", value: "68 MW", color: "#b266ff", icon: "📊" },
     ];
     const current = powerData?.stage;
+
     return {
       icon: "⚡",
       title: "Power Supply System",
@@ -323,12 +404,25 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
           {current && (
             <div className="p-section">
               <div className="p-label">CURRENT STAGE</div>
-              <div className="p-big" style={{ color: current.color ? `#${current.color.toString(16).padStart(6, "0")}` : "#ffcc22" }}>
+              <div
+                className="p-big"
+                style={{
+                  color: current.color
+                    ? `#${current.color.toString(16).padStart(6, "0")}`
+                    : "#ffcc22",
+                }}
+              >
                 {current.label}
               </div>
               <div className="p-desc">{current.desc}</div>
               <div className="p-progress" style={{ marginTop: 10 }}>
-                <div className="p-progress-fill" style={{ width: `${(powerData.progress || 0) * 100}%`, background: "#ffcc22" }} />
+                <div
+                  className="p-progress-fill"
+                  style={{
+                    width: `${(powerData.progress || 0) * 100}%`,
+                    background: "#ffcc22",
+                  }}
+                />
               </div>
             </div>
           )}
@@ -337,11 +431,17 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             <div className="p-label">POWER PIPELINE</div>
             <div className="stage-list">
               {stages.map((s, i) => (
-                <div key={i} className="stage-item" style={{ borderColor: s.color + "40" }}>
+                <div
+                  key={i}
+                  className="stage-item"
+                  style={{ borderColor: s.color + "40" }}
+                >
                   <div className="stage-icon">{s.icon}</div>
                   <div className="stage-info">
                     <div className="stage-name">{s.name}</div>
-                    <div className="stage-value" style={{ color: s.color }}>{s.value}</div>
+                    <div className="stage-value" style={{ color: s.color }}>
+                      {s.value}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -364,7 +464,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
               <div className="comp-item">🌬 16 Wind turbines (4×4 grid)</div>
               <div className="comp-item">☀ 10 Solar arrays (2 cols × 5 rows)</div>
               <div className="comp-item">🔋 10 Battery banks (2×5 grid)</div>
-              <div className="comp-item">🔌 2 Antenna masts for grid sync</div>
+              <div className="comp-item">🔌 Antenna masts for grid sync</div>
             </div>
           </div>
         </>
@@ -386,6 +486,7 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
       { name: "Water Recycling", color: "#2ecc71", desc: "82% returned to city" },
     ];
     const current = filtrationData?.stage;
+
     return {
       icon: "💧",
       title: "Water Filtration System",
@@ -397,12 +498,25 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
           {current && (
             <div className="p-section">
               <div className="p-label">CURRENT STAGE</div>
-              <div className="p-big" style={{ color: current.color ? `#${current.color.toString(16).padStart(6, "0")}` : "#22cfff" }}>
+              <div
+                className="p-big"
+                style={{
+                  color: current.color
+                    ? `#${current.color.toString(16).padStart(6, "0")}`
+                    : "#22cfff",
+                }}
+              >
                 {current.label}
               </div>
               <div className="p-desc">{current.desc}</div>
               <div className="p-progress" style={{ marginTop: 10 }}>
-                <div className="p-progress-fill" style={{ width: `${(filtrationData.progress || 0) * 100}%`, background: "#22cfff" }} />
+                <div
+                  className="p-progress-fill"
+                  style={{
+                    width: `${(filtrationData.progress || 0) * 100}%`,
+                    background: "#22cfff",
+                  }}
+                />
               </div>
             </div>
           )}
@@ -412,7 +526,10 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             <div className="pipeline">
               {stages.map((s, i) => (
                 <div key={i} className="pipe-stage">
-                  <div className="pipe-dot" style={{ background: s.color, boxShadow: `0 0 10px ${s.color}` }} />
+                  <div
+                    className="pipe-dot"
+                    style={{ background: s.color, boxShadow: `0 0 10px ${s.color}` }}
+                  />
                   <div className="pipe-info">
                     <div className="pipe-name">Stage {i + 1}: {s.name}</div>
                     <div className="pipe-desc">{s.desc}</div>
@@ -440,13 +557,14 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
   if (type === "food") {
     const stages = [
       { name: "Smart Farming", color: "#2ecc71", icon: "🌾", desc: "9 AI-monitored crop fields" },
-      { name: "Auto Harvest", color: "#ffcc22", icon: "🚜", desc: "Robotic harvesters collect produce" },
+      { name: "Auto Harvest", color: "#ffcc22", icon: "🚜", desc: "Robotic harvesters" },
       { name: "Food Processing", color: "#e67e22", icon: "🏭", desc: "Washing, cutting, packaging" },
-      { name: "Quality Check", color: "#3498db", icon: "🔍", desc: "AI vision inspects every item" },
-      { name: "Smart Packaging", color: "#9b59b6", icon: "📦", desc: "Barcode + freshness tracking" },
+      { name: "Quality Check", color: "#3498db", icon: "🔍", desc: "AI vision inspection" },
+      { name: "Smart Packaging", color: "#9b59b6", icon: "📦", desc: "Barcode tracking" },
       { name: "City Distribution", color: "#ff6b6b", icon: "🚚", desc: "48 deliveries daily" },
     ];
     const current = foodData?.stage;
+
     return {
       icon: "🍎",
       title: "AI Food Production",
@@ -458,12 +576,25 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
           {current && (
             <div className="p-section">
               <div className="p-label">CURRENT STAGE</div>
-              <div className="p-big" style={{ color: current.color ? `#${current.color.toString(16).padStart(6, "0")}` : "#2ecc71" }}>
+              <div
+                className="p-big"
+                style={{
+                  color: current.color
+                    ? `#${current.color.toString(16).padStart(6, "0")}`
+                    : "#2ecc71",
+                }}
+              >
                 {current.label}
               </div>
               <div className="p-desc">{current.desc}</div>
               <div className="p-progress" style={{ marginTop: 10 }}>
-                <div className="p-progress-fill" style={{ width: `${(foodData.progress || 0) * 100}%`, background: "#2ecc71" }} />
+                <div
+                  className="p-progress-fill"
+                  style={{
+                    width: `${(foodData.progress || 0) * 100}%`,
+                    background: "#2ecc71",
+                  }}
+                />
               </div>
             </div>
           )}
@@ -472,7 +603,11 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
             <div className="p-label">PRODUCTION PIPELINE</div>
             <div className="stage-list">
               {stages.map((s, i) => (
-                <div key={i} className="stage-item" style={{ borderColor: s.color + "40" }}>
+                <div
+                  key={i}
+                  className="stage-item"
+                  style={{ borderColor: s.color + "40" }}
+                >
                   <div className="stage-icon">{s.icon}</div>
                   <div className="stage-info">
                     <div className="stage-name">{s.name}</div>
@@ -507,9 +642,9 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     body: (
       <div className="p-section">
         <p style={{ color: "#b8e8ff", lineHeight: 1.6, fontSize: 13 }}>
-          This smart building is part of the BSS WORLD city network. 
-          Use the system cards on the right to explore detailed operations 
-          of AI Traffic, Power, Filtration and Food systems.
+          This smart building is part of the BSS WORLD city network. Use the
+          system cards on the right to explore detailed operations of AI
+          Traffic, Power, Filtration and Food systems.
         </p>
       </div>
     ),
