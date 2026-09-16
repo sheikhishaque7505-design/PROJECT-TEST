@@ -145,10 +145,10 @@ const SmartCity3D = forwardRef((props, ref) => {
     filtrationStageIndex: 0, filtrationStageElapsed: 0,
     foodStageIndex: 0, foodStageElapsed: 0,
     grassMaterial: null, roadMaterial: null, roadLaneMaterial: null,
-    curbMaterial: null, sidewalkMat: null, ambient: null, sun: null,
+    sidewalkMat: null, ambient: null, sun: null,
     filtrationStageMeshes: [], foodCropMeshes: [], foodConveyorItems: [],
     foodSprinklers: [], foodGears: [], foodDroneRotors: [],
-    foodDrone: null, foodLaser: null, foodPackArm: null, foodBeacon: null,
+    foodDrone: null, foodLaser: null, foodBeacon: null,
     powerRings: [],
     onAITrafficUpdate: null, onPowerUpdate: null,
     onFiltrationUpdate: null, onFoodUpdate: null, onPanel: null,
@@ -202,7 +202,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     if (s.grassMaterial) s.grassMaterial.color.setHex(night ? 0x1a3a24 : 0x4d8f50);
     if (s.roadMaterial) s.roadMaterial.color.setHex(night ? 0x0e1418 : 0x2a3238);
     if (s.roadLaneMaterial) s.roadLaneMaterial.color.setHex(night ? 0x080c10 : 0x1e2428);
-    if (s.curbMaterial) s.curbMaterial.color.setHex(night ? 0x252a2e : 0x697578);
     if (s.sidewalkMat) s.sidewalkMat.color.setHex(night ? 0x353a3e : 0x8a8f94);
     s.streetBulbMats.forEach((m) => { m.emissiveIntensity = night ? 6.5 : 1.8; });
     s.batteryRings.forEach((m) => { m.emissiveIntensity = night ? 5.5 : 2.0; });
@@ -447,6 +446,256 @@ const SmartCity3D = forwardRef((props, ref) => {
       if (nearRoad) continue;
       tree(x, z, 0.8 + Math.random() * 0.6);
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // FILL EMPTY SPACES — small buildings, shops, parking, gardens
+    // ═══════════════════════════════════════════════════════════
+
+    function smallBuilding(x, z, w, h, d, color) {
+      const g = new THREE.Group();
+      g.position.set(x, 5, z);
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.3 })
+      );
+      body.position.y = h / 2;
+      g.add(body);
+      const roof = new THREE.Mesh(
+        new THREE.BoxGeometry(w + 2, 2, d + 2),
+        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.6 })
+      );
+      roof.position.y = h + 1;
+      g.add(roof);
+      const winMat = new THREE.MeshStandardMaterial({ color: 0xffcc22, emissive: 0xffcc22, emissiveIntensity: 1.5 });
+      const levels = Math.max(2, Math.floor(h / 15));
+      for (let i = 1; i <= levels; i++) {
+        const y = (h / (levels + 1)) * i;
+        const win1 = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 2, d + 0.5), winMat);
+        win1.position.y = y;
+        g.add(win1);
+      }
+      scene.add(g);
+      return g;
+    }
+
+    function parkingLot(x, z, rows, cols) {
+      const g = new THREE.Group();
+      g.position.set(x, 5, z);
+      const pad = new THREE.Mesh(
+        new THREE.BoxGeometry(cols * 20, 0.4, rows * 30),
+        new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.95 })
+      );
+      pad.position.y = 0.2;
+      g.add(pad);
+      const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 });
+      for (let c = 0; c <= cols; c++) {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, rows * 30), lineMat);
+        line.position.set(-cols * 10 + c * 20, 0.5, 0);
+        g.add(line);
+      }
+      const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (Math.random() > 0.55) continue;
+          const car = new THREE.Mesh(
+            new THREE.BoxGeometry(14, 6, 22),
+            new THREE.MeshStandardMaterial({ color: carColors[Math.floor(Math.random() * carColors.length)], roughness: 0.4, metalness: 0.5 })
+          );
+          car.position.set(-cols * 10 + c * 20 + 10, 3, -rows * 15 + r * 30 + 15);
+          g.add(car);
+        }
+      }
+      scene.add(g);
+      return g;
+    }
+
+    function smallGarden(x, z, w, d) {
+      const g = new THREE.Group();
+      g.position.set(x, 5, z);
+      const pad = new THREE.Mesh(
+        new THREE.BoxGeometry(w, 0.5, d),
+        new THREE.MeshStandardMaterial({ color: 0x4a9d5a, roughness: 0.95 })
+      );
+      pad.position.y = 0.25;
+      g.add(pad);
+      const treeCount = Math.floor((w * d) / 800);
+      for (let i = 0; i < treeCount; i++) {
+        const trunk = new THREE.Mesh(
+          new THREE.CylinderGeometry(1, 1.5, 10, 6),
+          new THREE.MeshStandardMaterial({ color: 0x5a3d24, roughness: 0.9 })
+        );
+        const tx = (Math.random() - 0.5) * w * 0.8;
+        const tz = (Math.random() - 0.5) * d * 0.8;
+        trunk.position.set(tx, 5, tz);
+        g.add(trunk);
+        const leaves = new THREE.Mesh(
+          new THREE.ConeGeometry(6, 14, 6),
+          new THREE.MeshStandardMaterial({ color: 0x2d6e3d, roughness: 0.9 })
+        );
+        leaves.position.set(tx, 15, tz);
+        g.add(leaves);
+      }
+      for (let i = 0; i < 3; i++) {
+        const bench = new THREE.Mesh(
+          new THREE.BoxGeometry(8, 1.5, 3),
+          new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.85 })
+        );
+        bench.position.set((Math.random() - 0.5) * w * 0.7, 3, (Math.random() - 0.5) * d * 0.7);
+        g.add(bench);
+      }
+      const fountain = new THREE.Mesh(
+        new THREE.CylinderGeometry(5, 6, 4, 16),
+        new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.6 })
+      );
+      fountain.position.y = 2.5;
+      g.add(fountain);
+      const water = new THREE.Mesh(
+        new THREE.CylinderGeometry(4, 4, 1, 16),
+        new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 1.5, transparent: true, opacity: 0.8 })
+      );
+      water.position.y = 5;
+      g.add(water);
+      scene.add(g);
+      return g;
+    }
+
+    function warehouse(x, z, color) {
+      const g = new THREE.Group();
+      g.position.set(x, 5, z);
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(80, 30, 60),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.4 })
+      );
+      body.position.y = 15;
+      g.add(body);
+      const roof = new THREE.Mesh(
+        new THREE.BoxGeometry(84, 3, 64),
+        new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6 })
+      );
+      roof.position.y = 31.5;
+      g.add(roof);
+      const dock = new THREE.Mesh(
+        new THREE.BoxGeometry(20, 8, 4),
+        new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.8 })
+      );
+      dock.position.set(0, 4, 32);
+      g.add(dock);
+      scene.add(g);
+    }
+
+    function miniGasStation(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 5, z);
+      const canopy = new THREE.Mesh(
+        new THREE.BoxGeometry(40, 2, 30),
+        new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5, metalness: 0.5 })
+      );
+      canopy.position.y = 15;
+      g.add(canopy);
+      for (const [px, pz] of [[-15, -10], [15, -10], [-15, 10], [15, 10]]) {
+        const pillar = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.8, 0.8, 15, 8),
+          new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.7, roughness: 0.3 })
+        );
+        pillar.position.set(px, 7.5, pz);
+        g.add(pillar);
+      }
+      for (const [px, pz] of [[-10, 0], [10, 0]]) {
+        const pump = new THREE.Mesh(
+          new THREE.BoxGeometry(4, 8, 4),
+          new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.4, metalness: 0.5 })
+        );
+        pump.position.set(px, 4, pz);
+        g.add(pump);
+      }
+      scene.add(g);
+    }
+
+    function cafeShop(x, z, color) {
+      const g = new THREE.Group();
+      g.position.set(x, 5, z);
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(35, 25, 30),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.3 })
+      );
+      body.position.y = 12.5;
+      g.add(body);
+      const awning = new THREE.Mesh(
+        new THREE.BoxGeometry(38, 1, 35),
+        new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.7 })
+      );
+      awning.position.y = 26;
+      g.add(awning);
+      const sign = new THREE.Mesh(
+        new THREE.BoxGeometry(20, 6, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0xffcc22, emissive: 0xffcc22, emissiveIntensity: 2 })
+      );
+      sign.position.set(0, 30, 16);
+      g.add(sign);
+      scene.add(g);
+    }
+
+    // Place small buildings
+    smallBuilding(-800, -300, 30, 20, 30, 0x8e44ad);
+    smallBuilding(800, -300, 30, 20, 30, 0xf39c12);
+    smallBuilding(-800, 300, 30, 20, 30, 0x3498db);
+    smallBuilding(800, 300, 30, 20, 30, 0xe74c3c);
+    smallBuilding(-1500, -900, 40, 25, 40, 0x9b59b6);
+    smallBuilding(1500, -900, 40, 25, 40, 0x16a085);
+    smallBuilding(-1500, 900, 40, 25, 40, 0x2ecc71);
+    smallBuilding(1500, 900, 40, 25, 40, 0xd35400);
+    smallBuilding(-900, -1500, 35, 22, 35, 0x1abc9c);
+    smallBuilding(900, -1500, 35, 22, 35, 0xe91e63);
+    smallBuilding(-900, 1500, 35, 22, 35, 0x27ae60);
+    smallBuilding(900, 1500, 35, 22, 35, 0xc0392b);
+    smallBuilding(-2100, -500, 45, 30, 45, 0x34495e);
+    smallBuilding(2100, -500, 45, 30, 45, 0x8e44ad);
+    smallBuilding(-2100, 500, 45, 30, 45, 0xe67e22);
+    smallBuilding(2100, 500, 45, 30, 45, 0x2980b9);
+    smallBuilding(-2700, -2700, 50, 35, 50, 0x5b9bd5);
+    smallBuilding(2700, -2700, 50, 35, 50, 0xc0629b);
+    smallBuilding(-2700, 2700, 50, 35, 50, 0xf5a623);
+    smallBuilding(2700, 2700, 50, 35, 50, 0x6cd4a0);
+    smallBuilding(-3300, -1500, 55, 40, 55, 0x9b7ad9);
+    smallBuilding(3300, -1500, 55, 40, 55, 0xe8635c);
+    smallBuilding(-3300, 1500, 55, 40, 55, 0x22cfff);
+    smallBuilding(3300, 1500, 55, 40, 55, 0xffcc22);
+
+    // Parking lots
+    parkingLot(-1900, -1900, 3, 4);
+    parkingLot(1900, -1900, 3, 4);
+    parkingLot(-1900, 1900, 3, 4);
+    parkingLot(1900, 1900, 3, 4);
+
+    // Gardens
+    smallGarden(-1200, -300, 200, 200);
+    smallGarden(1200, -300, 200, 200);
+    smallGarden(-1200, 300, 200, 200);
+    smallGarden(1200, 300, 200, 200);
+    smallGarden(-2700, 0, 250, 250);
+    smallGarden(2700, 0, 250, 250);
+
+    // Warehouses
+    warehouse(-3000, -3000, 0x5a5a5a);
+    warehouse(-3000, 3000, 0x4a4a5a);
+    warehouse(3000, -3000, 0x5a4a4a);
+    warehouse(3000, 3000, 0x4a5a4a);
+
+    // Gas stations
+    miniGasStation(-2400, -900);
+    miniGasStation(2400, -900);
+    miniGasStation(-2400, 900);
+    miniGasStation(2400, 900);
+
+    // Cafes
+    cafeShop(-1500, -1200, 0xd35400);
+    cafeShop(1500, -1200, 0x27ae60);
+    cafeShop(-1500, 1200, 0x8e44ad);
+    cafeShop(1500, 1200, 0x2980b9);
+    cafeShop(-500, -2000, 0xe67e22);
+    cafeShop(500, -2000, 0xc0392b);
+    cafeShop(-500, 2000, 0x16a085);
+    cafeShop(500, 2000, 0x9b59b6);
 
     // GLB BUILDINGS with fallback
     const loader = new GLTFLoader();
@@ -826,7 +1075,9 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     s.foodDrone = drone;
 
-    // CARS
+    // ═══════════════════════════════════════════════════════════
+    // CARS — LANES FIXED TO ROAD
+    // ═══════════════════════════════════════════════════════════
     s.cars = [];
     const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad];
     const V_LEN = 28, V_WID = 12, V_HGT = 6;
@@ -864,15 +1115,16 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     const STOP_DIST = 130;
     const CAR_GAP = 90;
+    // Lane offsets stay well within road half-width (55)
     const LANES = [
-      { id: "N1", axis: "z", dir: 1, fixed: -30, road: 1, start: -3600, end: 3600 },
-      { id: "N2", axis: "z", dir: 1, fixed: -65, road: 1, start: -3600, end: 3600 },
-      { id: "S1", axis: "z", dir: -1, fixed: 30, road: 2, start: 3600, end: -3600 },
-      { id: "S2", axis: "z", dir: -1, fixed: 65, road: 2, start: 3600, end: -3600 },
-      { id: "E1", axis: "x", dir: 1, fixed: 30, road: 3, start: -3600, end: 3600 },
-      { id: "E2", axis: "x", dir: 1, fixed: 65, road: 3, start: -3600, end: 3600 },
-      { id: "W1", axis: "x", dir: -1, fixed: -30, road: 4, start: 3600, end: -3600 },
-      { id: "W2", axis: "x", dir: -1, fixed: -65, road: 4, start: 3600, end: -3600 },
+      { id: "N1", axis: "z", dir: 1, fixed: -25, road: 1, start: -3600, end: 3600 },
+      { id: "N2", axis: "z", dir: 1, fixed: -45, road: 1, start: -3600, end: 3600 },
+      { id: "S1", axis: "z", dir: -1, fixed: 25, road: 2, start: 3600, end: -3600 },
+      { id: "S2", axis: "z", dir: -1, fixed: 45, road: 2, start: 3600, end: -3600 },
+      { id: "E1", axis: "x", dir: 1, fixed: 25, road: 3, start: -3600, end: 3600 },
+      { id: "E2", axis: "x", dir: 1, fixed: 45, road: 3, start: -3600, end: 3600 },
+      { id: "W1", axis: "x", dir: -1, fixed: -25, road: 4, start: 3600, end: -3600 },
+      { id: "W2", axis: "x", dir: -1, fixed: -45, road: 4, start: 3600, end: -3600 },
     ];
 
     function updateCarTransform(c) {
