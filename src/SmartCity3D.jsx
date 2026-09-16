@@ -1,621 +1,253 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Html, useGLTF, ContactShadows, Sky, Text, Sparkles } from '@react-three/drei'
+import { OrbitControls, Html, useGLTF, ContactShadows, Sky, Text } from '@react-three/drei'
 import * as THREE from 'three'
 
 /* ═══════════════════════════════════════════════════════════
    GLOBAL STATE
    ═══════════════════════════════════════════════════════════ */
-const state = {
+const S = {
   timeOfDay: 'day',
   trafficDensity: 'medium',
   streetLightsOn: false,
   focus: null,
   menuOpen: false,
-  infoPopup: null,         // { title, type, data }
-  aiLog: [],               // AI decisions log
-  cameraMode: null,        // { location, camera }
-  aiTrafficStats: {
-    phase: 1,
-    phaseLabel: 'NORTH-SOUTH GREEN',
-    inYellow: false,
-    inAllRed: false,
-    nsVehicles: 0,
-    ewVehicles: 0,
-    totalManaged: 0,
-    avgWait: 0,
-    efficiency: 98,
-    decision: 'AI monitoring traffic flow',
-  },
+  infoPopup: null,
+  cameraMode: null,
+  aiLog: [],
 }
-const subscribers = new Set()
-const setState = (update) => {
-  Object.assign(state, update)
-  subscribers.forEach(cb => cb({ ...state }))
+const subs = new Set()
+const setS = (u) => { Object.assign(S, u); subs.forEach(c => c({ ...S })) }
+const useS = (sel) => {
+  const [s, set] = useState({ ...S })
+  useEffect(() => { const c = (v) => set(v); subs.add(c); return () => subs.delete(c) }, [])
+  return sel ? sel(s) : s
 }
-const useStore = (selector) => {
-  const [snap, setSnap] = useState({ ...state })
-  useEffect(() => {
-    const cb = (s) => setSnap(s)
-    subscribers.add(cb)
-    return () => subscribers.delete(cb)
-  }, [])
-  return selector ? selector(snap) : snap
+const addLog = (msg, type = 'info') => {
+  setS({ aiLog: [{ msg, type, t: Date.now() }, ...S.aiLog].slice(0, 8) })
 }
 
 /* ═══════════════════════════════════════════════════════════
-   AI DECISION LOGGER
+   AI TRAFFIC SYSTEM STATE (global for all components)
    ═══════════════════════════════════════════════════════════ */
-const logAIDecision = (message, type = 'info') => {
-  const entry = { message, type, time: Date.now() }
-  const newLog = [entry, ...state.aiLog].slice(0, 8)
-  setState({ aiLog: newLog })
+const TS = {
+  phase: 0,          // 0 = NS green, 1 = EW green
+  inYellow: false,
+  inAllRed: false,
+  elapsed: 0,
 }
+const PHASE_DURATION = 10
+const YELLOW_DURATION = 3
+const ALL_RED_DURATION = 1
 
 /* ═══════════════════════════════════════════════════════════
-   CAMERA DATA — for every location
+   LOCATIONS DATA — all buildings, zones, cameras, info
    ═══════════════════════════════════════════════════════════ */
-const LOCATIONS = {
-  traffic: {
-    label: 'AI Traffic Controller', icon: '🚦', type: 'TRAFFIC',
-    position: [0, 0, 0],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 30, height: 15 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 30, height: 15 },
-      { name: 'Camera 3', angle: Math.PI, dist: 30, height: 15 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 30, height: 15 },
-      { name: 'Top View', top: true, height: 60 },
-    ],
-    info: {
-      title: 'AI Traffic Controller',
-      subtitle: 'Central Intelligent Traffic Management',
-      description: 'The AI Traffic Controller manages 4-way intersection with adaptive signal timing. Uses real-time vehicle detection, queue monitoring, and predictive algorithms.',
-      stats: [
-        ['🚗 Vehicles Managed', '160+'],
-        ['📡 Sensors', '24 online'],
-        ['⚡ Signal Phases', '2 alternating'],
-        ['🧠 AI Confidence', '98%'],
-      ],
-      features: [
-        '✅ Adaptive signal timing based on queue',
-        '✅ Real-time vehicle detection',
-        '✅ Emergency vehicle priority',
-        '✅ Pedestrian crossing cycles',
-        '✅ Multi-directional traffic flow',
-      ],
-    },
-  },
+export const LOCATIONS = {
   school: {
-    label: 'Beacon School System', icon: '🏫', type: 'EDUCATION',
-    position: [-100, 0, -100],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 25, height: 12 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Camera 3', angle: Math.PI, dist: 25, height: 12 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Top View', top: true, height: 50 },
-    ],
+    label: 'Beacon School System', icon: '🏫', pos: [-100, 0, -100],
+    color: '#1a5490', glb: '/american_high_school.glb', size: 22,
     info: {
-      title: '🏫 Beacon School System',
-      subtitle: 'Smart Education Center',
-      description: 'American curriculum with AI-powered classrooms, robotics lab, and smart boards. 450 students enrolled with 32 teachers.',
-      stats: [
-        ['👨‍🎓 Students', '450'],
-        ['👩‍🏫 Teachers', '32'],
-        ['📚 Classes', '18 running'],
-        ['🤖 Robotics Lab', 'Active'],
-      ],
-      features: [
-        '✅ AI-powered smart classrooms',
-        '✅ Interactive smart boards',
-        '✅ Robotics & coding lab',
-        '✅ 24/7 AI security',
-        '✅ Solar-powered campus',
-      ],
+      title: '🏫 Beacon School System', sub: 'Smart Education Center',
+      desc: 'American curriculum with AI-powered classrooms, robotics lab, and smart boards. 450 students enrolled with 32 teachers.',
+      stats: [['👨‍🎓 Students', '450'], ['👩‍🏫 Teachers', '32'], ['📚 Classes', '18'], ['🤖 Robotics Lab', 'Active']],
+      features: ['✅ AI-powered smart classrooms', '✅ Interactive smart boards', '✅ Robotics & coding lab', '✅ 24/7 AI security', '✅ Solar-powered campus'],
     },
   },
   hospital: {
-    label: 'Smart City Hospital', icon: '🏥', type: 'HEALTHCARE',
-    position: [100, 0, -100],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 25, height: 12 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Camera 3', angle: Math.PI, dist: 25, height: 12 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Top View', top: true, height: 50 },
-    ],
+    label: 'Smart City Hospital', icon: '🏥', pos: [100, 0, -100],
+    color: '#c0392b', glb: '/low_poly_hospital.glb', size: 22,
     info: {
-      title: '🏥 Smart City Hospital',
-      subtitle: 'Advanced Healthcare Facility',
-      description: 'AI-powered diagnosis, robotic surgery, and 24/7 emergency services with 8 ICU beds and 32 patients under care.',
-      stats: [
-        ['🏥 Patients', '32'],
-        ['🚑 Ambulances', '2 ready'],
-        ['💊 ICU Beds', '8 free'],
-        ['🩺 AI Diagnosis', 'Online'],
-      ],
-      features: [
-        '✅ 24/7 emergency services',
-        '✅ AI medical diagnosis',
-        '✅ Robotic surgery',
-        '✅ Smart patient monitoring',
-        '✅ Helipad for emergencies',
-      ],
+      title: '🏥 Smart City Hospital', sub: 'Advanced Healthcare',
+      desc: 'AI-powered diagnosis, robotic surgery, 24/7 emergency services with 8 ICU beds and 32 patients under care.',
+      stats: [['🏥 Patients', '32'], ['🚑 Ambulances', '2'], ['💊 ICU Beds', '8'], ['🩺 AI Diagnosis', 'Online']],
+      features: ['✅ 24/7 emergency services', '✅ AI medical diagnosis', '✅ Robotic surgery', '✅ Smart patient monitoring', '✅ Helipad for emergencies'],
     },
   },
   bank: {
-    label: 'Smart City State Bank', icon: '🏦', type: 'FINANCIAL',
-    position: [100, 0, 100],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 28, height: 15 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 28, height: 15 },
-      { name: 'Camera 3', angle: Math.PI, dist: 28, height: 15 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 28, height: 15 },
-      { name: 'Top View', top: true, height: 55 },
-    ],
+    label: 'Smart City State Bank', icon: '🏦', pos: [100, 0, 100],
+    color: '#8e44ad', glb: '/us_bank_tower.glb', size: 26,
     info: {
-      title: '🏦 Smart City State Bank',
-      subtitle: 'Digital Financial Hub',
-      description: 'AI-powered banking with fraud detection, digital transactions, and 8 ATMs serving 1,240 transactions/hour.',
-      stats: [
-        ['💰 Transactions', '1,240/hr'],
-        ['🏧 ATMs', '8 online'],
-        ['🔐 AI Security', 'Active'],
-        ['📈 Uptime', '99.9%'],
-      ],
-      features: [
-        '✅ AI fraud detection',
-        '✅ Digital-only banking',
-        '✅ 8 smart ATMs',
-        '✅ Biometric security',
-        '✅ 24/7 online services',
-      ],
+      title: '🏦 Smart City State Bank', sub: 'Digital Financial Hub',
+      desc: 'AI-powered banking with fraud detection, digital transactions, and 8 ATMs serving 1,240 transactions/hour.',
+      stats: [['💰 Transactions', '1,240/hr'], ['🏧 ATMs', '8'], ['🔐 AI Security', 'Active'], ['📈 Uptime', '99.9%']],
+      features: ['✅ AI fraud detection', '✅ Digital-only banking', '✅ 8 smart ATMs', '✅ Biometric security', '✅ 24/7 online services'],
     },
   },
   farm: {
-    label: 'Smart Eco Farm', icon: '🌾', type: 'AGRICULTURE',
-    position: [-150, 0, -100],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 30, height: 15 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 30, height: 15 },
-      { name: 'Camera 3', angle: Math.PI, dist: 30, height: 15 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 30, height: 15 },
-      { name: 'Top View', top: true, height: 60 },
-    ],
+    label: 'Smart Eco Farm', icon: '🌾', pos: [-150, 0, -100],
+    color: '#27ae60', glb: '/simple_farm_free.glb', size: 28,
     info: {
-      title: '🌾 Smart Eco Farm',
-      subtitle: 'AI-Managed Agriculture',
-      description: 'IoT sensors monitor soil, drones map crops, and AI optimizes irrigation. 94% crop health with automated harvesting.',
-      stats: [
-        ['🌾 Crop Health', '94%'],
-        ['💧 Soil Moisture', '68%'],
-        ['🚁 Drones', '3 active'],
-        ['🌡️ Temp', '24°C'],
-      ],
-      features: [
-        '✅ IoT soil sensors',
-        '✅ Drone crop monitoring',
-        '✅ Drip irrigation',
-        '✅ AI harvest prediction',
-        '✅ Solar-powered operations',
-      ],
+      title: '🌾 Smart Eco Farm', sub: 'AI Agriculture',
+      desc: 'IoT sensors monitor soil, drones map crops, AI optimizes irrigation. 94% crop health with automated harvesting.',
+      stats: [['🌾 Crop Health', '94%'], ['💧 Soil Moisture', '68%'], ['🚁 Drones', '3'], ['🌡️ Temp', '24°C']],
+      features: ['✅ IoT soil sensors', '✅ Drone crop monitoring', '✅ Drip irrigation', '✅ AI harvest prediction', '✅ Solar-powered operations'],
     },
   },
   event: {
-    label: 'Liverpool Event Hall', icon: '🎪', type: 'EVENT VENUE',
-    position: [100, 0, 180],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 28, height: 12 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 28, height: 12 },
-      { name: 'Camera 3', angle: Math.PI, dist: 28, height: 12 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 28, height: 12 },
-      { name: 'Top View', top: true, height: 55 },
-    ],
+    label: 'Liverpool Event Hall', icon: '🎪', pos: [100, 0, 180],
+    color: '#d4a017', glb: '/liverpool_street_station_south_entrance.glb', size: 24,
     info: {
-      title: '🎪 Liverpool Event Hall',
-      subtitle: 'Modern Event Venue',
-      description: 'Multi-purpose hall with capacity 2,000, smart surround lighting, and 3 events today.',
-      stats: [
-        ['🎪 Capacity', '2,000'],
-        ['🎤 Events today', '3'],
-        ['💡 Smart Lights', 'ON'],
-        ['🎵 Sound', 'Surround'],
-      ],
-      features: [
-        '✅ 2,000 person capacity',
-        '✅ Smart surround lighting',
-        '✅ 360° audio system',
-        '✅ Live streaming setup',
-        '✅ Green energy powered',
-      ],
+      title: '🎪 Liverpool Event Hall', sub: 'Modern Event Venue',
+      desc: 'Multi-purpose hall with capacity 2,000, smart surround lighting, and 3 events today.',
+      stats: [['🎪 Capacity', '2,000'], ['🎤 Events today', '3'], ['💡 Smart Lights', 'ON'], ['🎵 Sound', 'Surround']],
+      features: ['✅ 2,000 person capacity', '✅ Smart surround lighting', '✅ 360° audio system', '✅ Live streaming setup', '✅ Green energy powered'],
     },
   },
   gas: {
-    label: 'Gas Station · Car Wash', icon: '⛽', type: 'AUTOMOTIVE',
-    position: [180, 0, 100],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 22, height: 10 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 22, height: 10 },
-      { name: 'Camera 3', angle: Math.PI, dist: 22, height: 10 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 22, height: 10 },
-      { name: 'Top View', top: true, height: 45 },
-    ],
+    label: 'Gas Station · Car Wash', icon: '⛽', pos: [180, 0, 100],
+    color: '#e74c3c', glb: '/gas_station.glb', size: 20,
     info: {
-      title: '⛽ Gas Station · Car Wash',
-      subtitle: 'Automated Fueling & Cleaning',
-      description: 'Automated car wash, 4 EV chargers, 6 fuel pumps with 78% water recycling.',
-      stats: [
-        ['🚗 Cars today', '87'],
-        ['⚡ EV Chargers', '4 active'],
-        ['⛽ Fuel Pumps', '6'],
-        ['💧 Water recycle', '78%'],
-      ],
-      features: [
-        '✅ Automated car wash',
-        '✅ 4 fast EV chargers',
-        '✅ 6 fuel pumps',
-        '✅ Water recycling',
-        '✅ 24/7 self-service',
-      ],
+      title: '⛽ Gas Station · Car Wash', sub: 'Automotive Services',
+      desc: 'Automated car wash, 4 EV chargers, 6 fuel pumps with 78% water recycling.',
+      stats: [['🚗 Cars today', '87'], ['⚡ EV Chargers', '4'], ['⛽ Fuel Pumps', '6'], ['💧 Water recycle', '78%']],
+      features: ['✅ Automated car wash', '✅ 4 fast EV chargers', '✅ 6 fuel pumps', '✅ Water recycling', '✅ 24/7 self-service'],
     },
   },
   office: {
-    label: 'Sewage & Gas Co.', icon: '🏭', type: 'INDUSTRIAL',
-    position: [180, 0, -100],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 25, height: 12 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Camera 3', angle: Math.PI, dist: 25, height: 12 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Top View', top: true, height: 50 },
-    ],
+    label: 'Sewage & Gas Co.', icon: '🏭', pos: [180, 0, -100],
+    color: '#2ecc71', glb: '/office.glb', size: 22,
     info: {
-      title: '🏭 Sewage & Gas Co.',
-      subtitle: 'Industrial Treatment Plant',
-      description: 'AI sewage treatment with biogas (2.1 MW), water recycling and 8M L/day processing.',
-      stats: [
-        ['🏭 Processed', '8M L/day'],
-        ['💨 Biogas', '2.1 MW'],
-        ['♻️ Recycle', '75%'],
-        ['🔬 Quality', 'Clean'],
-      ],
-      features: [
-        '✅ AI sewage treatment',
-        '✅ Biogas generation (2.1 MW)',
-        '✅ 75% water recycling',
-        '✅ Odor-free processing',
-        '✅ Zero-waste target',
-      ],
+      title: '🏭 Sewage & Gas Co.', sub: 'Industrial Treatment',
+      desc: 'AI sewage treatment with biogas (2.1 MW), water recycling and 8M L/day processing.',
+      stats: [['🏭 Processed', '8M L/day'], ['💨 Biogas', '2.1 MW'], ['♻️ Recycle', '75%'], ['🔬 Quality', 'Clean']],
+      features: ['✅ AI sewage treatment', '✅ Biogas generation', '✅ 75% water recycling', '✅ Odor-free processing', '✅ Zero-waste target'],
     },
   },
   culture: {
-    label: 'Culture Center', icon: '🏛', type: 'CULTURAL',
-    position: [-150, 0, 100],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 28, height: 12 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 28, height: 12 },
-      { name: 'Camera 3', angle: Math.PI, dist: 28, height: 12 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 28, height: 12 },
-      { name: 'Top View', top: true, height: 55 },
-    ],
+    label: 'Culture Center', icon: '🏛', pos: [-150, 0, 100],
+    color: '#f39c12', glb: '/national_archives_research_center.glb', size: 28,
     info: {
-      title: '🏛 Culture Center',
-      subtitle: 'Cultural Heritage Hub',
-      description: 'Museums, art galleries, VR tours, and 45 exhibits celebrating Sindhi, Punjabi, Pashto, and Balochi cultures.',
-      stats: [
-        ['🎭 Visitors', '320'],
-        ['🖼️ Exhibits', '45'],
-        ['🎬 VR Tours', 'Online'],
-        ['🎨 Workshops', '2 today'],
-      ],
-      features: [
-        '✅ 45 cultural exhibits',
-        '✅ VR heritage tours',
-        '✅ Live cultural events',
-        '✅ Art workshops',
-        '✅ Digital archives',
-      ],
+      title: '🏛 Culture Center', sub: 'Cultural Heritage Hub',
+      desc: 'Museums, art galleries, VR tours, and 45 exhibits celebrating local cultures.',
+      stats: [['🎭 Visitors', '320'], ['🖼️ Exhibits', '45'], ['🎬 VR Tours', 'Online'], ['🎨 Workshops', '2']],
+      features: ['✅ 45 cultural exhibits', '✅ VR heritage tours', '✅ Live cultural events', '✅ Art workshops', '✅ Digital archives'],
     },
   },
   powerCo: {
-    label: 'City Power Supply Co.', icon: '🔌', type: 'UTILITY',
-    position: [-150, 0, 0],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 25, height: 12 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Camera 3', angle: Math.PI, dist: 25, height: 12 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 25, height: 12 },
-      { name: 'Top View', top: true, height: 50 },
-    ],
+    label: 'City Power Supply Co.', icon: '🔌', pos: [-150, 0, 0],
+    color: '#f1c40f', glb: '/power-suply-companey.glb', size: 22,
     info: {
-      title: '🔌 City Power Supply Co.',
-      subtitle: 'Grid Monitoring Center',
-      description: 'AI load balancing across the city with 68 MW load, 22% reserve, and 0 outages today.',
-      stats: [
-        ['⚡ Load', '68 MW'],
-        ['🔋 Reserve', '22%'],
-        ['📊 Grid Status', 'Stable'],
-        ['🔌 Outages', '0'],
-      ],
-      features: [
-        '✅ AI load balancing',
-        '✅ Real-time grid monitoring',
-        '✅ 68 MW distribution',
-        '✅ Smart metering',
-        '✅ Auto-failover systems',
-      ],
+      title: '🔌 City Power Supply Co.', sub: 'Grid Monitoring',
+      desc: 'AI load balancing across the city with 68 MW load, 22% reserve, and 0 outages today.',
+      stats: [['⚡ Load', '68 MW'], ['🔋 Reserve', '22%'], ['📊 Grid', 'Stable'], ['🔌 Outages', '0']],
+      features: ['✅ AI load balancing', '✅ Real-time grid monitoring', '✅ 68 MW distribution', '✅ Smart metering', '✅ Auto-failover systems'],
     },
   },
   scifi9: {
-    label: 'Sci-Fi Building 9', icon: '🛸', type: 'SCI-FI R&D',
-    position: [-180, 0, -140],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 28, height: 15 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 28, height: 15 },
-      { name: 'Camera 3', angle: Math.PI, dist: 28, height: 15 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 28, height: 15 },
-      { name: 'Top View', top: true, height: 55 },
-    ],
+    label: 'Sci-Fi Building 9', icon: '🛸', pos: [-180, 0, -140],
+    color: '#66ff99', glb: '/sci-fi_building_9.glb', size: 26,
     info: {
-      title: '🛸 Sci-Fi Building 9',
-      subtitle: 'Futuristic R&D Center',
-      description: 'Advanced research facility with holographic labs, quantum computing, and 12 active research programs.',
-      stats: [
-        ['🧪 Labs', '12 active'],
-        ['💻 Quantum', 'Online'],
-        ['🔬 Research', '8 projects'],
-        ['⚡ Power', 'Stable'],
-      ],
-      features: [
-        '✅ Quantum computing lab',
-        '✅ Holographic displays',
-        '✅ AI research center',
-        '✅ Zero-gravity simulations',
-        '✅ Advanced materials lab',
-      ],
+      title: '🛸 Sci-Fi Building 9', sub: 'Futuristic R&D',
+      desc: 'Advanced research facility with holographic labs, quantum computing, 12 active research programs.',
+      stats: [['🧪 Labs', '12'], ['💻 Quantum', 'Online'], ['🔬 Research', '8'], ['⚡ Power', 'Stable']],
+      features: ['✅ Quantum computing lab', '✅ Holographic displays', '✅ AI research center', '✅ Zero-gravity sims', '✅ Advanced materials lab'],
     },
   },
   tower: {
-    label: 'Beautiful Tower', icon: '🗼', type: 'LANDMARK',
-    position: [-180, 0, 0],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 35, height: 20 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 35, height: 20 },
-      { name: 'Camera 3', angle: Math.PI, dist: 35, height: 20 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 35, height: 20 },
-      { name: 'Top View', top: true, height: 80 },
-    ],
+    label: 'Beautiful Tower', icon: '🗼', pos: [-180, 0, 0],
+    color: '#22cfff', glb: '/beautifultowerbuilding.glb', size: 30,
     info: {
-      title: '🗼 Beautiful Tower',
-      subtitle: 'Iconic City Landmark',
-      description: '320-meter iconic landmark with observation deck and smart show lighting. Attracts 180 visitors daily.',
-      stats: [
-        ['🏙️ Height', '320 m'],
-        ['👁️ Visitors', '180'],
-        ['💡 Lights', 'Show mode'],
-        ['📡 Antenna', 'Active'],
-      ],
-      features: [
-        '✅ 320m height',
-        '✅ Observation deck',
-        '✅ Smart show lighting',
-        '✅ Communication antenna',
-        '✅ Panoramic city views',
-      ],
+      title: '🗼 Beautiful Tower', sub: 'Iconic Landmark',
+      desc: '320-meter iconic landmark with observation deck and smart show lighting. 180 visitors daily.',
+      stats: [['🏙️ Height', '320 m'], ['👁️ Visitors', '180'], ['💡 Lights', 'Show'], ['📡 Antenna', 'Active']],
+      features: ['✅ 320m height', '✅ Observation deck', '✅ Smart show lighting', '✅ Communication antenna', '✅ Panoramic city views'],
     },
   },
   scifi10: {
-    label: 'Sci-Fi Building 10', icon: '🚀', type: 'SPACE TECH',
-    position: [-180, 0, 140],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 28, height: 15 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 28, height: 15 },
-      { name: 'Camera 3', angle: Math.PI, dist: 28, height: 15 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 28, height: 15 },
-      { name: 'Top View', top: true, height: 55 },
-    ],
+    label: 'Sci-Fi Building 10', icon: '🚀', pos: [-180, 0, 140],
+    color: '#ff66dd', glb: '/sci-fi_building_10.glb', size: 26,
     info: {
-      title: '🚀 Sci-Fi Building 10',
-      subtitle: 'Space Technology Center',
-      description: 'Satellite control center linked to 6 satellites with AI mission planning and 2 active space missions.',
-      stats: [
-        ['🛰️ Satellites', '6 linked'],
-        ['🚀 Missions', '2 active'],
-        ['📡 Signal', 'Strong'],
-        ['🤖 AI', 'Online'],
-      ],
-      features: [
-        '✅ 6 satellite links',
-        '✅ AI mission planning',
-        '✅ Deep space tracking',
-        '✅ Rocket telemetry',
-        '✅ Global uplink network',
-      ],
+      title: '🚀 Sci-Fi Building 10', sub: 'Space Technology',
+      desc: 'Satellite control center linked to 6 satellites with AI mission planning, 2 active missions.',
+      stats: [['🛰️ Satellites', '6'], ['🚀 Missions', '2'], ['📡 Signal', 'Strong'], ['🤖 AI', 'Online']],
+      features: ['✅ 6 satellite links', '✅ AI mission planning', '✅ Deep space tracking', '✅ Rocket telemetry', '✅ Global uplink network'],
+    },
+  },
+  traffic: {
+    label: 'AI Traffic Controller', icon: '🚦', pos: [0, 0, 0],
+    color: '#22cfff', glb: null, size: 0,
+    info: {
+      title: '🚦 AI Traffic Controller', sub: 'Central Intelligence',
+      desc: 'Manages 4-way intersection with adaptive signal timing. Real-time vehicle detection, queue monitoring, predictive algorithms.',
+      stats: [['🚗 Vehicles', '160+'], ['📡 Sensors', '24'], ['⚡ Phases', '2'], ['🧠 AI Confidence', '98%']],
+      features: ['✅ Adaptive signal timing', '✅ Real-time detection', '✅ Emergency priority', '✅ Pedestrian cycles', '✅ Multi-directional flow'],
     },
   },
   power: {
-    label: 'Power Supply Zone', icon: '⚡', type: 'RENEWABLE ENERGY',
-    position: [-180, 0, 180],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 40, height: 20 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Camera 3', angle: Math.PI, dist: 40, height: 20 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Top View', top: true, height: 90 },
-    ],
+    label: 'Power Supply Zone', icon: '⚡', pos: [-180, 0, 180],
+    color: '#ffcc22', glb: null, size: 0,
     info: {
-      title: '⚡ Power Supply Zone',
-      subtitle: 'Renewable Energy Farm',
-      description: 'Combined solar (42 MW) + wind (28 MW) = 70 MW renewable output with battery storage.',
-      stats: [
-        ['☀️ Solar', '42 MW'],
-        ['💨 Wind', '28 MW'],
-        ['🔋 Batteries', '78%'],
-        ['⚡ Output', '70 MW'],
-      ],
-      features: [
-        '✅ 9 wind turbines',
-        '✅ 9 solar arrays',
-        '✅ 9 battery banks',
-        '✅ Smart grid sync',
-        '✅ Zero-emission power',
-      ],
+      title: '⚡ Power Supply Zone', sub: 'Renewable Energy',
+      desc: 'Combined solar (42 MW) + wind (28 MW) = 70 MW renewable output with battery storage.',
+      stats: [['☀️ Solar', '42 MW'], ['💨 Wind', '28 MW'], ['🔋 Batteries', '78%'], ['⚡ Output', '70 MW']],
+      features: ['✅ 9 wind turbines', '✅ 9 solar arrays', '✅ 9 battery banks', '✅ Smart grid sync', '✅ Zero-emission power'],
     },
   },
   filtration: {
-    label: 'Filtration System', icon: '💧', type: 'WATER TREATMENT',
-    position: [180, 0, -180],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 40, height: 20 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Camera 3', angle: Math.PI, dist: 40, height: 20 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Top View', top: true, height: 90 },
-    ],
+    label: 'Filtration System', icon: '💧', pos: [180, 0, -180],
+    color: '#22cfff', glb: '/skid_filtration_system.glb', size: 20,
     info: {
-      title: '💧 Filtration System',
-      subtitle: '9-Stage Water Purification',
-      description: 'Advanced 9-stage purification system with 99.7% purity, processing 12M liters daily with 82% recycling.',
-      stats: [
-        ['💧 Processed', '12M L/day'],
-        ['🧪 Purity', '99.7%'],
-        ['🔬 Sensors', '24 active'],
-        ['♻️ Recycle', '82%'],
-      ],
-      features: [
-        '✅ 9-stage filtration',
-        '✅ 99.7% purity',
-        '✅ UV purification',
-        '✅ Real-time monitoring',
-        '✅ 82% water recycling',
-      ],
+      title: '💧 Filtration System', sub: '9-Stage Water Purification',
+      desc: 'Advanced 9-stage purification with 99.7% purity, processing 12M liters daily with 82% recycling.',
+      stats: [['💧 Processed', '12M L/day'], ['🧪 Purity', '99.7%'], ['🔬 Sensors', '24'], ['♻️ Recycle', '82%']],
+      features: ['✅ 9-stage filtration', '✅ 99.7% purity', '✅ UV purification', '✅ Real-time monitoring', '✅ 82% water recycling'],
     },
   },
   food: {
-    label: 'AI Food Production', icon: '🍎', type: 'FOOD SYSTEM',
-    position: [-180, 0, -180],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 40, height: 20 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Camera 3', angle: Math.PI, dist: 40, height: 20 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Top View', top: true, height: 90 },
-    ],
+    label: 'AI Food Production', icon: '🍎', pos: [-180, 0, -180],
+    color: '#2ecc71', glb: null, size: 0,
     info: {
-      title: '🍎 AI Food Production',
-      subtitle: 'Smart Farming & Processing',
-      description: 'AI-managed farm with drone monitoring, automated irrigation, and processing plant with 48 daily deliveries.',
-      stats: [
-        ['🌾 Crop Health', '94%'],
-        ['🚁 Drones', '3 active'],
-        ['🍎 Processing', '48/day'],
-        ['💧 Irrigation', 'Auto'],
-      ],
-      features: [
-        '✅ Drone crop monitoring',
-        '✅ AI irrigation system',
-        '✅ 9 farming plots',
-        '✅ Automated processing',
-        '✅ Farm-to-city delivery',
-      ],
+      title: '🍎 AI Food Production', sub: 'Smart Farming',
+      desc: 'AI-managed farm with drone monitoring, automated irrigation, processing plant with 48 daily deliveries.',
+      stats: [['🌾 Crop Health', '94%'], ['🚁 Drones', '3'], ['🍎 Processing', '48/day'], ['💧 Irrigation', 'Auto']],
+      features: ['✅ Drone crop monitoring', '✅ AI irrigation system', '✅ 9 farming plots', '✅ Automated processing', '✅ Farm-to-city delivery'],
     },
   },
   waste: {
-    label: 'Waste Management', icon: '♻️', type: 'MUNICIPAL',
-    position: [180, 0, 180],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 40, height: 20 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Camera 3', angle: Math.PI, dist: 40, height: 20 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Top View', top: true, height: 90 },
-    ],
+    label: 'Waste Management', icon: '♻️', pos: [180, 0, 180],
+    color: '#2ecc71', glb: null, size: 0,
     info: {
-      title: '♻️ Waste Management',
-      subtitle: 'Smart Circular Economy',
-      description: 'Smart segregation with recycling, biogas (4.2 MW), and composting. 68% of waste is recycled.',
-      stats: [
-        ['♻️ Recycled', '68%'],
-        ['⚡ Energy Gen', '4.2 MW'],
-        ['🗑️ Bins', '9 smart'],
-        ['📊 Efficiency', '95%'],
-      ],
-      features: [
-        '✅ 9 smart bins',
-        '✅ AI segregation',
-        '✅ Biogas generation',
-        '✅ Composting area',
-        '✅ Waste-to-energy',
-      ],
-    },
-  },
-  residential: {
-    label: 'Residential District', icon: '🏘', type: 'RESIDENTIAL',
-    position: [150, 0, 0],
-    cameras: [
-      { name: 'Camera 1', angle: 0, dist: 40, height: 20 },
-      { name: 'Camera 2', angle: Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Camera 3', angle: Math.PI, dist: 40, height: 20 },
-      { name: 'Camera 4', angle: -Math.PI / 2, dist: 40, height: 20 },
-      { name: 'Top View', top: true, height: 90 },
-    ],
-    info: {
-      title: '🏘 Residential District',
-      subtitle: 'Smart Houses Zone',
-      description: '20 energy-efficient houses with solar panels, wind turbines, and AI climate control.',
-      stats: [
-        ['🏘 Houses', '20'],
-        ['☀️ Solar', 'All houses'],
-        ['💨 Turbines', '14 active'],
-        ['🔋 Smart Grid', 'Connected'],
-      ],
-      features: [
-        '✅ 20 eco-friendly houses',
-        '✅ Solar panels on every roof',
-        '✅ Wind turbines',
-        '✅ AI climate control',
-        '✅ Smart energy meters',
-      ],
+      title: '♻️ Waste Management', sub: 'Circular Economy',
+      desc: 'Smart segregation with recycling, biogas (4.2 MW), and composting. 68% of waste is recycled.',
+      stats: [['♻️ Recycled', '68%'], ['⚡ Energy', '4.2 MW'], ['🗑️ Bins', '9'], ['📊 Efficiency', '95%']],
+      features: ['✅ 9 smart bins', '✅ AI segregation', '✅ Biogas generation', '✅ Composting area', '✅ Waste-to-energy'],
     },
   },
 }
+
 /* ═══════════════════════════════════════════════════════════
-   BUILDING BORDER — glowing edges
+   BUILDING BORDER
    ═══════════════════════════════════════════════════════════ */
-function BuildingBorder({ width = 4, depth = 4, height = 8, color = "#22cfff", position = [0, 0, 0] }) {
-  const timeOfDay = useStore(s => s.timeOfDay)
+function Border({ w = 4, d = 4, h = 8, color = '#22cfff' }) {
+  const timeOfDay = useS(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
-  const glow = isNight ? 6 : 3
-  const halfW = width / 2
-  const halfD = depth / 2
+  const g = isNight ? 6 : 3
 
   return (
-    <group position={position}>
-      <mesh position={[0, 0.15, halfD + 0.1]}>
-        <boxGeometry args={[width + 0.4, 0.15, 0.1]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
+    <group>
+      <mesh position={[0, 0.15, d / 2 + 0.1]}>
+        <boxGeometry args={[w + 0.4, 0.15, 0.1]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={g} />
       </mesh>
-      <mesh position={[0, 0.15, -halfD - 0.1]}>
-        <boxGeometry args={[width + 0.4, 0.15, 0.1]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
+      <mesh position={[0, 0.15, -d / 2 - 0.1]}>
+        <boxGeometry args={[w + 0.4, 0.15, 0.1]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={g} />
       </mesh>
-      <mesh position={[-halfW - 0.1, 0.15, 0]}>
-        <boxGeometry args={[0.1, 0.15, depth + 0.4]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
+      <mesh position={[-w / 2 - 0.1, 0.15, 0]}>
+        <boxGeometry args={[0.1, 0.15, d + 0.4]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={g} />
       </mesh>
-      <mesh position={[halfW + 0.1, 0.15, 0]}>
-        <boxGeometry args={[0.1, 0.15, depth + 0.4]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
+      <mesh position={[w / 2 + 0.1, 0.15, 0]}>
+        <boxGeometry args={[0.1, 0.15, d + 0.4]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={g} />
       </mesh>
 
-      {[
-        [-halfW - 0.1, halfD + 0.1], [halfW + 0.1, halfD + 0.1],
-        [-halfW - 0.1, -halfD - 0.1], [halfW + 0.1, -halfD - 0.1]
-      ].map(([x, z], i) => (
+      {[[-w / 2 - 0.1, d / 2 + 0.1], [w / 2 + 0.1, d / 2 + 0.1], [-w / 2 - 0.1, -d / 2 - 0.1], [w / 2 + 0.1, -d / 2 - 0.1]].map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
           <mesh position={[0, 1, 0]}>
             <cylinderGeometry args={[0.08, 0.08, 2, 8]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={g} />
           </mesh>
           <mesh position={[0, 2.15, 0]}>
             <sphereGeometry args={[0.18, 12, 12]} />
@@ -625,79 +257,71 @@ function BuildingBorder({ width = 4, depth = 4, height = 8, color = "#22cfff", p
         </group>
       ))}
 
-      <mesh position={[0, height + 0.3, 0]}>
-        <boxGeometry args={[width + 0.4, 0.08, 0.1]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow * 0.6} />
+      <mesh position={[0, h + 0.3, 0]}>
+        <boxGeometry args={[w + 0.4, 0.08, 0.1]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={g * 0.6} />
       </mesh>
-      <mesh position={[0, height + 0.3, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <boxGeometry args={[width + 0.4, 0.08, 0.1]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow * 0.6} />
+      <mesh position={[0, h + 0.3, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <boxGeometry args={[w + 0.4, 0.08, 0.1]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={g * 0.6} />
       </mesh>
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   BOARD — sign above building (clickable → camera popup)
+   BOARD — billboard sign above building
    ═══════════════════════════════════════════════════════════ */
-function Board({ text, position = [0, 0, 0], color = "#22cfff", width = 10, height = 2.5, locationKey = null }) {
-  const [texture, setTexture] = useState(null)
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-  const setCameraMode = (v) => setState({ cameraMode: v })
+function Board({ text, position = [0, 0, 0], color = '#22cfff', w = 10, h = 2.5, locKey = null }) {
+  const [tex, setTex] = useState(null)
 
   useEffect(() => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 2048
-    canvas.height = 512
-    const ctx = canvas.getContext('2d')
-    const grad = ctx.createLinearGradient(0, 0, 2048, 512)
+    const c = document.createElement('canvas')
+    c.width = 1024
+    c.height = 256
+    const ctx = c.getContext('2d')
+    const grad = ctx.createLinearGradient(0, 0, 1024, 256)
     grad.addColorStop(0, color)
     grad.addColorStop(1, '#0a1018')
     ctx.fillStyle = grad
-    ctx.fillRect(0, 0, 2048, 512)
+    ctx.fillRect(0, 0, 1024, 256)
     ctx.strokeStyle = '#ffffff'
-    ctx.lineWidth = 16
-    ctx.strokeRect(20, 20, 2008, 472)
-    ctx.strokeStyle = color
     ctx.lineWidth = 8
-    ctx.strokeRect(40, 40, 1968, 432)
+    ctx.strokeRect(10, 10, 1004, 236)
     ctx.fillStyle = '#ffffff'
-    ctx.font = 'bold 140px Arial'
+    ctx.font = 'bold 70px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.shadowColor = 'rgba(0,0,0,0.5)'
-    ctx.shadowBlur = 20
-    ctx.fillText(text, 1024, 256)
-    const tex = new THREE.CanvasTexture(canvas)
-    tex.colorSpace = THREE.SRGBColorSpace
-    tex.anisotropy = 4
-    setTexture(tex)
+    ctx.fillText(text, 512, 128)
+    const t = new THREE.CanvasTexture(c)
+    t.colorSpace = THREE.SRGBColorSpace
+    setTex(t)
   }, [text, color])
 
-  if (!texture) return null
+  if (!tex) return null
 
   const handleClick = (e) => {
     e.stopPropagation()
-    if (locationKey && LOCATIONS[locationKey]) {
-      setInfoPopup({ key: locationKey, ...LOCATIONS[locationKey].info })
+    if (locKey && LOCATIONS[locKey]) {
+      setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
     }
   }
 
   return (
     <group position={position}>
-      <mesh onClick={handleClick} onPointerOver={() => document.body.style.cursor = 'pointer'} onPointerOut={() => document.body.style.cursor = 'default'}>
-        <boxGeometry args={[width + 0.4, height + 0.4, 0.3]} />
+      <mesh onClick={handleClick}>
+        <boxGeometry args={[w + 0.4, h + 0.4, 0.3]} />
         <meshStandardMaterial color="#0a0a0a" emissive={color} emissiveIntensity={0.8} metalness={0.6} roughness={0.3} />
       </mesh>
       <mesh position={[0, 0, 0.17]}>
-        <planeGeometry args={[width, height]} />
-        <meshBasicMaterial map={texture} transparent />
+        <planeGeometry args={[w, h]} />
+        <meshBasicMaterial map={tex} transparent />
       </mesh>
-      <mesh position={[-width / 2 + 0.5, -height / 2 - 2, 0]}>
+      <mesh position={[-w / 2 + 0.5, -h / 2 - 2, 0]}>
         <cylinderGeometry args={[0.15, 0.15, 4, 8]} />
         <meshStandardMaterial color="#333" metalness={0.7} />
       </mesh>
-      <mesh position={[width / 2 - 0.5, -height / 2 - 2, 0]}>
+      <mesh position={[w / 2 - 0.5, -h / 2 - 2, 0]}>
         <cylinderGeometry args={[0.15, 0.15, 4, 8]} />
         <meshStandardMaterial color="#333" metalness={0.7} />
       </mesh>
@@ -708,197 +332,123 @@ function Board({ text, position = [0, 0, 0], color = "#22cfff", width = 10, heig
 /* ═══════════════════════════════════════════════════════════
    GLB BUILDING
    ═══════════════════════════════════════════════════════════ */
-function GLBBuilding({ 
-  url, size = 15, position = [0, 0, 0], 
-  name = "Building", borderColor = "#22cfff", 
-  boardColor = "#22cfff", yOffset = 0,
-  locationKey = null,
-}) {
-  const setFocus = useStore(s => s.setFocus)
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-  const setCameraMode = (v) => setState({ cameraMode: v })
-  const [dimensions, setDimensions] = useState({ w: 5, d: 5, h: 10 })
-
+function GLBBuilding({ url, size = 20, pos = [0, 0, 0], name = 'Building', color = '#22cfff', locKey }) {
+  const [dims, setDims] = useState({ w: 6, d: 6, h: 10 })
   let gltf = null
-  try {
-    gltf = useGLTF(url)
-  } catch (e) {
-    // fallback below
-  }
+  try { gltf = useGLTF(url) } catch (e) { }
 
   const model = React.useMemo(() => {
     if (!gltf || !gltf.scene) return null
-    const cloned = gltf.scene.clone(true)
-    
-    const box = new THREE.Box3().setFromObject(cloned)
-    const sizeVec = new THREE.Vector3()
-    box.getSize(sizeVec)
-    const maxDim = Math.max(sizeVec.x, sizeVec.y, sizeVec.z)
-    const scale = size / Math.max(maxDim, 0.001)
-    cloned.scale.setScalar(scale)
-
-    const box2 = new THREE.Box3().setFromObject(cloned)
-    const center = new THREE.Vector3()
-    box2.getCenter(center)
-    cloned.position.x -= center.x
-    cloned.position.z -= center.z
-    cloned.position.y -= box2.min.y
-
-    const finalSize = new THREE.Vector3()
-    box2.getSize(finalSize)
-    setDimensions({
-      w: Math.max(finalSize.x * scale * 1.3, 6),
-      d: Math.max(finalSize.z * scale * 1.3, 6),
-      h: Math.max(finalSize.y * scale, 10)
-    })
-
-    return cloned
+    const c = gltf.scene.clone(true)
+    const box = new THREE.Box3().setFromObject(c)
+    const sz = new THREE.Vector3()
+    box.getSize(sz)
+    const maxD = Math.max(sz.x, sz.y, sz.z)
+    const sc = size / Math.max(maxD, 0.001)
+    c.scale.setScalar(sc)
+    const box2 = new THREE.Box3().setFromObject(c)
+    const ctr = new THREE.Vector3()
+    box2.getCenter(ctr)
+    c.position.x -= ctr.x
+    c.position.z -= ctr.z
+    c.position.y -= box2.min.y
+    const fs = new THREE.Vector3()
+    box2.getSize(fs)
+    setDims({ w: Math.max(fs.x * sc * 1.3, 6), d: Math.max(fs.z * sc * 1.3, 6), h: Math.max(fs.y * sc, 10) })
+    return c
   }, [gltf, size])
 
   const handleClick = (e) => {
     e.stopPropagation()
-    if (locationKey && LOCATIONS[locationKey]) {
-      setInfoPopup({ key: locationKey, ...LOCATIONS[locationKey].info })
+    if (locKey && LOCATIONS[locKey]) {
+      setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
     }
-    setFocus({
-      x: position[0] + 25,
-      y: position[1] + dimensions.h + 5,
-      z: position[2] + 25,
-      lookAt: { x: position[0], y: position[1], z: position[2] }
-    })
+    setS({ focus: { x: pos[0] + 30, y: pos[1] + dims.h + 8, z: pos[2] + 30, lookAt: { x: pos[0], y: pos[1], z: pos[2] } } })
   }
 
   if (!model) {
-    const fbColor = borderColor
     const w = size / 3
     const h = size / 2
     return (
-      <group position={[position[0], position[1] + yOffset, position[2]]}>
-        <mesh onClick={handleClick} castShadow onPointerOver={() => document.body.style.cursor = 'pointer'} onPointerOut={() => document.body.style.cursor = 'default'}>
+      <group position={pos}>
+        <mesh onClick={handleClick} castShadow>
           <boxGeometry args={[w, h, w]} />
-          <meshStandardMaterial color={fbColor} roughness={0.6} metalness={0.3} />
+          <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
         </mesh>
-        <BuildingBorder width={w} depth={w} height={h} color={borderColor} />
-        <Board text={name} position={[0, h + 5, 0]} color={boardColor} locationKey={locationKey} />
+        <Border w={w} d={w} h={h} color={color} />
+        <Board text={name} position={[0, h + 5, 0]} color={color} locKey={locKey} />
       </group>
     )
   }
 
   return (
-    <group position={[position[0], position[1] + yOffset, position[2]]}>
-      <primitive 
-        object={model} 
-        onClick={handleClick} 
-        castShadow 
-        receiveShadow 
-        onPointerOver={() => document.body.style.cursor = 'pointer'} 
-        onPointerOut={() => document.body.style.cursor = 'default'} 
-      />
-      <BuildingBorder 
-        width={dimensions.w} 
-        depth={dimensions.d} 
-        height={dimensions.h} 
-        color={borderColor} 
-      />
-      <Board text={name} position={[0, dimensions.h + 6, 0]} color={boardColor} locationKey={locationKey} />
+    <group position={pos}>
+      <primitive object={model} onClick={handleClick} castShadow receiveShadow />
+      <Border w={dims.w} d={dims.d} h={dims.h} color={color} />
+      <Board text={name} position={[0, dims.h + 6, 0]} color={color} locKey={locKey} />
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   ENHANCED BUILDING (old houses)
+   HOUSE — old style (EnhancedBuilding)
    ═══════════════════════════════════════════════════════════ */
-function EnhancedBuilding({ 
-  position = [0, 0, 0], 
-  height = 8, 
-  color = "#a67c52", 
-  name = "Building",
-  hasTurbine = false,
-  hasSolar = true
-}) {
-  const setFocus = useStore(s => s.setFocus)
-  const timeOfDay = useStore(s => s.timeOfDay)
+function House({ pos = [0, 0, 0], h = 8, color = '#a67c52', name = 'House', turbine = false }) {
+  const timeOfDay = useS(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
-  const borderColor = hasTurbine ? "#22cfff" : "#ffcc22"
+  const bc = turbine ? '#22cfff' : '#ffcc22'
 
   const handleClick = (e) => {
     e.stopPropagation()
-    setFocus({ x: position[0] + 15, y: position[1] + height + 5, z: position[2] + 15, lookAt: { x: position[0], y: position[1], z: position[2] } })
-    setState({ 
+    setS({
       infoPopup: {
-        key: 'house',
         title: `🏠 ${name}`,
-        subtitle: 'Smart Residential House',
-        description: `Energy-efficient house with ${hasTurbine ? 'wind turbine + ' : ''}solar panels and AI climate control. Fully connected to smart city grid.`,
-        stats: [
-          ['🏠 Type', 'Residential'],
-          ['☀️ Solar', hasSolar ? 'Active' : 'None'],
-          ['💨 Turbine', hasTurbine ? 'Active' : 'None'],
-          ['🔋 Power', 'Connected'],
-        ],
-        features: [
-          '✅ Smart energy metering',
-          '✅ AI climate control',
-          '✅ Auto day/night lighting',
-          '✅ IoT home devices',
-          '✅ Green energy powered',
-        ],
-      }
+        sub: 'Smart Residential House',
+        desc: `Energy-efficient house with ${turbine ? 'wind turbine + ' : ''}solar panels and AI climate control.`,
+        stats: [['🏠 Type', 'Residential'], ['☀️ Solar', 'Active'], ['💨 Turbine', turbine ? 'Active' : 'None'], ['🔋 Power', 'Connected']],
+        features: ['✅ Smart energy metering', '✅ AI climate control', '✅ Auto day/night lighting', '✅ IoT home devices', '✅ Green energy powered'],
+      },
     })
+    setS({ focus: { x: pos[0] + 15, y: pos[1] + h + 5, z: pos[2] + 15, lookAt: { x: pos[0], y: pos[1], z: pos[2] } } })
   }
 
   return (
-    <group position={position}>
-      <mesh castShadow receiveShadow onClick={handleClick} onPointerOver={() => document.body.style.cursor = 'pointer'} onPointerOut={() => document.body.style.cursor = 'default'}>
-        <boxGeometry args={[5, height, 5]} />
+    <group position={pos}>
+      <mesh castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[5, h, 5]} />
         <meshStandardMaterial color={color} roughness={0.75} metalness={0.15} />
       </mesh>
-      
-      {Array.from({ length: Math.floor(height / 3) }).map((_, floor) => {
-        const y = (floor * 3) - height / 2 + 2
+
+      {Array.from({ length: Math.floor(h / 3) }).map((_, f) => {
+        const y = (f * 3) - h / 2 + 2
         return (
-          <group key={floor}>
-            <mesh position={[0, y, 2.51]} castShadow>
+          <group key={f}>
+            <mesh position={[0, y, 2.51]}>
               <boxGeometry args={[4, 1.8, 0.05]} />
-              <meshStandardMaterial 
-                color={isNight ? "#ffffcc" : "#87CEEB"} 
-                transparent 
-                opacity={isNight ? 0.95 : 0.75}
-                emissive={isNight ? "#ffff99" : "#000000"}
-                emissiveIntensity={isNight ? 0.8 : 0}
-              />
+              <meshStandardMaterial color={isNight ? '#ffffcc' : '#87CEEB'} transparent opacity={isNight ? 0.95 : 0.75} emissive={isNight ? '#ffff99' : '#000000'} emissiveIntensity={isNight ? 0.8 : 0} />
             </mesh>
-            <mesh position={[0, y, -2.51]} castShadow>
+            <mesh position={[0, y, -2.51]}>
               <boxGeometry args={[4, 1.8, 0.05]} />
-              <meshStandardMaterial 
-                color={isNight ? "#ffffcc" : "#87CEEB"} 
-                transparent 
-                opacity={isNight ? 0.95 : 0.75}
-                emissive={isNight ? "#ffff99" : "#000000"}
-                emissiveIntensity={isNight ? 0.8 : 0}
-              />
+              <meshStandardMaterial color={isNight ? '#ffffcc' : '#87CEEB'} transparent opacity={isNight ? 0.95 : 0.75} emissive={isNight ? '#ffff99' : '#000000'} emissiveIntensity={isNight ? 0.8 : 0} />
             </mesh>
           </group>
         )
       })}
-      
-      <mesh position={[0, height / 2 + 0.5, 0]} castShadow>
+
+      <mesh position={[0, h / 2 + 0.5, 0]} castShadow>
         <boxGeometry args={[5.4, 1, 5.4]} />
         <meshStandardMaterial color="#34495e" />
       </mesh>
 
-      {hasSolar && (
-        <mesh position={[0, height / 2 + 1.2, 0]}>
-          <boxGeometry args={[4, 0.1, 4]} />
-          <meshStandardMaterial color="#082c4b" emissive="#063b62" emissiveIntensity={1} metalness={0.7} />
-        </mesh>
-      )}
+      <mesh position={[0, h / 2 + 1.2, 0]}>
+        <boxGeometry args={[4, 0.1, 4]} />
+        <meshStandardMaterial color="#082c4b" emissive="#063b62" emissiveIntensity={1} metalness={0.7} />
+      </mesh>
 
-      {hasTurbine && <WindTurbine position={[0, height / 2 + 1, 0]} scale={0.6} />}
+      {turbine && <Turbine pos={[0, h / 2 + 1, 0]} scale={0.6} />}
 
-      <BuildingBorder width={5} depth={5} height={height} color={borderColor} />
-
-      <Board text={name} position={[0, height + 4, 0]} color={borderColor} width={7} height={1.6} />
+      <Border w={5} d={5} h={h} color={bc} />
+      <Board text={name} position={[0, h + 4, 0]} color={bc} w={7} h={1.6} />
     </group>
   )
 }
@@ -906,18 +456,17 @@ function EnhancedBuilding({
 /* ═══════════════════════════════════════════════════════════
    WIND TURBINE
    ═══════════════════════════════════════════════════════════ */
-function WindTurbine({ position, scale = 1 }) {
-  const bladesRef = useRef()
-  useFrame(() => {
-    if (bladesRef.current) bladesRef.current.rotation.z += 0.05
-  })
+function Turbine({ pos, scale = 1 }) {
+  const ref = useRef()
+  useFrame(() => { if (ref.current) ref.current.rotation.z += 0.05 })
+
   return (
-    <group position={position} scale={scale}>
+    <group position={pos} scale={scale}>
       <mesh position={[0, 4, 0]} castShadow>
         <cylinderGeometry args={[0.15, 0.25, 8, 6]} />
         <meshStandardMaterial color="#e8e8e8" metalness={0.3} />
       </mesh>
-      <group ref={bladesRef} position={[0, 8, 0]}>
+      <group ref={ref} position={[0, 8, 0]}>
         {[0, 1, 2].map(i => (
           <mesh key={i} rotation={[0, 0, (i * Math.PI * 2) / 3]} castShadow>
             <boxGeometry args={[0.2, 3.5, 0.1]} />
@@ -936,13 +485,13 @@ function WindTurbine({ position, scale = 1 }) {
 /* ═══════════════════════════════════════════════════════════
    STREET LIGHT
    ═══════════════════════════════════════════════════════════ */
-function StreetLight({ position = [0, 0, 0] }) {
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const streetLightsOn = useStore(s => s.streetLightsOn)
+function StreetLight({ pos }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const streetLightsOn = useS(s => s.streetLightsOn)
   const isOn = streetLightsOn || timeOfDay === 'night'
 
   return (
-    <group position={position}>
+    <group position={pos}>
       <mesh position={[0, 3, 0]} castShadow>
         <cylinderGeometry args={[0.08, 0.12, 6, 8]} />
         <meshStandardMaterial color="#444" metalness={0.5} />
@@ -957,76 +506,14 @@ function StreetLight({ position = [0, 0, 0] }) {
       </mesh>
       <mesh position={[2, 5.7, 0]}>
         <sphereGeometry args={[0.2, 12, 12]} />
-        <meshStandardMaterial 
-          color={isOn ? "#ffffcc" : "#666"} 
-          emissive={isOn ? "#ffff99" : "#000"} 
-          emissiveIntensity={isOn ? 2 : 0} 
-        />
+        <meshStandardMaterial color={isOn ? '#ffffcc' : '#666'} emissive={isOn ? '#ffff99' : '#000'} emissiveIntensity={isOn ? 2 : 0} />
       </mesh>
       {isOn && <pointLight position={[2, 5.7, 0]} intensity={0.9} distance={18} color="#ffffcc" />}
     </group>
   )
 }
-
 /* ═══════════════════════════════════════════════════════════
-   PARKING LOT
-   ═══════════════════════════════════════════════════════════ */
-function ParkingLot({ position, rows = 3, cols = 5 }) {
-  const carColors = ['#287ca3', '#c83f49', '#e1a72e', '#5b72c9', '#2f9d65', '#d8d8d8']
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[cols * 4, rows * 6]} />
-        <meshStandardMaterial color="#3a3a3a" roughness={0.95} />
-      </mesh>
-      {Array.from({ length: cols + 1 }).map((_, i) => (
-        <mesh key={`l${i}`} position={[-cols * 2 + i * 4, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.15, rows * 6]} />
-          <meshStandardMaterial color="#fff" />
-        </mesh>
-      ))}
-      {Array.from({ length: rows * cols }).map((_, i) => {
-        if (Math.random() < 0.4) return null
-        const r = Math.floor(i / cols)
-        const c = i % cols
-        return (
-          <mesh 
-            key={i} 
-            position={[-cols * 2 + c * 4 + 2, 0.5, -rows * 3 + r * 6 + 3]}
-            castShadow
-          >
-            <boxGeometry args={[3, 1, 2]} />
-            <meshStandardMaterial color={carColors[i % carColors.length]} />
-          </mesh>
-        )
-      })}
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   TREE
-   ═══════════════════════════════════════════════════════════ */
-function Tree({ position, scale = 1 }) {
-  return (
-    <group position={position} scale={scale}>
-      <mesh position={[0, 1.2, 0]} castShadow>
-        <cylinderGeometry args={[0.25, 0.35, 2.4, 6]} />
-        <meshStandardMaterial color="#5a3d24" />
-      </mesh>
-      <mesh position={[0, 3.6, 0]} castShadow>
-        <coneGeometry args={[1.8, 3.6, 7]} />
-        <meshStandardMaterial color="#2d6e3d" />
-      </mesh>
-      <mesh position={[0, 5.2, 0]} castShadow>
-        <coneGeometry args={[1.2, 2.4, 7]} />
-        <meshStandardMaterial color="#3a8a4c" />
-      </mesh>
-    </group>
-  )
-}
-/* ═══════════════════════════════════════════════════════════
-   ROAD SYSTEM
+   CITY DIMENSIONS
    ═══════════════════════════════════════════════════════════ */
 const CITY = {
   HALF: 200,
@@ -1036,159 +523,108 @@ const CITY = {
   ROAD_X: [-75, -25, 25, 75],
 }
 
-function RoadSystem() {
-  const { HALF, ROAD_W, ROAD_LEN, ROAD_Z, ROAD_X } = CITY
-  const roadMat = <meshStandardMaterial color="#2a2a2a" roughness={0.92} metalness={0.05} />
-  const yellowMat = <meshStandardMaterial color="#f5c84b" emissive="#f5c84b" emissiveIntensity={0.6} />
-  const whiteMat = <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.4} />
-  const sidewalkMat = <meshStandardMaterial color="#a8a8a8" roughness={0.9} />
-  const curbMat = <meshStandardMaterial color="#6a6a6a" roughness={0.85} />
+/* ═══════════════════════════════════════════════════════════
+   ROAD SYSTEM
+   ═══════════════════════════════════════════════════════════ */
+function Roads() {
+  const { HALF, ROAD_W: RW, ROAD_LEN: RL, ROAD_Z: RZ, ROAD_X: RX } = CITY
+  const road = <meshStandardMaterial color="#2a2a2a" roughness={0.92} metalness={0.05} />
+  const yellow = <meshStandardMaterial color="#f5c84b" emissive="#f5c84b" emissiveIntensity={0.6} />
+  const white = <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.4} />
+  const sw = <meshStandardMaterial color="#a8a8a8" roughness={0.9} />
+  const curb = <meshStandardMaterial color="#6a6a6a" roughness={0.85} />
 
   return (
     <group>
       {/* East-West roads */}
-      {ROAD_Z.map((z, i) => (
+      {RZ.map((z, i) => (
         <group key={`ew${i}`}>
           <mesh position={[0, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[ROAD_LEN, ROAD_W]} />
-            {roadMat}
+            <planeGeometry args={[RL, RW]} />{road}
           </mesh>
           <mesh position={[0, 0.025, z - 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[ROAD_LEN, 0.2]} />
-            {yellowMat}
+            <planeGeometry args={[RL, 0.2]} />{yellow}
           </mesh>
           <mesh position={[0, 0.025, z + 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[ROAD_LEN, 0.2]} />
-            {yellowMat}
+            <planeGeometry args={[RL, 0.2]} />{yellow}
           </mesh>
           {Array.from({ length: 60 }).map((_, k) => (
-            <React.Fragment key={`ew-${i}-d1-${k}`}>
-              <mesh position={[-ROAD_LEN / 2 + 3 + k * 3.2, 0.03, z - ROAD_W / 4]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[1.5, 0.15]} />
-                {whiteMat}
+            <React.Fragment key={k}>
+              <mesh position={[-RL / 2 + 3 + k * 3.2, 0.03, z - RW / 4]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[1.5, 0.15]} />{white}
               </mesh>
-              <mesh position={[-ROAD_LEN / 2 + 3 + k * 3.2, 0.03, z + ROAD_W / 4]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[1.5, 0.15]} />
-                {whiteMat}
+              <mesh position={[-RL / 2 + 3 + k * 3.2, 0.03, z + RW / 4]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[1.5, 0.15]} />{white}
               </mesh>
             </React.Fragment>
           ))}
-          <mesh position={[0, 0.03, z - ROAD_W / 2 + 0.4]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[ROAD_LEN, 0.15]} />
-            {whiteMat}
+          <mesh position={[0, 0.2, z - RW / 2 - 1.5]} receiveShadow>
+            <boxGeometry args={[RL, 0.4, 3]} />{sw}
           </mesh>
-          <mesh position={[0, 0.03, z + ROAD_W / 2 - 0.4]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[ROAD_LEN, 0.15]} />
-            {whiteMat}
+          <mesh position={[0, 0.2, z + RW / 2 + 1.5]} receiveShadow>
+            <boxGeometry args={[RL, 0.4, 3]} />{sw}
           </mesh>
-          <mesh position={[0, 0.2, z - ROAD_W / 2 - 1.5]} receiveShadow>
-            <boxGeometry args={[ROAD_LEN, 0.4, 3]} />
-            {sidewalkMat}
+          <mesh position={[0, 0.25, z - RW / 2 - 0.15]}>
+            <boxGeometry args={[RL, 0.5, 0.3]} />{curb}
           </mesh>
-          <mesh position={[0, 0.2, z + ROAD_W / 2 + 1.5]} receiveShadow>
-            <boxGeometry args={[ROAD_LEN, 0.4, 3]} />
-            {sidewalkMat}
-          </mesh>
-          <mesh position={[0, 0.25, z - ROAD_W / 2 - 0.15]}>
-            <boxGeometry args={[ROAD_LEN, 0.5, 0.3]} />
-            {curbMat}
-          </mesh>
-          <mesh position={[0, 0.25, z + ROAD_W / 2 + 0.15]}>
-            <boxGeometry args={[ROAD_LEN, 0.5, 0.3]} />
-            {curbMat}
-          </mesh>
-          <mesh position={[0, 0.05, z - ROAD_W / 2 - 3.1]}>
-            <boxGeometry args={[ROAD_LEN, 0.08, 0.12]} />
-            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} />
-          </mesh>
-          <mesh position={[0, 0.05, z + ROAD_W / 2 + 3.1]}>
-            <boxGeometry args={[ROAD_LEN, 0.08, 0.12]} />
-            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} />
+          <mesh position={[0, 0.25, z + RW / 2 + 0.15]}>
+            <boxGeometry args={[RL, 0.5, 0.3]} />{curb}
           </mesh>
         </group>
       ))}
 
       {/* North-South roads */}
-      {ROAD_X.map((x, i) => (
+      {RX.map((x, i) => (
         <group key={`ns${i}`}>
           <mesh position={[x, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[ROAD_W, ROAD_LEN]} />
-            {roadMat}
+            <planeGeometry args={[RW, RL]} />{road}
           </mesh>
           <mesh position={[x - 0.5, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.2, ROAD_LEN]} />
-            {yellowMat}
+            <planeGeometry args={[0.2, RL]} />{yellow}
           </mesh>
           <mesh position={[x + 0.5, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.2, ROAD_LEN]} />
-            {yellowMat}
+            <planeGeometry args={[0.2, RL]} />{yellow}
           </mesh>
           {Array.from({ length: 60 }).map((_, k) => (
-            <React.Fragment key={`ns-${i}-d-${k}`}>
-              <mesh position={[x - ROAD_W / 4, 0.03, -ROAD_LEN / 2 + 3 + k * 3.2]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[0.15, 1.5]} />
-                {whiteMat}
+            <React.Fragment key={k}>
+              <mesh position={[x - RW / 4, 0.03, -RL / 2 + 3 + k * 3.2]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[0.15, 1.5]} />{white}
               </mesh>
-              <mesh position={[x + ROAD_W / 4, 0.03, -ROAD_LEN / 2 + 3 + k * 3.2]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[0.15, 1.5]} />
-                {whiteMat}
+              <mesh position={[x + RW / 4, 0.03, -RL / 2 + 3 + k * 3.2]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[0.15, 1.5]} />{white}
               </mesh>
             </React.Fragment>
           ))}
-          <mesh position={[x - ROAD_W / 2 + 0.4, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.15, ROAD_LEN]} />
-            {whiteMat}
+          <mesh position={[x - RW / 2 - 1.5, 0.2, 0]} receiveShadow>
+            <boxGeometry args={[3, 0.4, RL]} />{sw}
           </mesh>
-          <mesh position={[x + ROAD_W / 2 - 0.4, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.15, ROAD_LEN]} />
-            {whiteMat}
+          <mesh position={[x + RW / 2 + 1.5, 0.2, 0]} receiveShadow>
+            <boxGeometry args={[3, 0.4, RL]} />{sw}
           </mesh>
-          <mesh position={[x - ROAD_W / 2 - 1.5, 0.2, 0]} receiveShadow>
-            <boxGeometry args={[3, 0.4, ROAD_LEN]} />
-            {sidewalkMat}
+          <mesh position={[x - RW / 2 - 0.15, 0.25, 0]}>
+            <boxGeometry args={[0.3, 0.5, RL]} />{curb}
           </mesh>
-          <mesh position={[x + ROAD_W / 2 + 1.5, 0.2, 0]} receiveShadow>
-            <boxGeometry args={[3, 0.4, ROAD_LEN]} />
-            {sidewalkMat}
-          </mesh>
-          <mesh position={[x - ROAD_W / 2 - 0.15, 0.25, 0]}>
-            <boxGeometry args={[0.3, 0.5, ROAD_LEN]} />
-            {curbMat}
-          </mesh>
-          <mesh position={[x + ROAD_W / 2 + 0.15, 0.25, 0]}>
-            <boxGeometry args={[0.3, 0.5, ROAD_LEN]} />
-            {curbMat}
-          </mesh>
-          <mesh position={[x - ROAD_W / 2 - 3.1, 0.05, 0]}>
-            <boxGeometry args={[0.12, 0.08, ROAD_LEN]} />
-            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} />
-          </mesh>
-          <mesh position={[x + ROAD_W / 2 + 3.1, 0.05, 0]}>
-            <boxGeometry args={[0.12, 0.08, ROAD_LEN]} />
-            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} />
+          <mesh position={[x + RW / 2 + 0.15, 0.25, 0]}>
+            <boxGeometry args={[0.3, 0.5, RL]} />{curb}
           </mesh>
         </group>
       ))}
 
       {/* Crosswalks */}
-      {ROAD_X.map(x =>
-        ROAD_Z.map(z => (
-          <group key={`cw-${x}-${z}`} position={[x, 0.04, z]}>
-            {Array.from({ length: 12 }).map((_, k) => (
-              <mesh key={`h${k}`} position={[-ROAD_W / 2 + 0.6 + k * 0.6, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[0.35, ROAD_W - 0.5]} />
-                {whiteMat}
-              </mesh>
-            ))}
-            {Array.from({ length: 12 }).map((_, k) => (
-              <mesh key={`v${k}`} position={[0, 0, -ROAD_W / 2 + 0.6 + k * 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[ROAD_W - 0.5, 0.35]} />
-                {whiteMat}
-              </mesh>
-            ))}
-          </group>
-        ))
-      )}
+      {RX.map(x => RZ.map(z => (
+        <group key={`cw-${x}-${z}`} position={[x, 0.04, z]}>
+          {Array.from({ length: 12 }).map((_, k) => (
+            <mesh key={`h${k}`} position={[-RW / 2 + 0.6 + k * 0.6, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[0.35, RW - 0.5]} />{white}
+            </mesh>
+          ))}
+          {Array.from({ length: 12 }).map((_, k) => (
+            <mesh key={`v${k}`} position={[0, 0, -RW / 2 + 0.6 + k * 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[RW - 0.5, 0.35]} />{white}
+            </mesh>
+          ))}
+        </group>
+      )))}
 
       {/* Boundary wall */}
       {[
@@ -1239,71 +675,57 @@ function StreetLightSystem() {
 
   return (
     <group>
-      {positions.map((pos, i) => <StreetLight key={i} position={pos} />)}
+      {positions.map((pos, i) => <StreetLight key={i} pos={pos} />)}
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   AI TRAFFIC SYSTEM — strong manager
+   AI TRAFFIC SYSTEM — phase manager
    ═══════════════════════════════════════════════════════════ */
-const trafficSystemState = {
-  phase: 0,             // 0 = NS green, 1 = EW green
-  inYellow: false,
-  inAllRed: false,
-  phaseDuration: 8,
-  elapsed: 0,
-  nsVehicles: 0,
-  ewVehicles: 0,
-  totalManaged: 0,
-  decisions: [],
-}
-
 function AITrafficSystem() {
-  const elapsedRef = useRef(0)
   const lastLogRef = useRef(0)
+  const tickRef = useRef(0)
 
   useFrame((_, dt) => {
-    elapsedRef.current += dt
-    const e = elapsedRef.current
-    const s = trafficSystemState
-    s.elapsed = e
+    TS.elapsed += dt
+    tickRef.current++
 
-    if (s.inAllRed) {
-      if (e >= 0.8) {
-        s.inAllRed = false
-        s.phase = s.phase === 0 ? 1 : 0
-        elapsedRef.current = 0
-        s.phaseDuration = 6 + Math.random() * 4
-        const newLabel = s.phase === 0 ? 'North-South GREEN' : 'East-West GREEN'
-        logAIDecision(`✅ Switching to ${newLabel} — Phase ${s.phase + 1}`, 'phase')
+    if (TS.inAllRed) {
+      if (TS.elapsed >= ALL_RED_DURATION) {
+        TS.inAllRed = false
+        TS.phase = TS.phase === 0 ? 1 : 0
+        TS.elapsed = 0
+        addLog(`✅ Switched to ${TS.phase === 0 ? 'North-South' : 'East-West'} GREEN — Phase ${TS.phase + 1}`, 'phase')
       }
-    } else if (s.inYellow) {
-      if (e >= 2.5) {
-        s.inYellow = false
-        s.inAllRed = true
-        elapsedRef.current = 0
-        logAIDecision('⚠️ Yellow → All-Red safety interval', 'warning')
+    } else if (TS.inYellow) {
+      if (TS.elapsed >= YELLOW_DURATION) {
+        TS.inYellow = false
+        TS.inAllRed = true
+        TS.elapsed = 0
+        addLog('⚠️ Yellow → All-Red safety interval', 'warning')
       }
-    } else if (e >= s.phaseDuration) {
-      s.inYellow = true
-      elapsedRef.current = 0
-      logAIDecision(`⏱️ ${s.phase === 0 ? 'NS' : 'EW'} phase ending — switching`, 'info')
+    } else if (TS.elapsed >= PHASE_DURATION) {
+      TS.inYellow = true
+      TS.elapsed = 0
+      addLog(`⏱️ ${TS.phase === 0 ? 'NS' : 'EW'} phase ending — yellow`, 'info')
     }
 
-    // Log AI decisions periodically
-    if (Date.now() - lastLogRef.current > 5000 && Math.random() < 0.3) {
+    // Periodic AI decisions
+    if (Date.now() - lastLogRef.current > 6000 && Math.random() < 0.4) {
       lastLogRef.current = Date.now()
       const decisions = [
-        { msg: '🧠 AI detected high traffic on Road 1 — extending green by 2s', type: 'adaptive' },
-        { msg: '📡 Sensors reporting 24 active vehicles in queue', type: 'info' },
-        { msg: '✅ Optimizing signal timing — 98% efficiency', type: 'success' },
-        { msg: '🚗 Detected pedestrian crossing — extending all-red', type: 'warning' },
-        { msg: '🎯 Traffic flow balanced across 4 directions', type: 'success' },
-        { msg: '📊 Real-time queue analysis — no congestion detected', type: 'info' },
+        { msg: '🧠 AI detected heavy traffic — extending green phase by 2s', type: 'adaptive' },
+        { msg: '📡 24 sensors reporting — queue analysis complete', type: 'info' },
+        { msg: '✅ Signal optimization — 98% efficiency achieved', type: 'success' },
+        { msg: '🚗 40+ vehicles detected in intersection zone', type: 'info' },
+        { msg: '🎯 Traffic flow balanced across all 4 directions', type: 'success' },
+        { msg: '📊 Real-time queue analysis — no congestion', type: 'info' },
+        { msg: '🤖 AI managing 160+ vehicles with adaptive timing', type: 'adaptive' },
+        { msg: '⚡ Emergency priority system — standby ready', type: 'info' },
       ]
       const d = decisions[Math.floor(Math.random() * decisions.length)]
-      logAIDecision(d.msg, d.type)
+      addLog(d.msg, d.type)
     }
   })
 
@@ -1311,32 +733,31 @@ function AITrafficSystem() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TRAFFIC LIGHT POLE — 4-way
+   TRAFFIC LIGHT POLE — 4 poles at intersection
    ═══════════════════════════════════════════════════════════ */
-function TrafficLightPole({ position, roadId }) {
+function TrafficLightPole({ pos, roadId }) {
   const redRef = useRef()
   const yellowRef = useRef()
   const greenRef = useRef()
 
   useFrame(() => {
-    const s = trafficSystemState
-    const nsGreen = s.phase === 0 && !s.inYellow && !s.inAllRed
-    const ewGreen = s.phase === 1 && !s.inYellow && !s.inAllRed
-    const yellow = s.inYellow
+    const nsGreen = TS.phase === 0 && !TS.inYellow && !TS.inAllRed
+    const ewGreen = TS.phase === 1 && !TS.inYellow && !TS.inAllRed
+    const isYellow = TS.inYellow
 
     let isGreen = false
     if (roadId === 1 || roadId === 2) isGreen = nsGreen
     if (roadId === 3 || roadId === 4) isGreen = ewGreen
 
-    const isRed = !isGreen && !yellow
+    const isRed = !isGreen && !isYellow
 
     if (redRef.current) redRef.current.material.emissiveIntensity = isRed ? (Math.floor(Date.now() / 500) % 2 ? 8 : 4) : 0.2
-    if (yellowRef.current) yellowRef.current.material.emissiveIntensity = yellow ? 10 : 0.2
+    if (yellowRef.current) yellowRef.current.material.emissiveIntensity = isYellow ? 10 : 0.2
     if (greenRef.current) greenRef.current.material.emissiveIntensity = isGreen ? 8 + Math.sin(Date.now() * 0.005) * 2 : 0.2
   })
 
   return (
-    <group position={position}>
+    <group position={pos}>
       <mesh position={[0, 4, 0]} castShadow>
         <cylinderGeometry args={[0.18, 0.22, 8, 8]} />
         <meshStandardMaterial color="#1a1a1a" metalness={0.4} />
@@ -1369,69 +790,65 @@ function TrafficLights() {
   const offset = CITY.ROAD_W / 2 + 3
   return (
     <group>
-      <TrafficLightPole position={[-offset, 0, -offset]} roadId={1} />
-      <TrafficLightPole position={[offset, 0, offset]} roadId={2} />
-      <TrafficLightPole position={[offset, 0, -offset]} roadId={3} />
-      <TrafficLightPole position={[-offset, 0, offset]} roadId={4} />
+      <TrafficLightPole pos={[-offset, 0, -offset]} roadId={1} />
+      <TrafficLightPole pos={[offset, 0, offset]} roadId={2} />
+      <TrafficLightPole pos={[offset, 0, -offset]} roadId={3} />
+      <TrafficLightPole pos={[-offset, 0, offset]} roadId={4} />
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CAR
+   CAR — moves on lane, stops at red light
    ═══════════════════════════════════════════════════════════ */
 function Car({ lane, startPos }) {
   const carRef = useRef()
-  const [pos, setPos] = useState(startPos)
-  const timeOfDay = useStore(s => s.timeOfDay)
+  const posRef = useRef(startPos)
+  const timeOfDay = useS(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
   const colorRef = useRef(null)
-  const speedRef = useRef(12 + Math.random() * 6)
+  const speedRef = useRef(15 + Math.random() * 5)
 
   if (!colorRef.current) {
-    const colors = ["#287ca3", "#c83f49", "#e1a72e", "#5b72c9", "#2f9d65", "#d8d8d8", "#d97b2a", "#8b3ad9", "#16a085", "#8e44ad", "#f39c12", "#e74c3c"]
+    const colors = ['#287ca3', '#c83f49', '#e1a72e', '#5b72c9', '#2f9d65', '#d8d8d8', '#d97b2a', '#8b3ad9', '#16a085', '#8e44ad', '#f39c12', '#e74c3c']
     colorRef.current = colors[Math.floor(Math.random() * colors.length)]
   }
 
   useFrame((_, dt) => {
     if (!carRef.current) return
-    const s = trafficSystemState
-    const nsGreen = s.phase === 0 && !s.inYellow && !s.inAllRed
-    const ewGreen = s.phase === 1 && !s.inYellow && !s.inAllRed
-    const yellow = s.inYellow
 
-    const roadId = lane.road
-    const isNs = roadId === 1 || roadId === 2
-    const isEw = roadId === 3 || roadId === 4
+    const isNs = lane.road === 1 || lane.road === 2
+    const isEw = lane.road === 3 || lane.road === 4
 
-    const stopLine = 20
-    let distToStop = 0
-    if (lane.axis === 'z') {
-      distToStop = Math.abs(pos - (lane.dir > 0 ? -stopLine : stopLine))
-    } else {
-      distToStop = Math.abs(pos - (lane.dir > 0 ? -stopLine : stopLine))
+    const nsGreen = TS.phase === 0 && !TS.inYellow && !TS.inAllRed
+    const ewGreen = TS.phase === 1 && !TS.inYellow && !TS.inAllRed
+    const isGreen = (isNs && nsGreen) || (isEw && ewGreen)
+
+    const distToCenter = Math.abs(posRef.current)
+
+    let speed = speedRef.current
+    if (!isGreen && distToCenter < 25) {
+      if (distToCenter < 15) {
+        speed = 0
+      } else {
+        speed = speedRef.current * ((distToCenter - 15) / 10)
+      }
     }
 
-    let shouldStop = false
-    if (distToStop < 20) {
-      if (isNs && !nsGreen && !yellow) shouldStop = true
-      if (isEw && !ewGreen && !yellow) shouldStop = true
+    posRef.current += speed * lane.dir * dt
+
+    const span = Math.abs(lane.end - lane.start)
+    if (lane.dir > 0 && posRef.current > lane.end) {
+      posRef.current = lane.start + (posRef.current - lane.end)
+    } else if (lane.dir < 0 && posRef.current < lane.end) {
+      posRef.current = lane.start - (lane.end - posRef.current)
     }
 
-    let currentSpeed = speedRef.current
-    if (shouldStop && distToStop < 20) currentSpeed = Math.max(0, currentSpeed * (distToStop / 20))
-
-    const newPos = pos + currentSpeed * lane.dir * dt
-    let wrapped = newPos
-    if (lane.dir > 0 && newPos > lane.end) wrapped = lane.start
-    if (lane.dir < 0 && newPos < lane.end) wrapped = lane.start
-    setPos(wrapped)
-
     if (lane.axis === 'z') {
-      carRef.current.position.set(lane.fixed, 0.35, wrapped)
+      carRef.current.position.set(lane.fixed, 0.35, posRef.current)
       carRef.current.rotation.y = lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2
     } else {
-      carRef.current.position.set(wrapped, 0.35, lane.fixed)
+      carRef.current.position.set(posRef.current, 0.35, lane.fixed)
       carRef.current.rotation.y = lane.dir > 0 ? 0 : Math.PI
     }
   })
@@ -1482,33 +899,30 @@ function Car({ lane, startPos }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TRAFFIC SYSTEM — cars on all 16 lanes
+   TRAFFIC SYSTEM — spawn cars on lanes
    ═══════════════════════════════════════════════════════════ */
 function TrafficSystem() {
-  const trafficDensity = useStore(s => s.trafficDensity)
-  const carsPerLane = trafficDensity === 'low' ? 4 : trafficDensity === 'medium' ? 6 : 10
+  const trafficDensity = useS(s => s.trafficDensity)
+  const carsPerLane = trafficDensity === 'low' ? 3 : trafficDensity === 'medium' ? 4 : 6
   const { ROAD_Z, ROAD_X, ROAD_LEN } = CITY
 
   const lanes = []
   ROAD_Z.forEach((z, i) => {
-    lanes.push({ id: `EW-E-${i}-1`, axis: 'x', dir: 1, fixed: z - 1.5, road: 3, start: -ROAD_LEN / 2, end: ROAD_LEN / 2 })
-    lanes.push({ id: `EW-E-${i}-2`, axis: 'x', dir: 1, fixed: z - 4, road: 3, start: -ROAD_LEN / 2, end: ROAD_LEN / 2 })
-    lanes.push({ id: `EW-W-${i}-1`, axis: 'x', dir: -1, fixed: z + 1.5, road: 4, start: ROAD_LEN / 2, end: -ROAD_LEN / 2 })
-    lanes.push({ id: `EW-W-${i}-2`, axis: 'x', dir: -1, fixed: z + 4, road: 4, start: ROAD_LEN / 2, end: -ROAD_LEN / 2 })
+    lanes.push({ id: `EW-E-${i}`, axis: 'x', dir: 1, fixed: z - 1.5, road: 3, start: -ROAD_LEN / 2, end: ROAD_LEN / 2 })
+    lanes.push({ id: `EW-W-${i}`, axis: 'x', dir: -1, fixed: z + 1.5, road: 4, start: ROAD_LEN / 2, end: -ROAD_LEN / 2 })
   })
   ROAD_X.forEach((x, i) => {
-    lanes.push({ id: `NS-N-${i}-1`, axis: 'z', dir: 1, fixed: x - 1.5, road: 1, start: -ROAD_LEN / 2, end: ROAD_LEN / 2 })
-    lanes.push({ id: `NS-N-${i}-2`, axis: 'z', dir: 1, fixed: x - 4, road: 1, start: -ROAD_LEN / 2, end: ROAD_LEN / 2 })
-    lanes.push({ id: `NS-S-${i}-1`, axis: 'z', dir: -1, fixed: x + 1.5, road: 2, start: ROAD_LEN / 2, end: -ROAD_LEN / 2 })
-    lanes.push({ id: `NS-S-${i}-2`, axis: 'z', dir: -1, fixed: x + 4, road: 2, start: ROAD_LEN / 2, end: -ROAD_LEN / 2 })
+    lanes.push({ id: `NS-N-${i}`, axis: 'z', dir: 1, fixed: x - 1.5, road: 1, start: -ROAD_LEN / 2, end: ROAD_LEN / 2 })
+    lanes.push({ id: `NS-S-${i}`, axis: 'z', dir: -1, fixed: x + 1.5, road: 2, start: ROAD_LEN / 2, end: -ROAD_LEN / 2 })
   })
 
   return (
     <group>
       {lanes.map(lane => (
         Array.from({ length: carsPerLane }).map((_, i) => {
-          const gap = Math.abs(lane.end - lane.start) / carsPerLane
-          const startPos = lane.dir > 0 ? lane.start + gap * i + Math.random() * 8 : lane.start - gap * i - Math.random() * 8
+          const span = Math.abs(lane.end - lane.start)
+          const gap = span / carsPerLane
+          const startPos = lane.dir > 0 ? lane.start + gap * i : lane.start - gap * i
           return <Car key={`${lane.id}-${i}`} lane={lane} startPos={startPos} />
         })
       ))}
@@ -1526,8 +940,8 @@ function Person({ cx = 0, cz = 0, radius = 8, speed = 0.5 }) {
   const colorRef = useRef(null)
 
   if (!colorRef.current) {
-    const skins = ["#f2c9a0", "#d9a373", "#a06a3c", "#6b4a2f", "#ffd8b8"]
-    const shirts = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#1abc9c", "#e67e22"]
+    const skins = ['#f2c9a0', '#d9a373', '#a06a3c', '#6b4a2f', '#ffd8b8']
+    const shirts = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c', '#e67e22']
     colorRef.current = {
       skin: skins[Math.floor(Math.random() * skins.length)],
       shirt: shirts[Math.floor(Math.random() * shirts.length)],
@@ -1582,19 +996,39 @@ function PeopleSystem() {
   )
 }
 
+/* ═══════════════════════════════════════════════════════════
+   TREE
+   ═══════════════════════════════════════════════════════════ */
+function Tree({ pos, scale = 1 }) {
+  return (
+    <group position={pos} scale={scale}>
+      <mesh position={[0, 1.2, 0]} castShadow>
+        <cylinderGeometry args={[0.25, 0.35, 2.4, 6]} />
+        <meshStandardMaterial color="#5a3d24" />
+      </mesh>
+      <mesh position={[0, 3.6, 0]} castShadow>
+        <coneGeometry args={[1.8, 3.6, 7]} />
+        <meshStandardMaterial color="#2d6e3d" />
+      </mesh>
+      <mesh position={[0, 5.2, 0]} castShadow>
+        <coneGeometry args={[1.2, 2.4, 7]} />
+        <meshStandardMaterial color="#3a8a4c" />
+      </mesh>
+    </group>
+  )
+}
+
 function TreesSystem() {
   const positions = []
   const { ROAD_Z, ROAD_X, ROAD_W, HALF } = CITY
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 150; i++) {
     const x = (Math.random() - 0.5) * HALF * 1.8
     const z = (Math.random() - 0.5) * HALF * 1.8
-
     let skip = false
     ROAD_Z.forEach(rz => { if (Math.abs(z - rz) < ROAD_W / 2 + 6) skip = true })
     ROAD_X.forEach(rx => { if (Math.abs(x - rx) < ROAD_W / 2 + 6) skip = true })
     if (Math.sqrt(x * x + z * z) < 20) skip = true
-
     if (skip) continue
     positions.push([x, 0, z])
   }
@@ -1602,407 +1036,8 @@ function TreesSystem() {
   return (
     <group>
       {positions.map((pos, i) => (
-        <Tree key={i} position={pos} scale={0.7 + Math.random() * 0.6} />
+        <Tree key={i} pos={pos} scale={0.7 + Math.random() * 0.6} />
       ))}
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   POWER ZONE
-   ═══════════════════════════════════════════════════════════ */
-function PowerZone({ position = [-180, 0, 180] }) {
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const isNight = timeOfDay === 'night'
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-  const setCameraMode = (v) => setState({ cameraMode: v })
-
-  return (
-    <group position={position} onClick={() => setInfoPopup({ key: 'power', ...LOCATIONS.power.info })}>
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[60, 50]} />
-        <meshStandardMaterial color="#1d3a2e" roughness={0.95} />
-      </mesh>
-
-      <BuildingBorder width={60} depth={50} height={0.2} color="#ffcc22" />
-
-      {[0, 1, 2].map(row =>
-        [0, 1, 2].map(col => (
-          <WindTurbine 
-            key={`${row}-${col}`}
-            position={[-20 + col * 20, 0, -15 + row * 15]} 
-            scale={1.2 + (row % 2) * 0.15}
-          />
-        ))
-      )}
-
-      {[-20, -15, -10, -5, 0, 5, 10, 15, 20].map((x, i) => (
-        <group key={i} position={[x, 0, 22]}>
-          <mesh position={[0, 0.35, 0]} castShadow>
-            <boxGeometry args={[4, 0.15, 2.6]} />
-            <meshStandardMaterial color="#082c4b" emissive="#063b62" emissiveIntensity={1.2} metalness={0.7} roughness={0.2} />
-          </mesh>
-          <mesh position={[0, 0.15, 0]} castShadow>
-            <boxGeometry args={[4.2, 0.2, 2.8]} />
-            <meshStandardMaterial color="#2c3e50" />
-          </mesh>
-        </group>
-      ))}
-
-      {[-22, -17, -12, -7, -2, 3, 8, 13, 18].map((x, i) => (
-        <group key={i} position={[x, 0, -25]}>
-          <mesh position={[0, 1.8, 0]} castShadow>
-            <boxGeometry args={[3, 3.6, 3]} />
-            <meshStandardMaterial color="#2a5a4a" metalness={0.4} roughness={0.5} />
-          </mesh>
-          <mesh position={[0, 0.4, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[2, 0.1, 6, 16]} />
-            <meshStandardMaterial color="#22ff9d" emissive="#22ff9d" emissiveIntensity={isNight ? 6 : 4} />
-          </mesh>
-        </group>
-      ))}
-
-      <Board text="POWER SUPPLY ZONE" position={[0, 22, 0]} color="#ffcc22" width={16} height={3} locationKey="power" />
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   FILTRATION ZONE
-   ═══════════════════════════════════════════════════════════ */
-const FILTRATION_STAGES = [
-  { id: "wastewater", label: "Wastewater", color: "#6b4a2f" },
-  { id: "primary", label: "Primary", color: "#8a7a4a" },
-  { id: "biological", label: "Biological", color: "#4a8a5a" },
-  { id: "aeration", label: "Aeration", color: "#4ac8e0" },
-  { id: "clarification", label: "Clarification", color: "#6ab0d0" },
-  { id: "advanced", label: "Advanced", color: "#3aa0d0" },
-  { id: "uv", label: "UV", color: "#9a6aff" },
-  { id: "storage", label: "Storage", color: "#22cfff" },
-  { id: "recycling", label: "Recycling", color: "#2ecc71" },
-]
-
-function WaterFlow({ from, to, active }) {
-  const dotsRef = useRef([])
-  const progressRef = useRef([0, 0.33, 0.66])
-
-  useFrame((_, dt) => {
-    for (let i = 0; i < 3; i++) {
-      progressRef.current[i] = (progressRef.current[i] + dt * 0.6) % 1
-      const d = dotsRef.current[i]
-      if (!d) continue
-      const x = from[0] + (to[0] - from[0]) * progressRef.current[i]
-      const z = from[2] + (to[2] - from[2]) * progressRef.current[i]
-      const y = 2 + Math.sin(progressRef.current[i] * Math.PI) * 1.2
-      d.position.set(x, y, z)
-    }
-  })
-
-  return (
-    <group>
-      {[0, 1, 2].map(i => (
-        <mesh key={i} ref={el => dotsRef.current[i] = el} visible={active}>
-          <sphereGeometry args={[0.22, 8, 8]} />
-          <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={5} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
-function FiltrationTank({ position, color, stageIndex, active }) {
-  const waterRef = useRef()
-  useFrame(() => {
-    if (!waterRef.current || !active) return
-    const scale = 1 + Math.sin(Date.now() * 0.003 + stageIndex) * 0.25
-    waterRef.current.scale.y = scale
-  })
-  return (
-    <group position={position}>
-      <mesh position={[0, 1.8, 0]} castShadow>
-        <cylinderGeometry args={[1.4, 1.5, 3.6, 20]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 1.8 : 0.5} metalness={0.3} roughness={0.3} transparent opacity={0.85} />
-      </mesh>
-      <mesh position={[0, 3.6, 0]} castShadow>
-        <sphereGeometry args={[1.4, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 1.8 : 0.5} metalness={0.3} roughness={0.3} transparent opacity={0.85} />
-      </mesh>
-      <mesh ref={waterRef} position={[0, 1.6, 0]}>
-        <cylinderGeometry args={[1.2, 1.2, 2, 20]} />
-        <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={active ? 4 : 1.2} transparent opacity={0.75} />
-      </mesh>
-      <Text position={[0, 4.6, 0]} fontSize={0.6} color="#fff" anchorX="center" anchorY="middle" outlineWidth={0.03} outlineColor="#000">
-        {stageIndex + 1}
-      </Text>
-    </group>
-  )
-}
-
-function FiltrationZone({ position = [180, 0, -180] }) {
-  const [stageIdx, setStageIdx] = useState(0)
-  const elapsedRef = useRef(0)
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-
-  useFrame((_, dt) => {
-    elapsedRef.current += dt
-    if (elapsedRef.current >= 4) {
-      elapsedRef.current = 0
-      setStageIdx(prev => (prev + 1) % FILTRATION_STAGES.length)
-    }
-  })
-
-  const tankPositions = []
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
-      tankPositions.push([-12 + c * 12, 0, -12 + r * 12])
-    }
-  }
-
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[55, 55]} />
-        <meshStandardMaterial color="#1a2836" roughness={0.95} />
-      </mesh>
-
-      <BuildingBorder width={55} depth={55} height={0.2} color="#22cfff" />
-
-      {tankPositions.map((pos, i) => (
-        <FiltrationTank 
-          key={i}
-          position={pos}
-          color={FILTRATION_STAGES[i].color}
-          stageIndex={i}
-          active={i === stageIdx}
-        />
-      ))}
-
-      {tankPositions.slice(0, -1).map((pos, i) => {
-        const next = tankPositions[i + 1]
-        return (
-          <WaterFlow 
-            key={i}
-            from={pos} 
-            to={next} 
-            active={i === stageIdx}
-          />
-        )
-      })}
-
-      <group position={[-20, 0, 0]}>
-        <mesh position={[0, 2.5, 0]} castShadow>
-          <cylinderGeometry args={[3.5, 4, 5, 32]} />
-          <meshStandardMaterial color="#0a4a6a" emissive="#0a2a4a" emissiveIntensity={1} metalness={0.5} roughness={0.3} />
-        </mesh>
-        <mesh position={[0, 5, 0]}>
-          <cylinderGeometry args={[3.2, 3.2, 0.3, 32]} />
-          <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} transparent opacity={0.85} />
-        </mesh>
-      </group>
-
-      <Board text="FILTRATION SYSTEM" position={[0, 20, 0]} color="#22cfff" width={16} height={3} locationKey="filtration" />
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   FOOD ZONE
-   ═══════════════════════════════════════════════════════════ */
-function FoodZone({ position = [-180, 0, -180] }) {
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const isNight = timeOfDay === 'night'
-  const droneRef = useRef()
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-
-  useFrame(() => {
-    if (!droneRef.current) return
-    const t = Date.now() * 0.0005
-    droneRef.current.position.x = Math.cos(t) * 15
-    droneRef.current.position.z = Math.sin(t) * 15
-    droneRef.current.position.y = 12 + Math.sin(t * 3) * 1
-  })
-
-  const Crop = ({ position }) => (
-    <group position={position}>
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <coneGeometry args={[0.3, 1.2, 6]} />
-        <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={0.4} />
-      </mesh>
-    </group>
-  )
-
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[55, 55]} />
-        <meshStandardMaterial color="#1a2e1e" roughness={0.95} />
-      </mesh>
-
-      <BuildingBorder width={55} depth={55} height={0.2} color="#2ecc71" />
-
-      {[0, 1, 2].map(r =>
-        [0, 1, 2].map(c => {
-          const px = -15 + c * 15
-          const pz = -15 + r * 15
-          return (
-            <group key={`${r}-${c}`} position={[px, 0, pz]}>
-              <mesh position={[0, 0.2, 0]} receiveShadow>
-                <boxGeometry args={[11, 0.4, 11]} />
-                <meshStandardMaterial color="#4a2f1a" />
-              </mesh>
-              <mesh position={[0, 0.45, 0]}>
-                <boxGeometry args={[11.3, 0.12, 11.3]} />
-                <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={1.8} />
-              </mesh>
-              {Array.from({ length: 16 }).map((_, i) => {
-                const cx = -4 + (i % 4) * 2.6
-                const cz = -4 + Math.floor(i / 4) * 2.6
-                return <Crop key={i} position={[cx, 0, cz]} />
-              })}
-              <mesh position={[0, 1.2, 0]} castShadow>
-                <cylinderGeometry args={[0.2, 0.2, 1.5, 8]} />
-                <meshStandardMaterial color="#9aa0a6" />
-              </mesh>
-              <mesh position={[0, 2, 0]}>
-                <sphereGeometry args={[0.22, 12, 12]} />
-                <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} />
-              </mesh>
-            </group>
-          )
-        })
-      )}
-
-      <group position={[20, 0, -15]}>
-        <mesh position={[0, 5, 0]} castShadow>
-          <boxGeometry args={[10, 10, 8]} />
-          <meshStandardMaterial color="#1a8a4e" metalness={0.3} roughness={0.5} />
-        </mesh>
-        <mesh position={[0, 10.3, 0]}>
-          <boxGeometry args={[10.4, 0.6, 8.4]} />
-          <meshStandardMaterial color="#0a3a1a" />
-        </mesh>
-        <mesh position={[0, 12, 0]}>
-          <sphereGeometry args={[0.8, 16, 16]} />
-          <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={isNight ? 6 : 4} />
-        </mesh>
-      </group>
-
-      <group ref={droneRef}>
-        <mesh>
-          <boxGeometry args={[1.2, 0.2, 1.2]} />
-          <meshStandardMaterial color="#2c3e50" />
-        </mesh>
-        <mesh position={[0, 0.2, 0]}>
-          <sphereGeometry args={[0.22, 8, 8]} />
-          <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={3} />
-        </mesh>
-        {[[-0.6, -0.6], [0.6, -0.6], [-0.6, 0.6], [0.6, 0.6]].map(([x, z], i) => (
-          <mesh key={i} position={[x, 0.15, z]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.35, 0.35, 0.08, 12]} />
-            <meshStandardMaterial color="#aaa" transparent opacity={0.7} />
-          </mesh>
-        ))}
-      </group>
-
-      <Board text="AI FOOD PRODUCTION" position={[0, 22, 0]} color="#2ecc71" width={18} height={3} locationKey="food" />
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   WASTE ZONE
-   ═══════════════════════════════════════════════════════════ */
-function WasteZone({ position = [180, 0, 180] }) {
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const isNight = timeOfDay === 'night'
-  const flameRef = useRef()
-  const flameRef2 = useRef()
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-
-  useFrame(() => {
-    if (flameRef.current) {
-      const s = 1 + Math.sin(Date.now() * 0.008) * 0.35
-      flameRef.current.scale.y = s
-    }
-    if (flameRef2.current) {
-      const s = 1 + Math.cos(Date.now() * 0.008) * 0.35
-      flameRef2.current.scale.y = s
-    }
-  })
-
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[55, 55]} />
-        <meshStandardMaterial color="#2a3a2e" roughness={0.95} />
-      </mesh>
-
-      <BuildingBorder width={55} depth={55} height={0.2} color="#2ecc71" />
-
-      {[0, 1, 2].map(r =>
-        [0, 1, 2].map(c => {
-          const colors = ['#2ecc71', '#3498db', '#e74c3c', '#f39c12']
-          const col = colors[(r * 3 + c) % 4]
-          return (
-            <group key={`${r}-${c}`} position={[-15 + c * 15, 0, -15 + r * 15]}>
-              <mesh position={[0, 1.2, 0]} castShadow>
-                <cylinderGeometry args={[1, 1.15, 2.4, 16]} />
-                <meshStandardMaterial color={col} metalness={0.4} roughness={0.5} />
-              </mesh>
-              <mesh position={[0, 2.5, 0]}>
-                <cylinderGeometry args={[1.05, 1.05, 0.2, 16]} />
-                <meshStandardMaterial color="#1a1a1a" />
-              </mesh>
-              <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[1.1, 0.06, 6, 20]} />
-                <meshStandardMaterial color={col} emissive={col} emissiveIntensity={isNight ? 6 : 4} />
-              </mesh>
-            </group>
-          )
-        })
-      )}
-
-      <group position={[-18, 0, 18]}>
-        <mesh position={[0, 3, 0]} castShadow>
-          <boxGeometry args={[7, 6, 7]} />
-          <meshStandardMaterial color="#2ecc71" metalness={0.4} roughness={0.5} />
-        </mesh>
-      </group>
-
-      <group position={[18, 0, 18]}>
-        <mesh position={[0, 3, 0]} castShadow>
-          <sphereGeometry args={[3, 16, 12]} />
-          <meshStandardMaterial color="#4a7a3a" metalness={0.3} roughness={0.6} />
-        </mesh>
-        <mesh ref={flameRef} position={[0, 8, 0]}>
-          <coneGeometry args={[0.8, 3, 8]} />
-          <meshStandardMaterial color="#ff6600" emissive="#ff6600" emissiveIntensity={5} transparent opacity={0.9} />
-        </mesh>
-      </group>
-
-      {[-18, -9, 0, 9, 18].map((x, i) => (
-        <mesh key={i} position={[x, 0.8, -22]} castShadow>
-          <cylinderGeometry args={[1.8, 1.8, 1.5, 16]} />
-          <meshStandardMaterial color="#5a3a1a" roughness={0.9} />
-        </mesh>
-      ))}
-
-      <group position={[20, 0, -18]}>
-        <mesh position={[0, 4, 0]} castShadow>
-          <cylinderGeometry args={[2.4, 2.4, 8, 16]} />
-          <meshStandardMaterial color="#8a3a3a" metalness={0.3} roughness={0.6} />
-        </mesh>
-        <mesh position={[0, 10, 0]} castShadow>
-          <cylinderGeometry args={[0.8, 0.9, 5, 12]} />
-          <meshStandardMaterial color="#5a5a5a" />
-        </mesh>
-        <mesh ref={flameRef2} position={[0, 13, 0]}>
-          <coneGeometry args={[0.5, 1.5, 8]} />
-          <meshStandardMaterial color="#ff6600" emissive="#ff6600" emissiveIntensity={4} transparent opacity={0.85} />
-        </mesh>
-      </group>
-
-      <Board text="WASTE MANAGEMENT" position={[0, 22, 0]} color="#2ecc71" width={18} height={3} locationKey="waste" />
     </group>
   )
 }
@@ -2010,14 +1045,14 @@ function WasteZone({ position = [180, 0, 180] }) {
 /* ═══════════════════════════════════════════════════════════
    PARK
    ═══════════════════════════════════════════════════════════ */
-function Park({ position, size = 30 }) {
+function Park({ pos, size = 30 }) {
   const treePositions = []
   for (let i = 0; i < 6; i++) {
     const angle = (i / 6) * Math.PI * 2
     treePositions.push([Math.cos(angle) * (size / 2 - 3), Math.sin(angle) * (size / 2 - 3)])
   }
   return (
-    <group position={position}>
+    <group position={pos}>
       <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[size, size]} />
         <meshStandardMaterial color="#3a8a4a" roughness={0.95} />
@@ -2031,939 +1066,873 @@ function Park({ position, size = 30 }) {
         <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2} transparent opacity={0.85} />
       </mesh>
       {treePositions.map(([x, z], i) => (
-        <Tree key={i} position={[x, 0, z]} scale={0.9} />
+        <Tree key={i} pos={[x, 0, z]} scale={0.9} />
       ))}
+    </group>
+  )
+}
+/* ═══════════════════════════════════════════════════════════
+   SOLAR PANEL
+   ═══════════════════════════════════════════════════════════ */
+function SolarPanel({ pos, rotation = [0, 0, 0], scale = 1 }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+
+  return (
+    <group position={pos} rotation={rotation} scale={scale}>
+      <mesh position={[0, 0.8, 0]} rotation={[-0.4, 0, 0]} castShadow>
+        <boxGeometry args={[3, 0.1, 2]} />
+        <meshStandardMaterial
+          color="#1a3a5c"
+          emissive={isNight ? '#0a1a2c' : '#1a4a7c'}
+          emissiveIntensity={isNight ? 0.2 : 0.6}
+          metalness={0.8}
+          roughness={0.2}
+        />
+      </mesh>
+      <mesh position={[-1, 0.4, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.8, 0.1]} />
+        <meshStandardMaterial color="#666" metalness={0.6} />
+      </mesh>
+      <mesh position={[1, 0.4, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.8, 0.1]} />
+        <meshStandardMaterial color="#666" metalness={0.6} />
+      </mesh>
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   AI TRAFFIC TOWER (with camera trigger)
+   BATTERY BANK
    ═══════════════════════════════════════════════════════════ */
-function AITrafficTower() {
-  const setFocus = useStore(s => s.setFocus)
-  const timeOfDay = useStore(s => s.timeOfDay)
+function BatteryBank({ pos }) {
+  const timeOfDay = useS(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
-  const ringRef = useRef()
-  const ring2Ref = useRef()
-  const radarRef = useRef()
-  const sigRef = useRef()
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-  const setCameraMode = (v) => setState({ cameraMode: v })
 
-  useFrame((_, dt) => {
-    if (ringRef.current) ringRef.current.rotation.z += dt * 0.5
-    if (ring2Ref.current) ring2Ref.current.rotation.z -= dt * 0.4
-    if (radarRef.current) radarRef.current.rotation.z += dt * 1.7
-    if (sigRef.current) {
-      const s = 1 + Math.sin(Date.now() * 0.004) * 0.2
-      sigRef.current.scale.setScalar(s)
+  return (
+    <group position={pos}>
+      {[0, 1, 2].map(i => (
+        <group key={i} position={[i * 2.5 - 2.5, 0, 0]}>
+          <mesh position={[0, 1, 0]} castShadow>
+            <boxGeometry args={[2, 2, 1.5]} />
+            <meshStandardMaterial color="#2c3e50" metalness={0.5} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 1, 0.76]}>
+            <boxGeometry args={[1.5, 1.5, 0.05]} />
+            <meshStandardMaterial
+              color="#22cfff"
+              emissive="#22cfff"
+              emissiveIntensity={isNight ? 3 : 1.5}
+              transparent
+              opacity={0.8}
+            />
+          </mesh>
+          <mesh position={[0, 2.1, 0]}>
+            <cylinderGeometry args={[0.1, 0.1, 0.2, 8]} />
+            <meshStandardMaterial color="#ffcc22" emissive="#ffcc22" emissiveIntensity={1} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[8, 3]} />
+        <meshStandardMaterial color="#4a4a4a" roughness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WIND TURBINE FARM
+   ═══════════════════════════════════════════════════════════ */
+function WindTurbineFarm({ pos }) {
+  const turbines = [
+    [0, 0], [15, 5], [-15, 5], [8, -12], [-8, -12],
+    [22, -8], [-22, -8], [5, 18], [-5, 18],
+  ]
+  return (
+    <group position={pos}>
+      {turbines.map(([x, z], i) => (
+        <Turbine key={i} pos={[x, 0, z]} scale={0.8 + Math.random() * 0.4} />
+      ))}
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[60, 60]} />
+        <meshStandardMaterial color="#4a6a4a" roughness={0.95} />
+      </mesh>
+    </group>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   POWER SUPPLY ZONE — solar + wind + batteries
+   ═══════════════════════════════════════════════════════════ */
+function PowerSupplyZone() {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+
+  return (
+    <group position={[-180, 0, 180]}>
+      {/* Solar arrays */}
+      {Array.from({ length: 9 }).map((_, i) => {
+        const row = Math.floor(i / 3)
+        const col = i % 3
+        return (
+          <SolarPanel
+            key={`solar-${i}`}
+            pos={[col * 8 - 8, 0, row * 6 - 6]}
+            rotation={[0, 0, 0]}
+            scale={0.8}
+          />
+        )
+      })}
+
+      {/* Battery banks */}
+      <BatteryBank pos={[0, 0, 15]} />
+
+      {/* Control building */}
+      <group position={[15, 0, 0]}>
+        <mesh position={[0, 2, 0]} castShadow>
+          <boxGeometry args={[6, 4, 5]} />
+          <meshStandardMaterial color="#3a4a5a" metalness={0.4} roughness={0.6} />
+        </mesh>
+        <mesh position={[0, 4.2, 0]}>
+          <boxGeometry args={[6.5, 0.4, 5.5]} />
+          <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 4 : 2} />
+        </mesh>
+        <Board text="⚡ POWER ZONE" position={[0, 7, 0]} color="#ffcc22" w={8} h={2} locKey="power" />
+      </group>
+
+      {/* Wind turbines */}
+      <WindTurbineFarm pos={[-30, 0, -10]} />
+
+      {/* Ground */}
+      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[80, 80]} />
+        <meshStandardMaterial color="#5a6a5a" roughness={0.95} />
+      </mesh>
+    </group>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FILTRATION SYSTEM
+   ═══════════════════════════════════════════════════════════ */
+function FiltrationSystem() {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+
+  return (
+    <group position={[180, 0, -180]}>
+      {/* Main tanks */}
+      {[0, 1, 2].map(i => (
+        <group key={i} position={[i * 6 - 6, 0, 0]}>
+          <mesh position={[0, 2.5, 0]} castShadow>
+            <cylinderGeometry args={[2, 2, 5, 16]} />
+            <meshStandardMaterial color="#4a6a7a" metalness={0.4} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 5.1, 0]}>
+            <cylinderGeometry args={[2.1, 2.1, 0.2, 16]} />
+            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 3 : 1.5} />
+          </mesh>
+          {/* Water level indicator */}
+          <mesh position={[0, 2, 2.05]}>
+            <boxGeometry args={[3, 3.5, 0.1]} />
+            <meshStandardMaterial color="#1a4a6a" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Pipes */}
+      <mesh position={[0, 1, 3.5]} rotation={[0, 0, 0]}>
+        <cylinderGeometry args={[0.3, 0.3, 18, 8]} />
+        <meshStandardMaterial color="#6a7a8a" metalness={0.6} />
+      </mesh>
+      <mesh position={[0, 1, -3.5]} rotation={[0, 0, 0]}>
+        <cylinderGeometry args={[0.3, 0.3, 18, 8]} />
+        <meshStandardMaterial color="#6a7a8a" metalness={0.6} />
+      </mesh>
+
+      {/* Control building */}
+      <group position={[12, 0, 0]}>
+        <mesh position={[0, 1.5, 0]} castShadow>
+          <boxGeometry args={[6, 3, 5]} />
+          <meshStandardMaterial color="#3a5a6a" metalness={0.3} roughness={0.6} />
+        </mesh>
+        <Board text="💧 FILTRATION" position={[0, 5.5, 0]} color="#22cfff" w={9} h={2} locKey="filtration" />
+      </group>
+
+      {/* Ground */}
+      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[50, 40]} />
+        <meshStandardMaterial color="#5a5a6a" roughness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI FOOD PRODUCTION
+   ═══════════════════════════════════════════════════════════ */
+function FoodProduction() {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+
+  const cropRows = []
+  for (let i = 0; i < 6; i++) {
+    for (let j = 0; j < 3; j++) {
+      cropRows.push([j * 8 - 8, i * 4 - 10])
     }
-  })
-
-  const handleClick = (e) => {
-    e.stopPropagation()
-    setInfoPopup({ key: 'traffic', ...LOCATIONS.traffic.info })
-    setFocus({ x: 20, y: 20, z: 20, lookAt: { x: 0, y: 0, z: 0 } })
   }
 
   return (
-    <group position={[0, 0, 0]} onClick={handleClick} onPointerOver={() => document.body.style.cursor = 'pointer'} onPointerOut={() => document.body.style.cursor = 'default'}>
-      <mesh position={[0, 1, 0]} castShadow>
-        <cylinderGeometry args={[8, 9, 2, 32]} />
-        <meshStandardMaterial color="#142f3b" metalness={0.5} roughness={0.3} />
-      </mesh>
-      <mesh ref={ringRef} position={[0, 2.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[7.5, 0.25, 10, 48]} />
-        <meshStandardMaterial color="#32dfff" emissive="#18cfff" emissiveIntensity={3} />
-      </mesh>
-      <mesh ref={ring2Ref} position={[0, 3, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[6, 0.2, 10, 48]} />
-        <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} />
-      </mesh>
-      {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
-        const angle = (i / 8) * Math.PI * 2
-        return (
-          <mesh key={i} position={[Math.cos(angle) * 7, 3, Math.sin(angle) * 7]}>
-            <sphereGeometry args={[0.3, 12, 12]} />
-            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 6 : 4} />
+    <group position={[-180, 0, -180]}>
+      {/* Crop fields */}
+      {cropRows.map(([x, z], i) => (
+        <group key={i} position={[x, 0, z]}>
+          <mesh position={[0, 0.3, 0]} castShadow>
+            <boxGeometry args={[6, 0.6, 3]} />
+            <meshStandardMaterial color="#3a7a3a" roughness={0.9} />
           </mesh>
-        )
-      })}
-      <mesh position={[0, 8, 0]} castShadow>
-        <cylinderGeometry args={[2.4, 3, 10, 10]} />
-        <meshStandardMaterial color="#185a72" metalness={0.5} roughness={0.3} />
-      </mesh>
-      <mesh position={[0, 14, 0]} castShadow>
-        <cylinderGeometry args={[3.2, 2.8, 2.4, 12]} />
-        <meshStandardMaterial color="#0a3345" emissive="#1a7a9a" emissiveIntensity={2} />
-      </mesh>
-      {Array.from({ length: 10 }).map((_, i) => {
-        const angle = (i / 10) * Math.PI * 2
-        return (
-          <mesh key={i} position={[Math.cos(angle) * 3, 14, Math.sin(angle) * 3]} rotation={[0, -angle, 0]}>
-            <boxGeometry args={[1, 1.4, 0.12]} />
-            <meshStandardMaterial color="#03141b" emissive="#21cfff" emissiveIntensity={isNight ? 5 : 3} />
-          </mesh>
-        )
-      })}
-      <mesh ref={radarRef} position={[0, 17, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.4, 0.16, 10, 32]} />
-        <meshStandardMaterial color="#61e7ff" emissive="#23dfff" emissiveIntensity={3} />
-      </mesh>
-      <mesh ref={sigRef} position={[0, 19, 0]}>
-        <sphereGeometry args={[0.8, 20, 20]} />
-        <meshStandardMaterial color="#66e5ff" emissive="#33dfff" emissiveIntensity={5} />
-      </mesh>
-      <mesh position={[0, 22, 0]}>
-        <cylinderGeometry args={[0.1, 0.16, 7, 6]} />
-        <meshStandardMaterial color="#99a0a6" metalness={0.6} />
-      </mesh>
-
-      <Board text="AI TRAFFIC CONTROL" position={[0, 28, 0]} color="#22cfff" width={18} height={3} locationKey="traffic" />
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   RESIDENTIAL DISTRICT (old houses)
-   ═══════════════════════════════════════════════════════════ */
-function ResidentialDistrict({ position = [150, 0, 0] }) {
-  const houses = [
-    { pos: [-20, 0, -30], h: 8, color: '#a67c52', name: 'House A1', turbine: true },
-    { pos: [-8, 0, -30], h: 10, color: '#b5651d', name: 'House A2', turbine: false },
-    { pos: [4, 0, -30], h: 8, color: '#c19a6b', name: 'House A3', turbine: true },
-    { pos: [16, 0, -30], h: 12, color: '#8b4513', name: 'House A4', turbine: true },
-    { pos: [-20, 0, -15], h: 10, color: '#a0522d', name: 'House B1', turbine: false },
-    { pos: [-8, 0, -15], h: 12, color: '#cd853f', name: 'House B2', turbine: true },
-    { pos: [4, 0, -15], h: 8, color: '#a67c52', name: 'House B3', turbine: true },
-    { pos: [16, 0, -15], h: 8, color: '#b5651d', name: 'House B4', turbine: false },
-    { pos: [-20, 0, 0], h: 11, color: '#c19a6b', name: 'House C1', turbine: true },
-    { pos: [-8, 0, 0], h: 8, color: '#8b4513', name: 'House C2', turbine: true },
-    { pos: [4, 0, 0], h: 10, color: '#a0522d', name: 'House C3', turbine: false },
-    { pos: [16, 0, 0], h: 9, color: '#cd853f', name: 'House C4', turbine: true },
-    { pos: [-20, 0, 15], h: 8, color: '#a67c52', name: 'House D1', turbine: true },
-    { pos: [-8, 0, 15], h: 11, color: '#b5651d', name: 'House D2', turbine: false },
-    { pos: [4, 0, 15], h: 8, color: '#c19a6b', name: 'House D3', turbine: true },
-    { pos: [16, 0, 15], h: 12, color: '#8b4513', name: 'House D4', turbine: true },
-    { pos: [-20, 0, 30], h: 9, color: '#a0522d', name: 'House E1', turbine: false },
-    { pos: [-8, 0, 30], h: 8, color: '#cd853f', name: 'House E2', turbine: true },
-    { pos: [4, 0, 30], h: 10, color: '#a67c52', name: 'House E3', turbine: true },
-    { pos: [16, 0, 30], h: 8, color: '#b5651d', name: 'House E4', turbine: false },
-  ]
-
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[60, 90]} />
-        <meshStandardMaterial color="#3d7f45" roughness={0.95} />
-      </mesh>
-      {houses.map((h, i) => (
-        <EnhancedBuilding 
-          key={i}
-          position={h.pos}
-          height={h.h}
-          color={h.color}
-          name={h.name}
-          hasTurbine={h.turbine}
-          hasSolar={true}
-        />
+          {Array.from({ length: 4 }).map((_, k) => (
+            <mesh key={k} position={[k * 1.5 - 2.25, 0.8, 0]} castShadow>
+              <cylinderGeometry args={[0.15, 0.2, 0.8, 6]} />
+              <meshStandardMaterial color="#4a9a4a" />
+            </mesh>
+          ))}
+        </group>
       ))}
-      <Board text="RESIDENTIAL DISTRICT" position={[0, 40, 0]} color="#a67c52" width={18} height={3} />
+
+      {/* Processing plant */}
+      <group position={[15, 0, 0]}>
+        <mesh position={[0, 2.5, 0]} castShadow>
+          <boxGeometry args={[8, 5, 6]} />
+          <meshStandardMaterial color="#5a6a5a" metalness={0.3} roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 5.2, 0]}>
+          <boxGeometry args={[8.5, 0.4, 6.5]} />
+          <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={isNight ? 3 : 1.5} />
+        </mesh>
+        <Board text="🍎 FOOD PRODUCTION" position={[0, 8, 0]} color="#2ecc71" w={11} h={2} locKey="food" />
+      </group>
+
+      {/* Drone landing pad */}
+      <group position={[-15, 0, 10]}>
+        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[3, 16]} />
+          <meshStandardMaterial color="#2a4a2a" emissive="#2ecc71" emissiveIntensity={0.5} />
+        </mesh>
+        <mesh position={[0, 0.12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[2.5, 2.8, 16]} />
+          <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={2} />
+        </mesh>
+      </group>
+
+      {/* Ground */}
+      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[60, 50]} />
+        <meshStandardMaterial color="#4a5a3a" roughness={0.95} />
+      </mesh>
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   GROUND
+   WASTE MANAGEMENT
    ═══════════════════════════════════════════════════════════ */
-function Ground() {
+function WasteManagement() {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+
   return (
-    <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[500, 500]} />
-        <meshStandardMaterial color="#4d8f50" roughness={0.98} />
+    <group position={[180, 0, 180]}>
+      {/* Recycling bins */}
+      {Array.from({ length: 9 }).map((_, i) => {
+        const row = Math.floor(i / 3)
+        const col = i % 3
+        const colors = ['#2ecc71', '#3498db', '#e74c3c']
+        return (
+          <group key={i} position={[col * 5 - 5, 0, row * 5 - 5]}>
+            <mesh position={[0, 1, 0]} castShadow>
+              <cylinderGeometry args={[0.8, 0.7, 2, 8]} />
+              <meshStandardMaterial color={colors[i % 3]} metalness={0.3} roughness={0.6} />
+            </mesh>
+            <mesh position={[0, 2.1, 0]}>
+              <cylinderGeometry args={[0.9, 0.9, 0.2, 8]} />
+              <meshStandardMaterial color="#333" />
+            </mesh>
+          </group>
+        )
+      })}
+
+      {/* Processing facility */}
+      <group position={[0, 0, 15]}>
+        <mesh position={[0, 3, 0]} castShadow>
+          <boxGeometry args={[10, 6, 8]} />
+          <meshStandardMaterial color="#4a5a4a" metalness={0.3} roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 6.2, 0]}>
+          <boxGeometry args={[10.5, 0.4, 8.5]} />
+          <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={isNight ? 3 : 1.5} />
+        </mesh>
+        {/* Smokestack */}
+        <mesh position={[3, 7, 0]} castShadow>
+          <cylinderGeometry args={[0.5, 0.6, 4, 8]} />
+          <meshStandardMaterial color="#5a5a5a" />
+        </mesh>
+        <Board text="♻️ WASTE MGMT" position={[0, 10, 0]} color="#2ecc71" w={10} h={2} locKey="waste" />
+      </group>
+
+      {/* Biogas plant */}
+      <group position={[-15, 0, 0]}>
+        <mesh position={[0, 2, 0]} castShadow>
+          <sphereGeometry args={[2.5, 16, 16]} />
+          <meshStandardMaterial color="#4a6a4a" metalness={0.4} roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 4.6, 0]}>
+          <cylinderGeometry args={[0.3, 0.3, 1, 8]} />
+          <meshStandardMaterial color="#ffcc22" emissive="#ffcc22" emissiveIntensity={isNight ? 2 : 1} />
+        </mesh>
+      </group>
+
+      {/* Ground */}
+      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[50, 50]} />
+        <meshStandardMaterial color="#5a5a5a" roughness={0.9} />
       </mesh>
-      <RoadSystem />
-      <StreetLightSystem />
-      <ContactShadows position={[0, 0.01, 0]} opacity={0.35} width={250} blur={2} far={40} />
-    </>
+    </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CITY BUILDINGS
+   INFO POPUP — modal for building details
+   ═══════════════════════════════════════════════════════════ */
+function InfoPopup() {
+  const infoPopup = useS(s => s.infoPopup)
+  if (!infoPopup) return null
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: 20,
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #0a1628 0%, #1a2a4a 100%)',
+        border: '2px solid #22cfff',
+        borderRadius: 16,
+        padding: 28,
+        maxWidth: 520,
+        width: '100%',
+        maxHeight: '85vh',
+        overflowY: 'auto',
+        boxShadow: '0 0 40px rgba(34,207,255,0.3)',
+        color: '#fff',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 22, color: '#22cfff' }}>{infoPopup.title}</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#88aacc' }}>{infoPopup.sub}</p>
+          </div>
+          <button
+            onClick={() => setS({ infoPopup: null })}
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid #22cfff',
+              color: '#22cfff',
+              borderRadius: 8,
+              width: 32,
+              height: 32,
+              cursor: 'pointer',
+              fontSize: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >×</button>
+        </div>
+
+        <p style={{ fontSize: 14, lineHeight: 1.6, color: '#ccddee', marginBottom: 20 }}>{infoPopup.desc}</p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+          {infoPopup.stats.map(([label, value], i) => (
+            <div key={i} style={{
+              background: 'rgba(34,207,255,0.1)',
+              border: '1px solid rgba(34,207,255,0.3)',
+              borderRadius: 10,
+              padding: '10px 14px',
+            }}>
+              <div style={{ fontSize: 11, color: '#88aacc' }}>{label}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#22cfff', marginTop: 2 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: 10,
+          padding: 16,
+        }}>
+          <div style={{ fontSize: 12, color: '#88aacc', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Features</div>
+          {infoPopup.features.map((f, i) => (
+            <div key={i} style={{ fontSize: 13, color: '#aaddff', padding: '4px 0', lineHeight: 1.5 }}>{f}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI LOG PANEL
+   ═══════════════════════════════════════════════════════════ */
+function AILogPanel() {
+  const aiLog = useS(s => s.aiLog)
+
+  const typeColors = {
+    info: '#22cfff',
+    warning: '#ffcc22',
+    success: '#2ecc71',
+    phase: '#ff66dd',
+    adaptive: '#ff9933',
+  }
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 16,
+      right: 16,
+      width: 340,
+      maxHeight: 280,
+      background: 'rgba(5, 15, 30, 0.92)',
+      border: '1px solid rgba(34,207,255,0.4)',
+      borderRadius: 12,
+      padding: 12,
+      zIndex: 500,
+      fontFamily: 'monospace',
+      fontSize: 11,
+      color: '#ccddee',
+      overflow: 'hidden',
+      boxShadow: '0 0 20px rgba(34,207,255,0.2)',
+    }}>
+      <div style={{
+        fontSize: 11,
+        color: '#22cfff',
+        fontWeight: 700,
+        marginBottom: 8,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        borderBottom: '1px solid rgba(34,207,255,0.2)',
+        paddingBottom: 6,
+      }}>
+        🧠 AI Traffic Controller — Live Log
+      </div>
+      <div style={{ overflowY: 'auto', maxHeight: 220 }}>
+        {aiLog.length === 0 && (
+          <div style={{ color: '#556677', fontStyle: 'italic', padding: 8 }}>Initializing AI systems...</div>
+        )}
+        {aiLog.map((entry, i) => (
+          <div key={i} style={{
+            padding: '4px 6px',
+            marginBottom: 3,
+            borderRadius: 4,
+            background: 'rgba(255,255,255,0.03)',
+            borderLeft: `3px solid ${typeColors[entry.type] || '#22cfff'}`,
+            color: i === 0 ? '#fff' : '#8899aa',
+            fontSize: i === 0 ? 11 : 10,
+          }}>
+            {entry.msg}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CONTROL PANEL — top-right UI
+   ═══════════════════════════════════════════════════════════ */
+function ControlPanel() {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const trafficDensity = useS(s => s.trafficDensity)
+  const streetLightsOn = useS(s => s.streetLightsOn)
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 16,
+      right: 16,
+      background: 'rgba(5, 15, 30, 0.92)',
+      border: '1px solid rgba(34,207,255,0.4)',
+      borderRadius: 12,
+      padding: 14,
+      zIndex: 500,
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: 12,
+      color: '#ccddee',
+      minWidth: 200,
+      boxShadow: '0 0 20px rgba(34,207,255,0.2)',
+    }}>
+      <div style={{
+        fontSize: 12,
+        color: '#22cfff',
+        fontWeight: 700,
+        marginBottom: 10,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        borderBottom: '1px solid rgba(34,207,255,0.2)',
+        paddingBottom: 6,
+      }}>
+        ⚙️ City Controls
+      </div>
+
+      {/* Time of day */}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: '#88aacc', marginBottom: 4 }}>TIME OF DAY</div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['day', 'night'].map(t => (
+            <button
+              key={t}
+              onClick={() => setS({ timeOfDay: t })}
+              style={{
+                flex: 1,
+                padding: '6px 8px',
+                borderRadius: 6,
+                border: timeOfDay === t ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
+                background: timeOfDay === t ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.05)',
+                color: timeOfDay === t ? '#22cfff' : '#8899aa',
+                cursor: 'pointer',
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'capitalize',
+              }}
+            >{t === 'day' ? '☀️ Day' : '🌙 Night'}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Traffic density */}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: '#88aacc', marginBottom: 4 }}>TRAFFIC DENSITY</div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['low', 'medium', 'high'].map(d => (
+            <button
+              key={d}
+              onClick={() => setS({ trafficDensity: d })}
+              style={{
+                flex: 1,
+                padding: '6px 4px',
+                borderRadius: 6,
+                border: trafficDensity === d ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
+                background: trafficDensity === d ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.05)',
+                color: trafficDensity === d ? '#22cfff' : '#8899aa',
+                cursor: 'pointer',
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: 'capitalize',
+              }}
+            >{d}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Street lights */}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: '#88aacc', marginBottom: 4 }}>STREET LIGHTS</div>
+        <button
+          onClick={() => setS({ streetLightsOn: !streetLightsOn })}
+          style={{
+            width: '100%',
+            padding: '8px',
+            borderRadius: 6,
+            border: streetLightsOn ? '1px solid #ffcc22' : '1px solid rgba(255,255,255,0.1)',
+            background: streetLightsOn ? 'rgba(255,204,34,0.2)' : 'rgba(255,255,255,0.05)',
+            color: streetLightsOn ? '#ffcc22' : '#8899aa',
+            cursor: 'pointer',
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >{streetLightsOn ? '💡 Lights ON' : '💡 Lights OFF'}</button>
+      </div>
+
+      {/* Traffic phase indicator */}
+      <div style={{
+        padding: 8,
+        borderRadius: 6,
+        background: 'rgba(0,0,0,0.3)',
+        border: '1px solid rgba(34,207,255,0.2)',
+      }}>
+        <div style={{ fontSize: 10, color: '#88aacc', marginBottom: 4 }}>TRAFFIC PHASE</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: TS.inYellow ? '#ffcc22' : TS.inAllRed ? '#ff2222' : '#22ff66',
+            boxShadow: `0 0 8px ${TS.inYellow ? '#ffcc22' : TS.inAllRed ? '#ff2222' : '#22ff66'}`,
+          }} />
+          <span style={{ fontSize: 11, color: '#ccddee' }}>
+            {TS.inYellow ? 'Yellow' : TS.inAllRed ? 'All-Red' : TS.phase === 0 ? 'NS Green' : 'EW Green'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CITY BUILDINGS — all GLB + procedural buildings
    ═══════════════════════════════════════════════════════════ */
 function CityBuildings() {
   return (
     <group>
-      <GLBBuilding url="/american_high_school.glb" size={22} position={[-100, 0, -100]} name="Beacon School System" borderColor="#1a5490" boardColor="#1a5490" locationKey="school" />
-      <GLBBuilding url="/low_poly_hospital.glb" size={22} position={[100, 0, -100]} name="Smart City Hospital" borderColor="#c0392b" boardColor="#c0392b" locationKey="hospital" />
-      <GLBBuilding url="/us_bank_tower.glb" size={26} position={[100, 0, 100]} name="Smart City State Bank" borderColor="#8e44ad" boardColor="#8e44ad" locationKey="bank" />
-      <GLBBuilding url="/simple_farm_free.glb" size={28} position={[-150, 0, -100]} name="Smart Eco Farm" borderColor="#27ae60" boardColor="#27ae60" locationKey="farm" />
-      <GLBBuilding url="/liverpool_street_station_south_entrance.glb" size={24} position={[100, 0, 180]} name="Liverpool Event Hall" borderColor="#d4a017" boardColor="#d4a017" locationKey="event" />
-      <GLBBuilding url="/gas_station.glb" size={20} position={[180, 0, 100]} name="Gas Station" borderColor="#e74c3c" boardColor="#e74c3c" locationKey="gas" />
-      <GLBBuilding url="/office.glb" size={22} position={[180, 0, -100]} name="Sewage & Gas Co." borderColor="#2ecc71" boardColor="#2ecc71" locationKey="office" />
-      <GLBBuilding url="/national_archives_research_center.glb" size={28} position={[-150, 0, 100]} name="Culture Center" borderColor="#f39c12" boardColor="#f39c12" locationKey="culture" />
-      <GLBBuilding url="/power-suply-companey.glb" size={22} position={[-150, 0, 0]} name="City Power Supply Co." borderColor="#f1c40f" boardColor="#f1c40f" locationKey="powerCo" />
-      <GLBBuilding url="/sci-fi_building_9.glb" size={26} position={[-180, 0, -140]} name="Sci-Fi Building 9" borderColor="#66ff99" boardColor="#66ff99" locationKey="scifi9" />
-      <GLBBuilding url="/beautifultowerbuilding.glb" size={30} position={[-180, 0, 0]} name="Beautiful Tower" borderColor="#22cfff" boardColor="#22cfff" locationKey="tower" />
-      <GLBBuilding url="/sci-fi_building_10.glb" size={26} position={[-180, 0, 140]} name="Sci-Fi Building 10" borderColor="#ff66dd" boardColor="#ff66dd" locationKey="scifi10" />
+      {/* GLB Buildings with location keys */}
+      <GLBBuilding url="/american_high_school.glb" size={22} pos={[-100, 0, -100]} name="🏫 Beacon School" color="#1a5490" locKey="school" />
+      <GLBBuilding url="/low_poly_hospital.glb" size={22} pos={[100, 0, -100]} name="🏥 Smart Hospital" color="#c0392b" locKey="hospital" />
+      <GLBBuilding url="/us_bank_tower.glb" size={26} pos={[100, 0, 100]} name="🏦 State Bank" color="#8e44ad" locKey="bank" />
+      <GLBBuilding url="/simple_farm_free.glb" size={28} pos={[-150, 0, -100]} name="🌾 Eco Farm" color="#27ae60" locKey="farm" />
+      <GLBBuilding url="/liverpool_street_station_south_entrance.glb" size={24} pos={[100, 0, 180]} name="🎪 Event Hall" color="#d4a017" locKey="event" />
+      <GLBBuilding url="/gas_station.glb" size={20} pos={[180, 0, 100]} name="⛽ Gas Station" color="#e74c3c" locKey="gas" />
+      <GLBBuilding url="/office.glb" size={22} pos={[180, 0, -100]} name="🏭 Sewage & Gas" color="#2ecc71" locKey="office" />
+      <GLBBuilding url="/national_archives_research_center.glb" size={28} pos={[-150, 0, 100]} name="🏛 Culture Center" color="#f39c12" locKey="culture" />
+      <GLBBuilding url="/power-suply-companey.glb" size={22} pos={[-150, 0, 0]} name="🔌 Power Supply Co." color="#f1c40f" locKey="powerCo" />
+      <GLBBuilding url="/sci-fi_building_9.glb" size={26} pos={[-180, 0, -140]} name="🛸 Sci-Fi Bldg 9" color="#66ff99" locKey="scifi9" />
+      <GLBBuilding url="/beautifultowerbuilding.glb" size={30} pos={[-180, 0, 0]} name="🗼 Beautiful Tower" color="#22cfff" locKey="tower" />
+      <GLBBuilding url="/sci-fi_building_10.glb" size={26} pos={[-180, 0, 140]} name="🚀 Sci-Fi Bldg 10" color="#ff66dd" locKey="scifi10" />
+      <GLBBuilding url="/skid_filtration_system.glb" size={20} pos={[180, 0, -180]} name="💧 Filtration" color="#22cfff" locKey="filtration" />
 
-      <ResidentialDistrict position={[150, 0, 0]} />
+      {/* Procedural zones */}
+      <PowerSupplyZone />
+      <FoodProduction />
+      <WasteManagement />
+      <FiltrationSystem />
 
-      <PowerZone position={[-180, 0, 180]} />
-      <FiltrationZone position={[180, 0, -180]} />
-      <FoodZone position={[-180, 0, -180]} />
-      <WasteZone position={[180, 0, 180]} />
+      {/* Residential houses */}
+      <House pos={[-50, 0, -50]} h={6} color="#c9a66b" name="Smart Home A" turbine />
+      <House pos={[50, 0, -50]} h={7} color="#b08d5a" name="Smart Home B" />
+      <House pos={[-50, 0, 50]} h={6} color="#d4b07a" name="Smart Home C" turbine />
+      <House pos={[50, 0, 50]} h={8} color="#a67c52" name="Smart Home D" />
+      <House pos={[-30, 0, 0]} h={5} color="#c9a66b" name="Smart Home E" />
+      <House pos={[30, 0, 0]} h={6} color="#b08d5a" name="Smart Home F" turbine />
 
-      <Park position={[-60, 0, 60]} size={25} />
-      <Park position={[60, 0, -60]} size={25} />
-
-      <ParkingLot position={[-100, 0, 100]} rows={3} cols={5} />
-      <ParkingLot position={[100, 0, -180]} rows={3} cols={5} />
-
-      <AITrafficTower />
+      {/* Parks */}
+      <Park pos={[-70, 0, 0]} size={24} />
+      <Park pos={[70, 0, 0]} size={24} />
+      <Park pos={[0, 0, 70]} size={28} />
+      <Park pos={[0, 0, -70]} size={28} />
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SCENE
-   ═══════════════════════════════════════════════════════════ */
-function Scene() {
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const skyConfig = {
-    day: { sunPosition: [100, 20, 100], inclination: 0, azimuth: 0.25 },
-    evening: { sunPosition: [10, 5, 100], inclination: 0, azimuth: 0.25 },
-    night: { sunPosition: [-100, -20, 100], inclination: 0, azimuth: 0.25 }
-  }
-
-  return (
-    <>
-      <color attach="background" args={[timeOfDay === 'night' ? '#050a14' : '#8fbcd4']} />
-      <ambientLight intensity={timeOfDay === 'night' ? 0.4 : 0.7} />
-      <directionalLight 
-        position={timeOfDay === 'night' ? [-10, 30, 10] : [30, 50, 20]} 
-        intensity={timeOfDay === 'night' ? 0.6 : 1.3} 
-        castShadow 
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-far={400}
-        shadow-camera-left={-250}
-        shadow-camera-right={250}
-        shadow-camera-top={250}
-        shadow-camera-bottom={-250}
-      />
-      <Sky {...skyConfig[timeOfDay]} />
-      <Ground />
-      <CityBuildings />
-      <TrafficSystem />
-      <TrafficLights />
-      <PeopleSystem />
-      <TreesSystem />
-      <AITrafficSystem />
-    </>
-  )
-}
-/* ═══════════════════════════════════════════════════════════
-   INFO POPUP — click building → detailed popup
-   ═══════════════════════════════════════════════════════════ */
-function InfoPopup() {
-  const infoPopup = useStore(s => s.infoPopup)
-  const setInfoPopup = (v) => setState({ infoPopup: v })
-
-  if (!infoPopup) return null
-
-  const openCameraView = () => {
-    const loc = LOCATIONS[infoPopup.key]
-    if (loc) {
-      setState({
-        cameraMode: { location: infoPopup.key, cameras: loc.cameras, position: loc.position },
-        infoPopup: null,
-        menuOpen: false,
-        aiLog: [{ message: `📷 Opening cameras for ${loc.label}`, type: 'info', time: Date.now() }, ...state.aiLog].slice(0, 8),
-      })
-    }
-  }
-
-  return (
-    <div style={{
-      position: 'absolute', top: '50%', left: '50%',
-      transform: 'translate(-50%, -50%)', zIndex: 300,
-      width: 'min(560px, 92vw)', maxHeight: '88vh', overflowY: 'auto',
-      background: 'rgba(6, 14, 24, 0.98)', border: '2px solid #22cfff',
-      borderRadius: 16, fontFamily: 'system-ui, -apple-system, sans-serif',
-      color: '#e8f7ff',
-      boxShadow: '0 0 60px rgba(34,207,255,0.5), 0 20px 60px rgba(0,0,0,0.8)',
-      backdropFilter: 'blur(20px)',
-      animation: 'popupIn 0.28s cubic-bezier(0.4,0,0.2,1)',
-    }}>
-      <style>{`
-        @keyframes popupIn {
-          from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); }
-          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        }
-      `}</style>
-
-      <div style={{
-        padding: '20px 24px',
-        background: 'linear-gradient(135deg, rgba(34,207,255,0.18), rgba(10,50,80,0.4))',
-        borderBottom: '1px solid rgba(34,207,255,0.3)',
-        position: 'relative',
-      }}>
-        <button
-          onClick={() => setInfoPopup(null)}
-          style={{
-            position: 'absolute', top: 16, right: 16, width: 32, height: 32,
-            borderRadius: '50%', background: 'rgba(255,80,80,0.15)',
-            border: '1.5px solid rgba(255,100,100,0.5)', color: '#ff8a8a',
-            fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >✕</button>
-        <div style={{ fontSize: 22, fontWeight: 800, color: '#22cfff', letterSpacing: 0.5, marginBottom: 4 }}>
-          {infoPopup.title}
-        </div>
-        <div style={{ fontSize: 12, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase' }}>
-          {infoPopup.subtitle}
-        </div>
-      </div>
-
-      <div style={{ padding: '20px 24px' }}>
-        <div style={{ fontSize: 13, color: '#b8e8ff', lineHeight: 1.6, marginBottom: 20 }}>
-          {infoPopup.description}
-        </div>
-
-        {infoPopup.stats && (
-          <>
-            <div style={{ fontSize: 11, color: '#7fe3ff', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
-              📊 Live Stats
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
-              {infoPopup.stats.map(([label, value], i) => (
-                <div key={i} style={{
-                  background: 'rgba(34,207,255,0.06)', border: '1px solid rgba(34,207,255,0.2)',
-                  borderRadius: 8, padding: '10px 14px', display: 'flex',
-                  justifyContent: 'space-between', alignItems: 'center', gap: 8,
-                }}>
-                  <span style={{ fontSize: 11, color: '#8fd8f0', fontWeight: 600 }}>{label}</span>
-                  <span style={{ fontSize: 13, color: '#22cfff', fontWeight: 800, textAlign: 'right' }}>{value}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {infoPopup.features && (
-          <>
-            <div style={{ fontSize: 11, color: '#7fe3ff', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
-              ✨ Features
-            </div>
-            <div style={{
-              background: 'rgba(34,207,255,0.05)', border: '1px solid rgba(34,207,255,0.15)',
-              borderRadius: 10, padding: 14, marginBottom: 20,
-            }}>
-              {infoPopup.features.map((f, i) => (
-                <div key={i} style={{ fontSize: 12, color: '#d0e8f5', lineHeight: 1.8, letterSpacing: 0.3 }}>
-                  {f}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {LOCATIONS[infoPopup.key] && (
-          <button
-            onClick={openCameraView}
-            style={{
-              width: '100%', padding: '14px', borderRadius: 10,
-              background: 'linear-gradient(135deg, #22cfff, #0a8fbf)',
-              border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
-              letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer',
-              fontFamily: 'inherit', boxShadow: '0 8px 24px rgba(34,207,255,0.4)',
-              transition: 'all 0.2s',
-            }}
-          >
-            📷 Open Camera Views (5 cameras)
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   CAMERA PANEL — Camera 1-4 + Top View
-   ═══════════════════════════════════════════════════════════ */
-function CameraPanel() {
-  const cameraMode = useStore(s => s.cameraMode)
-  const [activeCamera, setActiveCamera] = useState(0)
-  const setFocus = (f) => setState({ focus: f })
-
-  useEffect(() => {
-    if (cameraMode) applyCamera(0)
-  }, [cameraMode])
-
-  function applyCamera(index) {
-    if (!cameraMode) return
-    setActiveCamera(index)
-    const cam = cameraMode.cameras[index]
-    if (!cam) return
-    const [x, y, z] = cameraMode.position
-    if (cam.top) {
-      setFocus({ x, y: y + cam.height, z: z + 0.1, lookAt: { x, y, z } })
-    } else {
-      const cx = x + Math.sin(cam.angle) * cam.dist
-      const cz = z + Math.cos(cam.angle) * cam.dist
-      setFocus({ x: cx, y: y + cam.height, z: cz, lookAt: { x, y, z } })
-    }
-  }
-
-  if (!cameraMode) return null
-  const loc = LOCATIONS[cameraMode.location]
-
-  return (
-    <div style={{
-      position: 'absolute', bottom: 24, left: '50%',
-      transform: 'translateX(-50%)', zIndex: 150,
-      background: 'rgba(6, 14, 24, 0.96)',
-      border: '2px solid rgba(34,207,255,0.5)', borderRadius: 14,
-      padding: '14px 18px', fontFamily: 'system-ui, -apple-system, sans-serif',
-      color: '#e8f7ff',
-      boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 30px rgba(34,207,255,0.3)',
-      backdropFilter: 'blur(16px)', minWidth: 480,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#22cfff', letterSpacing: 0.5 }}>
-            📷 Camera Views — {loc?.label || 'Location'}
-          </div>
-          <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 }}>
-            Click a camera to change view angle
-          </div>
-        </div>
-        <button
-          onClick={() => setState({ cameraMode: null })}
-          style={{
-            padding: '6px 12px', borderRadius: 8,
-            background: 'rgba(255,80,80,0.15)',
-            border: '1.5px solid rgba(255,100,100,0.5)', color: '#ff8a8a',
-            fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            fontFamily: 'inherit', letterSpacing: 0.5,
-          }}
-        >✕ EXIT</button>
-      </div>
-
-      <div style={{ display: 'flex', gap: 8 }}>
-        {cameraMode.cameras.map((cam, i) => (
-          <button
-            key={i}
-            onClick={() => applyCamera(i)}
-            style={{
-              flex: 1, padding: '10px 8px', borderRadius: 10,
-              background: activeCamera === i
-                ? 'linear-gradient(135deg, rgba(34,207,255,0.35), rgba(10,143,191,0.35))'
-                : 'rgba(34,207,255,0.06)',
-              border: activeCamera === i ? '1.5px solid #22cfff' : '1.5px solid rgba(34,207,255,0.2)',
-              color: activeCamera === i ? '#22cfff' : '#8fd8f0',
-              fontSize: 11, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'inherit', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: 4, transition: 'all 0.2s',
-            }}
-          >
-            <span style={{ fontSize: 18 }}>{cam.top ? '🛰' : '📹'}</span>
-            <span style={{ letterSpacing: 0.3 }}>{cam.name}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   AI CONSOLE — live AI decisions panel
-   ═══════════════════════════════════════════════════════════ */
-function AIConsole() {
-  const aiLog = useStore(s => s.aiLog)
-  const [minimized, setMinimized] = useState(false)
-
-  const typeColor = (type) => {
-    if (type === 'success') return '#2ecc71'
-    if (type === 'warning') return '#ffcc22'
-    if (type === 'adaptive') return '#b266ff'
-    if (type === 'phase') return '#22cfff'
-    return '#7fe3ff'
-  }
-
-  if (minimized) {
-    return (
-      <button
-        onClick={() => setMinimized(false)}
-        style={{
-          position: 'absolute', right: 20, bottom: 90, zIndex: 90,
-          width: 48, height: 48, borderRadius: '50%',
-          background: 'rgba(5,10,18,0.95)',
-          border: '2px solid rgba(34,207,255,0.5)', color: '#22cfff',
-          fontSize: 22, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-        }}
-      >🤖</button>
-    )
-  }
-
-  return (
-    <div style={{
-      position: 'absolute', right: 20, bottom: 90, zIndex: 90, width: 340,
-      background: 'rgba(5, 10, 18, 0.95)',
-      border: '2px solid rgba(34,207,255,0.5)', borderRadius: 14,
-      fontFamily: 'system-ui, -apple-system, sans-serif', color: '#e8f7ff',
-      boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 30px rgba(34,207,255,0.3)',
-      backdropFilter: 'blur(16px)', overflow: 'hidden',
-    }}>
-      <div style={{
-        padding: '12px 16px',
-        background: 'linear-gradient(135deg, rgba(34,207,255,0.2), rgba(10,50,80,0.3))',
-        borderBottom: '1px solid rgba(34,207,255,0.3)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            width: 10, height: 10, borderRadius: '50%', background: '#22ff88',
-            boxShadow: '0 0 10px #22ff88',
-          }} />
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#22cfff', letterSpacing: 0.8 }}>
-            🤖 AI TRAFFIC CONSOLE
-          </span>
-        </div>
-        <button
-          onClick={() => setMinimized(true)}
-          style={{ background: 'transparent', border: 'none', color: '#7fe3ff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}
-        >−</button>
-      </div>
-
-      <div style={{
-        padding: '10px 16px', background: 'rgba(34,207,255,0.06)',
-        borderBottom: '1px solid rgba(34,207,255,0.15)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase' }}>Active Phase</div>
-        <div style={{
-          fontSize: 12, fontWeight: 800,
-          color: trafficSystemState.inYellow ? '#ffcc22' : trafficSystemState.inAllRed ? '#ff4444' : '#22ff88',
-        }}>
-          {trafficSystemState.inAllRed ? '⛔ ALL RED'
-            : trafficSystemState.inYellow ? '⚠️ YELLOW'
-            : trafficSystemState.phase === 0 ? '🟢 NS GREEN' : '🟢 EW GREEN'}
-        </div>
-      </div>
-
-      <div style={{ maxHeight: 240, overflowY: 'auto', padding: '8px 12px' }}>
-        <div style={{ fontSize: 9, color: '#7fe3ff', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 }}>
-          Live AI Decisions
-        </div>
-        {aiLog.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#5a8a9a', fontStyle: 'italic', padding: '8px 0' }}>
-            Monitoring traffic flow...
-          </div>
-        ) : aiLog.map((entry, i) => (
-          <div key={i} style={{
-            fontSize: 11, color: typeColor(entry.type), padding: '6px 10px',
-            background: 'rgba(255,255,255,0.02)',
-            borderLeft: `3px solid ${typeColor(entry.type)}`,
-            borderRadius: '0 6px 6px 0', marginBottom: 4, lineHeight: 1.4,
-          }}>
-            {entry.message}
-          </div>
-        ))}
-      </div>
-
-      <div style={{
-        padding: '8px 16px', borderTop: '1px solid rgba(34,207,255,0.15)',
-        background: 'rgba(34,207,255,0.04)',
-        display: 'flex', justifyContent: 'space-between',
-        fontSize: 10, color: '#7fe3ff',
-      }}>
-        <span>🎯 Efficiency: <strong style={{ color: '#22ff88' }}>98%</strong></span>
-        <span>📡 Sensors: <strong style={{ color: '#22cfff' }}>24</strong></span>
-        <span>🚗 Managed: <strong style={{ color: '#22cfff' }}>160+</strong></span>
-      </div>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   MENU — slide-out panel
-   ═══════════════════════════════════════════════════════════ */
-function SectionTitle({ children, style }) {
-  return (
-    <div style={{
-      fontSize: 10, color: '#7fe3ff', letterSpacing: 1.5,
-      textTransform: 'uppercase', marginBottom: 10, fontWeight: 700,
-      ...style,
-    }}>{children}</div>
-  )
-}
-
-function MenuButton({ onClick, label, color = '#22cfff' }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%', padding: '10px 12px', marginBottom: 6, borderRadius: 8,
-        background: 'rgba(34,207,255,0.06)',
-        border: `1px solid ${color}30`,
-        color: '#e8f7ff', fontSize: 12, fontWeight: 600,
-        cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-        transition: 'all 0.2s',
-      }}
-      onMouseEnter={e => { e.target.style.background = `${color}25`; e.target.style.borderColor = color }}
-      onMouseLeave={e => { e.target.style.background = 'rgba(34,207,255,0.06)'; e.target.style.borderColor = `${color}30` }}
-    >
-      {label}
-    </button>
-  )
-}
-
-function InfoLine({ icon, label }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 11, color: '#b8e8ff' }}>
-      <span style={{ fontSize: 14 }}>{icon}</span>
-      <span>{label}</span>
-    </div>
-  )
-}
-
-function Menu() {
-  const menuOpen = useStore(s => s.menuOpen)
-  const [tab, setTab] = useState('locations')
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const trafficDensity = useStore(s => s.trafficDensity)
-  const streetLightsOn = useStore(s => s.streetLightsOn)
-  const setFocus = (f) => setState({ focus: f })
-
-  useEffect(() => {
-    if (timeOfDay === 'night' && !streetLightsOn) setState({ streetLightsOn: true })
-  }, [timeOfDay])
-
-  const openLocation = (key) => {
-    const loc = LOCATIONS[key]
-    if (!loc) return
-    setState({ infoPopup: { key, ...loc.info }, menuOpen: false })
-  }
-
-  const openCameras = (key) => {
-    const loc = LOCATIONS[key]
-    if (!loc) return
-    setState({
-      cameraMode: { location: key, cameras: loc.cameras, position: loc.position },
-      menuOpen: false,
-      aiLog: [{ message: `📷 Opening cameras for ${loc.label}`, type: 'info', time: Date.now() }, ...state.aiLog].slice(0, 8),
-    })
-  }
-
-  if (!menuOpen) {
-    return (
-      <button
-        onClick={() => setState({ menuOpen: true })}
-        style={{
-          position: 'absolute', left: 20, top: 20, zIndex: 100,
-          padding: '10px 18px', borderRadius: 10,
-          background: 'rgba(5,10,18,0.9)',
-          border: '1.5px solid rgba(34,207,255,0.5)',
-          color: '#22cfff', fontSize: 13, fontWeight: 800,
-          cursor: 'pointer', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', gap: 8,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-          letterSpacing: 0.5,
-        }}
-      >
-        <span style={{ fontSize: 16 }}>☰</span>
-        <span>SMART CITY MENU</span>
-      </button>
-    )
-  }
-
-  return (
-    <div style={{
-      position: 'absolute', left: 0, top: 0, bottom: 0, width: 360,
-      background: 'rgba(5,10,18,0.97)',
-      borderRight: '2px solid rgba(34,207,255,0.4)',
-      zIndex: 200, display: 'flex', flexDirection: 'column',
-      backdropFilter: 'blur(16px)',
-      boxShadow: '8px 0 40px rgba(0,0,0,0.7)',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
-      <div style={{
-        padding: '18px 20px',
-        borderBottom: '1px solid rgba(34,207,255,0.2)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#22cfff', letterSpacing: 1.5 }}>
-            🏙 BSS WORLD
-          </div>
-          <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginTop: 3 }}>
-            Smart City Menu
-          </div>
-        </div>
-        <button
-          onClick={() => setState({ menuOpen: false })}
-          style={{
-            width: 34, height: 34, borderRadius: '50%',
-            background: 'rgba(255,80,80,0.15)',
-            border: '1px solid rgba(255,100,100,0.5)',
-            color: '#ff8a8a', fontSize: 16, fontWeight: 700,
-            cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >✕</button>
-      </div>
-
-      <div style={{ display: 'flex', borderBottom: '1px solid rgba(34,207,255,0.15)' }}>
-        {[
-          { id: 'locations', label: '🏛 Places' },
-          { id: 'cameras', label: '📷 Cameras' },
-          { id: 'controls', label: '🎛 Controls' },
-          { id: 'info', label: 'ℹ Info' },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              flex: 1, padding: '12px 4px',
-              background: tab === t.id ? 'rgba(34,207,255,0.12)' : 'transparent',
-              border: 'none',
-              borderBottom: tab === t.id ? '2px solid #22cfff' : '2px solid transparent',
-              color: tab === t.id ? '#22cfff' : '#8fd8f0',
-              fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'inherit', transition: 'all 0.2s',
-            }}
-          >{t.label}</button>
-        ))}
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, color: '#e8f7ff' }}>
-        {tab === 'locations' && (
-          <>
-            <SectionTitle>🏛 Buildings & Places</SectionTitle>
-            {['school', 'hospital', 'bank', 'farm', 'event', 'gas', 'office', 'culture', 'powerCo', 'scifi9', 'tower', 'scifi10'].map(k => (
-              <MenuButton key={k} onClick={() => openLocation(k)} label={LOCATIONS[k].label} color="#22cfff" />
-            ))}
-            <SectionTitle style={{ marginTop: 20 }}>⚡ System Zones</SectionTitle>
-            {['traffic', 'power', 'filtration', 'food', 'waste'].map(k => (
-              <MenuButton key={k} onClick={() => openLocation(k)} label={LOCATIONS[k].label} color="#ffcc22" />
-            ))}
-            <SectionTitle style={{ marginTop: 20 }}>🏘 Other Areas</SectionTitle>
-            <MenuButton onClick={() => openLocation('residential')} label={LOCATIONS.residential.label} color="#2ecc71" />
-          </>
-        )}
-
-        {tab === 'cameras' && (
-          <>
-            <SectionTitle>📷 Camera Views</SectionTitle>
-            <div style={{ fontSize: 11, color: '#8fd8f0', marginBottom: 12, lineHeight: 1.5 }}>
-              Click any location to open its camera panel with 5 different views.
-            </div>
-            {Object.keys(LOCATIONS).map(k => (
-              <MenuButton key={k} onClick={() => openCameras(k)} label={LOCATIONS[k].label} color="#b266ff" />
-            ))}
-          </>
-        )}
-
-        {tab === 'controls' && (
-          <>
-            <SectionTitle>🌅 Time of Day</SectionTitle>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-              {[{v:'day',l:'☀️ Day'},{v:'evening',l:'🌆 Evening'},{v:'night',l:'🌙 Night'}].map(t => (
-                <button key={t.v} onClick={() => setState({ timeOfDay: t.v })} style={{
-                  flex: 1, padding: '10px 6px', borderRadius: 8,
-                  background: timeOfDay === t.v ? 'rgba(34,207,255,0.25)' : 'rgba(34,207,255,0.05)',
-                  border: timeOfDay === t.v ? '1.5px solid #22cfff' : '1.5px solid rgba(34,207,255,0.2)',
-                  color: timeOfDay === t.v ? '#22cfff' : '#8fd8f0',
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                }}>{t.l}</button>
-              ))}
-            </div>
-
-            <SectionTitle>🚗 Traffic Density</SectionTitle>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-              {[{v:'low',l:'🟢 Low'},{v:'medium',l:'🟡 Med'},{v:'high',l:'🔴 High'}].map(t => (
-                <button key={t.v} onClick={() => setState({ trafficDensity: t.v })} style={{
-                  flex: 1, padding: '10px 6px', borderRadius: 8,
-                  background: trafficDensity === t.v ? 'rgba(34,207,255,0.25)' : 'rgba(34,207,255,0.05)',
-                  border: trafficDensity === t.v ? '1.5px solid #22cfff' : '1.5px solid rgba(34,207,255,0.2)',
-                  color: trafficDensity === t.v ? '#22cfff' : '#8fd8f0',
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                }}>{t.l}</button>
-              ))}
-            </div>
-
-            <SectionTitle>💡 Street Lights</SectionTitle>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-              <button onClick={() => setState({ streetLightsOn: true })} style={{
-                flex: 1, padding: '10px', borderRadius: 8,
-                background: streetLightsOn ? 'rgba(46,204,113,0.3)' : 'rgba(46,204,113,0.06)',
-                border: '1.5px solid rgba(46,204,113,0.5)',
-                color: '#2ecc71', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-              }}>ON</button>
-              <button onClick={() => setState({ streetLightsOn: false })} style={{
-                flex: 1, padding: '10px', borderRadius: 8,
-                background: !streetLightsOn ? 'rgba(231,76,60,0.3)' : 'rgba(231,76,60,0.06)',
-                border: '1.5px solid rgba(231,76,60,0.5)',
-                color: '#e74c3c', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-              }}>OFF</button>
-            </div>
-
-            <SectionTitle>📷 Camera Presets</SectionTitle>
-            <MenuButton onClick={() => { setFocus({ x: 280, y: 220, z: 280, lookAt: { x: 0, y: 0, z: 0 } }); setState({ menuOpen: false }) }} label="🌐 Overview" color="#b266ff" />
-            <MenuButton onClick={() => { setFocus({ x: 0, y: 400, z: 100, lookAt: { x: 0, y: 0, z: 0 } }); setState({ menuOpen: false }) }} label="🛰 Top Down" color="#b266ff" />
-            <MenuButton onClick={() => { setFocus({ x: 30, y: 25, z: 30, lookAt: { x: 0, y: 0, z: 0 } }); setState({ menuOpen: false }) }} label="🚦 Traffic Center" color="#b266ff" />
-          </>
-        )}
-
-        {tab === 'info' && (
-          <>
-            <SectionTitle>About BSS World</SectionTitle>
-            <div style={{ fontSize: 12, lineHeight: 1.6, color: '#b8e8ff', marginBottom: 20 }}>
-              A 3D smart city simulation with AI-driven traffic control, renewable energy, water filtration, food production, and smart waste management.
-            </div>
-            <SectionTitle>Features</SectionTitle>
-            <InfoLine icon="🚦" label="AI Adaptive Traffic Control" />
-            <InfoLine icon="⚡" label="Renewable Power Zone" />
-            <InfoLine icon="💧" label="9-Stage Water Filtration" />
-            <InfoLine icon="🍎" label="AI Food Production" />
-            <InfoLine icon="♻️" label="Smart Waste Management" />
-            <InfoLine icon="🏫" label="12 Smart GLB Buildings" />
-            <InfoLine icon="🏘" label="20+ Residential Houses" />
-            <InfoLine icon="📷" label="Camera System (5 views)" />
-            <SectionTitle style={{ marginTop: 20 }}>Controls</SectionTitle>
-            <div style={{ fontSize: 11, color: '#8fd8f0', lineHeight: 1.7 }}>
-              • <strong>Drag</strong> to rotate<br />
-              • <strong>Scroll</strong> to zoom<br />
-              • <strong>Click buildings</strong> to focus<br />
-              • <strong>Right-click drag</strong> to pan
-            </div>
-          </>
-        )}
-      </div>
-
-      <div style={{
-        padding: '12px 20px',
-        borderTop: '1px solid rgba(34,207,255,0.15)',
-        fontSize: 10, color: '#7fe3ff',
-        textAlign: 'center', letterSpacing: 0.5,
-      }}>
-        © BSS WORLD • Smart City Simulation
-      </div>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   TOP HUD
-   ═══════════════════════════════════════════════════════════ */
-function TopHUD() {
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const trafficDensity = useStore(s => s.trafficDensity)
-
-  return (
-    <div style={{
-      position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 16,
-      zIndex: 50, pointerEvents: 'none',
-    }}>
-      <div style={{
-        background: 'rgba(5,10,18,0.85)',
-        border: '1px solid rgba(34,207,255,0.4)',
-        borderRadius: 999, padding: '10px 22px',
-        color: '#b8e8ff', fontSize: 12,
-        fontFamily: 'system-ui, sans-serif',
-        backdropFilter: 'blur(10px)',
-        display: 'flex', alignItems: 'center', gap: 12,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-      }}>
-        <span style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: timeOfDay === 'night' ? '#8f8fff' : timeOfDay === 'evening' ? '#ff9944' : '#ffdd44',
-        }} />
-        <span style={{ fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{timeOfDay}</span>
-        <span style={{ color: '#4a7a8a' }}>·</span>
-        <span>🚗 {trafficDensity}</span>
-      </div>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   CAMERA CONTROLLER
+   CAMERA CONTROLLER — handles focus animations
    ═══════════════════════════════════════════════════════════ */
 function CameraController() {
   const { camera } = useThree()
-  const focus = useStore(s => s.focus)
+  const focus = useS(s => s.focus)
+  const targetRef = useRef(null)
+  const lookAtRef = useRef(new THREE.Vector3(0, 0, 0))
 
   useFrame(() => {
-    if (!focus) return
-    const tgt = new THREE.Vector3(focus.x, focus.y, focus.z)
-    camera.position.lerp(tgt, 0.06)
-    camera.lookAt(focus.lookAt.x, focus.lookAt.y, focus.lookAt.z)
+    if (focus) {
+      const target = new THREE.Vector3(focus.x, focus.y, focus.z)
+      const lookAt = new THREE.Vector3(focus.lookAt.x, focus.lookAt.y, focus.lookAt.z)
+      camera.position.lerp(target, 0.05)
+      lookAtRef.current.lerp(lookAt, 0.05)
+      camera.lookAt(lookAtRef.current)
+    }
   })
 
   return null
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN APP — SmartCity3D (default export)
+   GROUND
    ═══════════════════════════════════════════════════════════ */
-export default function SmartCity3D() {
+function Ground() {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden', background: '#050a14' }}>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        * { box-sizing: border-box; }
-        body { margin: 0; padding: 0; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
-      `}</style>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
+      <planeGeometry args={[500, 500]} />
+      <meshStandardMaterial
+        color={isNight ? '#1a2a1a' : '#4a6a3a'}
+        roughness={0.95}
+      />
+    </mesh>
+  )
+}
 
-      <TopHUD />
-      <Menu />
-      <AIConsole />
-      <CameraPanel />
-      <InfoPopup />
+/* ═══════════════════════════════════════════════════════════
+   SKY & LIGHTING
+   ═══════════════════════════════════════════════════════════ */
+function SkyAndLights() {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
 
+  return (
+    <>
+      <Sky
+        distance={450000}
+        sunPosition={isNight ? [0, -1, 0] : [100, 50, 100]}
+        inclination={isNight ? 0.9 : 0.5}
+        azimuth={0.25}
+      />
+      <ambientLight intensity={isNight ? 0.15 : 0.5} color={isNight ? '#223344' : '#ffffff'} />
+      <directionalLight
+        position={isNight ? [-50, -50, -50] : [100, 80, 60]}
+        intensity={isNight ? 0.1 : 1.2}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-far={500}
+        shadow-camera-left={-200}
+        shadow-camera-right={200}
+        shadow-camera-top={200}
+        shadow-camera-bottom={-200}
+      />
+      <hemisphereLight
+        args={[isNight ? '#1a2a3a' : '#87CEEB', isNight ? '#0a0a0a' : '#3a5a3a', isNight ? 0.2 : 0.6]}
+      />
+    </>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN SCENE
+   ═══════════════════════════════════════════════════════════ */
+function Scene() {
+  return (
+    <>
+      <SkyAndLights />
+      <CameraController />
+      <Ground />
+      <Roads />
+      <CityBuildings />
+      <StreetLightSystem />
+      <TrafficLights />
+      <AITrafficSystem />
+      <TrafficSystem />
+      <PeopleSystem />
+      <TreesSystem />
+      <ContactShadows
+        position={[0, 0.01, 0]}
+        opacity={0.4}
+        scale={400}
+        blur={2}
+        far={20}
+      />
+    </>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   APP — main component
+   ═══════════════════════════════════════════════════════════ */
+export default function App() {
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Initialize AI log
+    addLog('🧠 AI Traffic Controller initialized', 'success')
+    addLog('📡 24 sensors online — all systems operational', 'info')
+    addLog('🚦 Adaptive signal timing active', 'phase')
+
+    const timer = setTimeout(() => setLoading(false), 1500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (loading) {
+    return (
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0a1628 0%, #1a2a4a 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#22cfff',
+        fontFamily: 'system-ui, sans-serif',
+      }}>
+        <div style={{
+          width: 60,
+          height: 60,
+          border: '4px solid rgba(34,207,255,0.2)',
+          borderTop: '4px solid #22cfff',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: 20,
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 2 }}>SMART CITY</div>
+        <div style={{ fontSize: 12, color: '#88aacc', marginTop: 8 }}>Initializing AI systems...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
       <Canvas
         shadows
-        camera={{ position: [180, 150, 180], fov: 55, near: 0.5, far: 2000 }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
-        dpr={[1, 1.5]}
+        camera={{ position: [120, 100, 120], fov: 50, near: 0.1, far: 1000 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        onPointerMissed={() => setS({ focus: null, infoPopup: null })}
       >
         <Suspense fallback={null}>
           <Scene />
         </Suspense>
         <OrbitControls
-          makeDefault
-          enablePan
-          enableRotate
-          enableZoom
-          minDistance={10}
-          maxDistance={500}
+          enableDamping
+          dampingFactor={0.05}
+          minDistance={20}
+          maxDistance={400}
           maxPolarAngle={Math.PI / 2.1}
-          target={[0, 2, 0]}
+          target={[0, 0, 0]}
         />
-        <CameraController />
       </Canvas>
 
-      {/* Bottom hint */}
+      {/* UI Overlays */}
+      <ControlPanel />
+      <AILogPanel />
+      <InfoPopup />
+
+      {/* Title */}
       <div style={{
-        position: 'absolute', left: 20, bottom: 20, zIndex: 50,
-        background: 'rgba(5,10,18,0.85)',
-        border: '1px solid rgba(34,207,255,0.3)',
-        borderRadius: 10, padding: '10px 16px',
-        color: '#b8e8ff', fontSize: 11, fontFamily: 'system-ui',
-        backdropFilter: 'blur(10px)', maxWidth: 400,
+        position: 'fixed',
+        top: 16,
+        left: 16,
+        zIndex: 500,
+        fontFamily: 'system-ui, sans-serif',
+        color: '#fff',
+        textShadow: '0 0 20px rgba(34,207,255,0.5)',
       }}>
-        🎮 <strong>Drag</strong> rotate · <strong>Scroll</strong> zoom · <strong>Click buildings</strong> focus · <strong>☰ Menu</strong> left
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 2, color: '#22cfff' }}>SMART CITY</div>
+        <div style={{ fontSize: 11, color: '#88aacc', letterSpacing: 1, marginTop: 2 }}>AI-POWERED URBAN SIMULATION</div>
+      </div>
+
+      {/* Hint */}
+      <div style={{
+        position: 'fixed',
+        bottom: 16,
+        left: 16,
+        zIndex: 500,
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: 11,
+        color: '#556677',
+        background: 'rgba(5,15,30,0.7)',
+        padding: '6px 12px',
+        borderRadius: 8,
+        border: '1px solid rgba(34,207,255,0.2)',
+      }}>
+        🖱️ Drag to orbit · Scroll to zoom · Click buildings for info
       </div>
     </div>
   )
