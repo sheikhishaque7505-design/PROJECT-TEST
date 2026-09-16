@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Html, useGLTF, ContactShadows, Sky, Text } from '@react-three/drei'
+import { OrbitControls, ContactShadows, Sky } from '@react-three/drei'
 import * as THREE from 'three'
 
 /* ═══════════════════════════════════════════════════════════
@@ -13,7 +13,6 @@ const S = {
   focus: null,
   menuOpen: false,
   infoPopup: null,
-  cameraMode: null,
   aiLog: [],
 }
 const subs = new Set()
@@ -46,7 +45,7 @@ const ALL_RED_DURATION = 1
 export const LOCATIONS = {
   school: {
     label: 'Beacon School System', icon: '🏫', pos: [-100, 0, -100],
-    color: '#1a5490', glb: '/american_high_school.glb', size: 22,
+    color: '#1a5490', size: 22,
     info: {
       title: '🏫 Beacon School System', sub: 'Smart Education Center',
       desc: 'American curriculum with AI-powered classrooms, robotics lab, and smart boards. 450 students enrolled with 32 teachers.',
@@ -56,7 +55,7 @@ export const LOCATIONS = {
   },
   hospital: {
     label: 'Smart City Hospital', icon: '🏥', pos: [100, 0, -100],
-    color: '#c0392b', glb: '/low_poly_hospital.glb', size: 22,
+    color: '#c0392b', size: 22,
     info: {
       title: '🏥 Smart City Hospital', sub: 'Advanced Healthcare',
       desc: 'AI-powered diagnosis, robotic surgery, 24/7 emergency services with 8 ICU beds and 32 patients under care.',
@@ -66,7 +65,7 @@ export const LOCATIONS = {
   },
   bank: {
     label: 'Smart City State Bank', icon: '🏦', pos: [100, 0, 100],
-    color: '#8e44ad', glb: '/us_bank_tower.glb', size: 26,
+    color: '#8e44ad', size: 26,
     info: {
       title: '🏦 Smart City State Bank', sub: 'Digital Financial Hub',
       desc: 'AI-powered banking with fraud detection, digital transactions, and 8 ATMs serving 1,240 transactions/hour.',
@@ -76,7 +75,7 @@ export const LOCATIONS = {
   },
   farm: {
     label: 'Smart Eco Farm', icon: '🌾', pos: [-150, 0, -100],
-    color: '#27ae60', glb: '/simple_farm_free.glb', size: 28,
+    color: '#27ae60', size: 28,
     info: {
       title: '🌾 Smart Eco Farm', sub: 'AI Agriculture',
       desc: 'IoT sensors monitor soil, drones map crops, AI optimizes irrigation. 94% crop health with automated harvesting.',
@@ -86,7 +85,7 @@ export const LOCATIONS = {
   },
   event: {
     label: 'Liverpool Event Hall', icon: '🎪', pos: [100, 0, 180],
-    color: '#d4a017', glb: '/liverpool_street_station_south_entrance.glb', size: 24,
+    color: '#d4a017', size: 24,
     info: {
       title: '🎪 Liverpool Event Hall', sub: 'Modern Event Venue',
       desc: 'Multi-purpose hall with capacity 2,000, smart surround lighting, and 3 events today.',
@@ -96,7 +95,7 @@ export const LOCATIONS = {
   },
   gas: {
     label: 'Gas Station · Car Wash', icon: '⛽', pos: [180, 0, 100],
-    color: '#e74c3c', glb: '/gas_station.glb', size: 20,
+    color: '#e74c3c', size: 20,
     info: {
       title: '⛽ Gas Station · Car Wash', sub: 'Automotive Services',
       desc: 'Automated car wash, 4 EV chargers, 6 fuel pumps with 78% water recycling.',
@@ -106,7 +105,7 @@ export const LOCATIONS = {
   },
   office: {
     label: 'Sewage & Gas Co.', icon: '🏭', pos: [180, 0, -100],
-    color: '#2ecc71', glb: '/office.glb', size: 22,
+    color: '#2ecc71', size: 22,
     info: {
       title: '🏭 Sewage & Gas Co.', sub: 'Industrial Treatment',
       desc: 'AI sewage treatment with biogas (2.1 MW), water recycling and 8M L/day processing.',
@@ -116,7 +115,7 @@ export const LOCATIONS = {
   },
   culture: {
     label: 'Culture Center', icon: '🏛', pos: [-150, 0, 100],
-    color: '#f39c12', glb: '/national_archives_research_center.glb', size: 28,
+    color: '#f39c12', size: 28,
     info: {
       title: '🏛 Culture Center', sub: 'Cultural Heritage Hub',
       desc: 'Museums, art galleries, VR tours, and 45 exhibits celebrating local cultures.',
@@ -126,7 +125,7 @@ export const LOCATIONS = {
   },
   powerCo: {
     label: 'City Power Supply Co.', icon: '🔌', pos: [-150, 0, 0],
-    color: '#f1c40f', glb: '/power-suply-companey.glb', size: 22,
+    color: '#f1c40f', size: 22,
     info: {
       title: '🔌 City Power Supply Co.', sub: 'Grid Monitoring',
       desc: 'AI load balancing across the city with 68 MW load, 22% reserve, and 0 outages today.',
@@ -136,7 +135,7 @@ export const LOCATIONS = {
   },
   scifi9: {
     label: 'Sci-Fi Building 9', icon: '🛸', pos: [-180, 0, -140],
-    color: '#66ff99', glb: '/sci-fi_building_9.glb', size: 26,
+    color: '#66ff99', size: 26,
     info: {
       title: '🛸 Sci-Fi Building 9', sub: 'Futuristic R&D',
       desc: 'Advanced research facility with holographic labs, quantum computing, 12 active research programs.',
@@ -146,7 +145,7 @@ export const LOCATIONS = {
   },
   tower: {
     label: 'Beautiful Tower', icon: '🗼', pos: [-180, 0, 0],
-    color: '#22cfff', glb: '/beautifultowerbuilding.glb', size: 30,
+    color: '#22cfff', size: 30,
     info: {
       title: '🗼 Beautiful Tower', sub: 'Iconic Landmark',
       desc: '320-meter iconic landmark with observation deck and smart show lighting. 180 visitors daily.',
@@ -156,7 +155,7 @@ export const LOCATIONS = {
   },
   scifi10: {
     label: 'Sci-Fi Building 10', icon: '🚀', pos: [-180, 0, 140],
-    color: '#ff66dd', glb: '/sci-fi_building_10.glb', size: 26,
+    color: '#ff66dd', size: 26,
     info: {
       title: '🚀 Sci-Fi Building 10', sub: 'Space Technology',
       desc: 'Satellite control center linked to 6 satellites with AI mission planning, 2 active missions.',
@@ -166,7 +165,7 @@ export const LOCATIONS = {
   },
   traffic: {
     label: 'AI Traffic Controller', icon: '🚦', pos: [0, 0, 0],
-    color: '#22cfff', glb: null, size: 0,
+    color: '#22cfff', size: 0,
     info: {
       title: '🚦 AI Traffic Controller', sub: 'Central Intelligence',
       desc: 'Manages 4-way intersection with adaptive signal timing. Real-time vehicle detection, queue monitoring, predictive algorithms.',
@@ -176,7 +175,7 @@ export const LOCATIONS = {
   },
   power: {
     label: 'Power Supply Zone', icon: '⚡', pos: [-180, 0, 180],
-    color: '#ffcc22', glb: null, size: 0,
+    color: '#ffcc22', size: 0,
     info: {
       title: '⚡ Power Supply Zone', sub: 'Renewable Energy',
       desc: 'Combined solar (42 MW) + wind (28 MW) = 70 MW renewable output with battery storage.',
@@ -186,7 +185,7 @@ export const LOCATIONS = {
   },
   filtration: {
     label: 'Filtration System', icon: '💧', pos: [180, 0, -180],
-    color: '#22cfff', glb: '/skid_filtration_system.glb', size: 20,
+    color: '#22cfff', size: 20,
     info: {
       title: '💧 Filtration System', sub: '9-Stage Water Purification',
       desc: 'Advanced 9-stage purification with 99.7% purity, processing 12M liters daily with 82% recycling.',
@@ -196,7 +195,7 @@ export const LOCATIONS = {
   },
   food: {
     label: 'AI Food Production', icon: '🍎', pos: [-180, 0, -180],
-    color: '#2ecc71', glb: null, size: 0,
+    color: '#2ecc71', size: 0,
     info: {
       title: '🍎 AI Food Production', sub: 'Smart Farming',
       desc: 'AI-managed farm with drone monitoring, automated irrigation, processing plant with 48 daily deliveries.',
@@ -206,7 +205,7 @@ export const LOCATIONS = {
   },
   waste: {
     label: 'Waste Management', icon: '♻️', pos: [180, 0, 180],
-    color: '#2ecc71', glb: null, size: 0,
+    color: '#2ecc71', size: 0,
     info: {
       title: '♻️ Waste Management', sub: 'Circular Economy',
       desc: 'Smart segregation with recycling, biogas (4.2 MW), and composting. 68% of waste is recycled.',
@@ -270,7 +269,7 @@ function Border({ w = 4, d = 4, h = 8, color = '#22cfff' }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   BOARD
+   BOARD — billboard sign
    ═══════════════════════════════════════════════════════════ */
 function Board({ text, position = [0, 0, 0], color = '#22cfff', w = 10, h = 2.5, locKey = null }) {
   const [tex, setTex] = useState(null)
@@ -330,62 +329,460 @@ function Board({ text, position = [0, 0, 0], color = '#22cfff', w = 10, h = 2.5,
 }
 
 /* ═══════════════════════════════════════════════════════════
-   GLB BUILDING
+   PROCEDURAL BUILDINGS — different shapes per type
    ═══════════════════════════════════════════════════════════ */
-function GLBBuilding({ url, size = 20, pos = [0, 0, 0], name = 'Building', color = '#22cfff', locKey }) {
-  const [dims, setDims] = useState({ w: 6, d: 6, h: 10 })
-  let gltf = null
-  try { gltf = useGLTF(url) } catch (e) { }
 
-  const model = React.useMemo(() => {
-    if (!gltf || !gltf.scene) return null
-    const c = gltf.scene.clone(true)
-    const box = new THREE.Box3().setFromObject(c)
-    const sz = new THREE.Vector3()
-    box.getSize(sz)
-    const maxD = Math.max(sz.x, sz.y, sz.z)
-    const sc = size / Math.max(maxD, 0.001)
-    c.scale.setScalar(sc)
-    const box2 = new THREE.Box3().setFromObject(c)
-    const ctr = new THREE.Vector3()
-    box2.getCenter(ctr)
-    c.position.x -= ctr.x
-    c.position.z -= ctr.z
-    c.position.y -= box2.min.y
-    const fs = new THREE.Vector3()
-    box2.getSize(fs)
-    setDims({ w: Math.max(fs.x * sc * 1.3, 6), d: Math.max(fs.z * sc * 1.3, 6), h: Math.max(fs.y * sc, 10) })
-    return c
-  }, [gltf, size])
-
+function SchoolBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
   const handleClick = (e) => {
     e.stopPropagation()
-    if (locKey && LOCATIONS[locKey]) {
-      setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
-    }
-    setS({ focus: { x: pos[0] + 30, y: pos[1] + dims.h + 8, z: pos[2] + 30, lookAt: { x: pos[0], y: pos[1], z: pos[2] } } })
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 30, y: pos[1] + 20, z: pos[2] + 30, lookAt: { x: pos[0], y: pos[1], z: pos[2] } } })
   }
-
-  if (!model) {
-    const w = size / 3
-    const h = size / 2
-    return (
-      <group position={pos}>
-        <mesh onClick={handleClick} castShadow>
-          <boxGeometry args={[w, h, w]} />
-          <meshStandardMaterial color={color} metalness={0.3} roughness={0.6} />
-        </mesh>
-        <Border w={w} d={w} h={h} color={color} />
-        <Board text={name} position={[0, h + 5, 0]} color={color} locKey={locKey} />
-      </group>
-    )
-  }
-
   return (
     <group position={pos}>
-      <primitive object={model} onClick={handleClick} castShadow receiveShadow />
-      <Border w={dims.w} d={dims.d} h={dims.h} color={color} />
-      <Board text={name} position={[0, dims.h + 6, 0]} color={color} locKey={locKey} />
+      <mesh position={[0, 4, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[20, 8, 14]} />
+        <meshStandardMaterial color="#e8e0d0" roughness={0.8} />
+      </mesh>
+      <mesh position={[0, 8.2, 0]} castShadow>
+        <boxGeometry args={[20.5, 0.4, 14.5]} />
+        <meshStandardMaterial color="#1a5490" />
+      </mesh>
+      <mesh position={[0, 9.5, 0]} castShadow>
+        <boxGeometry args={[6, 2, 5]} />
+        <meshStandardMaterial color="#1a5490" />
+      </mesh>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <mesh key={i} position={[-7 + i * 2, 4, 7.05]}>
+          <boxGeometry args={[1.2, 1.5, 0.05]} />
+          <meshStandardMaterial color={isNight ? '#ffffcc' : '#87CEEB'} emissive={isNight ? '#ffff99' : '#000'} emissiveIntensity={isNight ? 1 : 0} transparent opacity={0.85} />
+        </mesh>
+      ))}
+      <Border w={20} d={14} h={8} color={color} />
+      <Board text={name} position={[0, 15, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function HospitalBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 30, y: pos[1] + 20, z: pos[2] + 30, lookAt: { x: pos[0], y: pos[1], z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 5, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[16, 10, 16]} />
+        <meshStandardMaterial color="#f0f0f0" roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 10.5, 0]} castShadow>
+        <boxGeometry args={[14, 1, 14]} />
+        <meshStandardMaterial color="#c0392b" />
+      </mesh>
+      {/* Red cross */}
+      <mesh position={[0, 6, 8.05]}>
+        <boxGeometry args={[3, 0.8, 0.1]} />
+        <meshStandardMaterial color="#c0392b" emissive="#c0392b" emissiveIntensity={isNight ? 2 : 0.5} />
+      </mesh>
+      <mesh position={[0, 6, 8.05]}>
+        <boxGeometry args={[0.8, 3, 0.1]} />
+        <meshStandardMaterial color="#c0392b" emissive="#c0392b" emissiveIntensity={isNight ? 2 : 0.5} />
+      </mesh>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <mesh key={i} position={[-6 + i * 4, 7, 8.05]}>
+          <boxGeometry args={[1.4, 1.2, 0.05]} />
+          <meshStandardMaterial color={isNight ? '#aaffaa' : '#87CEEB'} emissive={isNight ? '#88ff88' : '#000'} emissiveIntensity={isNight ? 1 : 0} transparent opacity={0.85} />
+        </mesh>
+      ))}
+      <Border w={16} d={16} h={10} color={color} />
+      <Board text={name} position={[0, 17, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function BankBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 35, y: pos[1] + 30, z: pos[2] + 35, lookAt: { x: pos[0], y: pos[1] + 10, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 12, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[12, 24, 12]} />
+        <meshStandardMaterial color="#9aa0a6" metalness={0.5} roughness={0.4} />
+      </mesh>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <mesh key={i} position={[0, 2 + i * 2.8, 6.05]}>
+          <boxGeometry args={[9, 1.6, 0.1]} />
+          <meshStandardMaterial color={isNight ? '#aaccff' : '#4a6a8a'} emissive={isNight ? '#88aaff' : '#000'} emissiveIntensity={isNight ? 1.5 : 0} transparent opacity={0.8} />
+        </mesh>
+      ))}
+      <mesh position={[0, 24.5, 0]} castShadow>
+        <cylinderGeometry args={[1, 2, 3, 8]} />
+        <meshStandardMaterial color="#8e44ad" />
+      </mesh>
+      <mesh position={[0, 27, 0]}>
+        <sphereGeometry args={[0.5, 12, 12]} />
+        <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 6 : 2} />
+      </mesh>
+      <Border w={12} d={12} h={24} color={color} />
+      <Board text={name} position={[0, 31, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function FarmBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 30, y: pos[1] + 20, z: pos[2] + 30, lookAt: { x: pos[0], y: pos[1], z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 4, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[18, 8, 12]} />
+        <meshStandardMaterial color="#8b5a2b" roughness={0.9} />
+      </mesh>
+      <mesh position={[0, 9, 0]} castShadow>
+        <coneGeometry args={[13, 4, 4]} rotation={[0, Math.PI / 4, 0]} />
+        <meshStandardMaterial color="#5a3d24" />
+      </mesh>
+      <mesh position={[0, 9, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[13, 4, 4]} />
+        <meshStandardMaterial color="#5a3d24" />
+      </mesh>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <mesh key={i} position={[-7 + i * 3, 4, 6.05]}>
+          <boxGeometry args={[1.5, 1.5, 0.05]} />
+          <meshStandardMaterial color={isNight ? '#ffffcc' : '#87CEEB'} emissive={isNight ? '#ffff99' : '#000'} emissiveIntensity={isNight ? 1 : 0} transparent opacity={0.85} />
+        </mesh>
+      ))}
+      {/* Silo */}
+      <mesh position={[10, 6, 0]} castShadow>
+        <cylinderGeometry args={[2, 2, 12, 16]} />
+        <meshStandardMaterial color="#c9a66b" />
+      </mesh>
+      <mesh position={[10, 12.5, 0]} castShadow>
+        <coneGeometry args={[2.2, 2, 16]} />
+        <meshStandardMaterial color="#8b5a2b" />
+      </mesh>
+      <Border w={18} d={12} h={8} color={color} />
+      <Board text={name} position={[0, 16, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function EventBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 35, y: pos[1] + 25, z: pos[2] + 35, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 5, 0]} castShadow receiveShadow onClick={handleClick}>
+        <cylinderGeometry args={[12, 12, 10, 24]} />
+        <meshStandardMaterial color="#f0e0c0" metalness={0.3} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, 10.5, 0]} castShadow>
+        <sphereGeometry args={[12.2, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#d4a017" emissive={isNight ? '#d4a017' : '#000'} emissiveIntensity={isNight ? 1.5 : 0} />
+      </mesh>
+      {Array.from({ length: 12 }).map((_, i) => {
+        const a = (i / 12) * Math.PI * 2
+        return (
+          <mesh key={i} position={[Math.cos(a) * 11.5, 5, Math.sin(a) * 11.5]} rotation={[0, -a, 0]}>
+            <boxGeometry args={[0.15, 4, 3]} />
+            <meshStandardMaterial color={isNight ? '#ffcc66' : '#87CEEB'} emissive={isNight ? '#ffaa22' : '#000'} emissiveIntensity={isNight ? 2 : 0} transparent opacity={0.7} />
+          </mesh>
+        )
+      })}
+      <Border w={24} d={24} h={10} color={color} />
+      <Board text={name} position={[0, 18, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function GasStationBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 25, y: pos[1] + 15, z: pos[2] + 25, lookAt: { x: pos[0], y: pos[1], z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 3, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[16, 6, 10]} />
+        <meshStandardMaterial color="#ffffff" metalness={0.4} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 6.5, 0]} castShadow>
+        <boxGeometry args={[18, 1, 12]} />
+        <meshStandardMaterial color="#e74c3c" emissive="#e74c3c" emissiveIntensity={isNight ? 2 : 0.5} />
+      </mesh>
+      {/* Pumps */}
+      {[-4, 0, 4].map((x, i) => (
+        <group key={i} position={[x, 0, 6]}>
+          <mesh position={[0, 1.5, 0]} castShadow>
+            <boxGeometry args={[1, 3, 1]} />
+            <meshStandardMaterial color="#333" />
+          </mesh>
+          <mesh position={[0, 3.2, 0]}>
+            <boxGeometry args={[1.2, 0.4, 1.2]} />
+            <meshStandardMaterial color="#e74c3c" emissive="#e74c3c" emissiveIntensity={isNight ? 2 : 0.5} />
+          </mesh>
+        </group>
+      ))}
+      <Border w={16} d={12} h={6} color={color} />
+      <Board text={name} position={[0, 12, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function OfficeBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 30, y: pos[1] + 20, z: pos[2] + 30, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 7, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[16, 14, 14]} />
+        <meshStandardMaterial color="#5a6a7a" metalness={0.4} roughness={0.5} />
+      </mesh>
+      {Array.from({ length: 4 }).map((_, f) =>
+        Array.from({ length: 5 }).map((_, i) => (
+          <mesh key={`${f}-${i}`} position={[-5 + i * 2.5, 3 + f * 3, 7.05]}>
+            <boxGeometry args={[1.6, 1.8, 0.05]} />
+            <meshStandardMaterial color={isNight ? '#88ccff' : '#2a3a4a'} emissive={isNight ? '#4488cc' : '#000'} emissiveIntensity={isNight ? 1.5 : 0} transparent opacity={0.8} />
+          </mesh>
+        ))
+      )}
+      {/* Chimney */}
+      <mesh position={[5, 16, 5]} castShadow>
+        <cylinderGeometry args={[0.8, 1, 4, 12]} />
+        <meshStandardMaterial color="#4a4a4a" />
+      </mesh>
+      <Border w={16} d={14} h={14} color={color} />
+      <Board text={name} position={[0, 21, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function CultureBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 35, y: pos[1] + 25, z: pos[2] + 35, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 5, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[22, 10, 14]} />
+        <meshStandardMaterial color="#f0e8d8" roughness={0.7} />
+      </mesh>
+      {/* Columns */}
+      {Array.from({ length: 6 }).map((_, i) => (
+        <mesh key={i} position={[-9 + i * 3.6, 5, 7.5]} castShadow>
+          <cylinderGeometry args={[0.6, 0.7, 10, 12]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.6} />
+        </mesh>
+      ))}
+      {/* Pediment */}
+      <mesh position={[0, 11, 0]} castShadow>
+        <boxGeometry args={[23, 2, 15]} />
+        <meshStandardMaterial color="#f39c12" emissive={isNight ? '#f39c12' : '#000'} emissiveIntensity={isNight ? 1 : 0} />
+      </mesh>
+      <mesh position={[0, 13.5, 0]} castShadow>
+        <coneGeometry args={[15, 3, 4]} />
+        <meshStandardMaterial color="#d4a017" />
+      </mesh>
+      <Border w={22} d={14} h={10} color={color} />
+      <Board text={name} position={[0, 19, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function PowerCoBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 30, y: pos[1] + 20, z: pos[2] + 30, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 6, 0]} castShadow receiveShadow onClick={handleClick}>
+        <boxGeometry args={[14, 12, 12]} />
+        <meshStandardMaterial color="#4a4a5a" metalness={0.5} roughness={0.5} />
+      </mesh>
+      {/* Coils / transformers */}
+      {[-4, 0, 4].map((x, i) => (
+        <mesh key={i} position={[x, 13, 0]} castShadow>
+          <cylinderGeometry args={[1.5, 1.5, 2, 16]} />
+          <meshStandardMaterial color="#f1c40f" emissive="#f1c40f" emissiveIntensity={isNight ? 2 : 0.5} metalness={0.6} />
+        </mesh>
+      ))}
+      {/* Lightning bolt symbol */}
+      <mesh position={[0, 6, 6.05]}>
+        <boxGeometry args={[0.6, 4, 0.1]} />
+        <meshStandardMaterial color="#f1c40f" emissive="#f1c40f" emissiveIntensity={isNight ? 4 : 1} />
+      </mesh>
+      <Border w={14} d={12} h={12} color={color} />
+      <Board text={name} position={[0, 18, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function SciFi9Building({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 35, y: pos[1] + 25, z: pos[2] + 35, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 8, 0]} castShadow receiveShadow onClick={handleClick}>
+        <cylinderGeometry args={[6, 9, 16, 8]} />
+        <meshStandardMaterial color="#3a5a4a" metalness={0.7} roughness={0.3} emissive={isNight ? '#1a3a2a' : '#000'} emissiveIntensity={isNight ? 0.5 : 0} />
+      </mesh>
+      <mesh position={[0, 16.5, 0]}>
+        <cylinderGeometry args={[6.5, 6.5, 0.5, 8]} />
+        <meshStandardMaterial color="#66ff99" emissive="#66ff99" emissiveIntensity={isNight ? 5 : 2} />
+      </mesh>
+      {/* Antenna */}
+      <mesh position={[0, 20, 0]}>
+        <cylinderGeometry args={[0.1, 0.1, 6, 8]} />
+        <meshStandardMaterial color="#66ff99" emissive="#66ff99" emissiveIntensity={isNight ? 6 : 2} />
+      </mesh>
+      <mesh position={[0, 23, 0]}>
+        <sphereGeometry args={[0.5, 16, 16]} />
+        <meshStandardMaterial color="#ffffff" emissive="#66ff99" emissiveIntensity={isNight ? 8 : 3} />
+      </mesh>
+      <Border w={18} d={18} h={16} color={color} />
+      <Board text={name} position={[0, 27, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function TowerBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 40, y: pos[1] + 40, z: pos[2] + 40, lookAt: { x: pos[0], y: pos[1] + 20, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 20, 0]} castShadow receiveShadow onClick={handleClick}>
+        <cylinderGeometry args={[3, 6, 40, 16]} />
+        <meshStandardMaterial color="#4a6a8a" metalness={0.6} roughness={0.3} />
+      </mesh>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <mesh key={i} position={[0, 5 + i * 6, 0]}>
+          <torusGeometry args={[5 - i * 0.4, 0.15, 8, 32]} rotation={[Math.PI / 2, 0, 0]} />
+          <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 5 : 2} />
+        </mesh>
+      ))}
+      {/* Observation deck */}
+      <mesh position={[0, 40, 0]}>
+        <cylinderGeometry args={[7, 7, 1, 24]} />
+        <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 3 : 1} />
+      </mesh>
+      {/* Spire */}
+      <mesh position={[0, 47, 0]} castShadow>
+        <coneGeometry args={[1.5, 14, 8]} />
+        <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 4 : 1.5} />
+      </mesh>
+      <mesh position={[0, 55, 0]}>
+        <sphereGeometry args={[0.6, 16, 16]} />
+        <meshStandardMaterial color="#ffffff" emissive="#22cfff" emissiveIntensity={isNight ? 10 : 3} />
+      </mesh>
+      <Border w={14} d={14} h={40} color={color} />
+      <Board text={name} position={[0, 60, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function SciFi10Building({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 35, y: pos[1] + 25, z: pos[2] + 35, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      <mesh position={[0, 6, 0]} castShadow receiveShadow onClick={handleClick}>
+        <sphereGeometry args={[8, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#5a3a6a" metalness={0.6} roughness={0.3} emissive={isNight ? '#3a1a4a' : '#000'} emissiveIntensity={isNight ? 0.5 : 0} />
+      </mesh>
+      <mesh position={[0, 6, 0]} castShadow>
+        <cylinderGeometry args={[8, 8, 0.4, 32]} />
+        <meshStandardMaterial color="#ff66dd" emissive="#ff66dd" emissiveIntensity={isNight ? 5 : 2} />
+      </mesh>
+      {/* Satellite dish */}
+      <mesh position={[0, 12, 0]} castShadow>
+        <sphereGeometry args={[3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ff66dd" emissiveIntensity={isNight ? 2 : 0.5} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 12, 0]}>
+        <cylinderGeometry args={[0.15, 0.15, 4, 8]} />
+        <meshStandardMaterial color="#ff66dd" emissive="#ff66dd" emissiveIntensity={isNight ? 4 : 1.5} />
+      </mesh>
+      <Border w={18} d={18} h={12} color={color} />
+      <Board text={name} position={[0, 18, 0]} color={color} locKey={locKey} />
+    </group>
+  )
+}
+
+function FiltrationBuilding({ pos, name, color, locKey }) {
+  const timeOfDay = useS(s => s.timeOfDay)
+  const isNight = timeOfDay === 'night'
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (locKey && LOCATIONS[locKey]) setS({ infoPopup: { key: locKey, ...LOCATIONS[locKey].info } })
+    setS({ focus: { x: pos[0] + 25, y: pos[1] + 15, z: pos[2] + 25, lookAt: { x: pos[0], y: pos[1] + 3, z: pos[2] } } })
+  }
+  return (
+    <group position={pos}>
+      {[0, 1, 2].map(i => (
+        <group key={i} position={[i * 6 - 6, 0, 0]}>
+          <mesh position={[0, 2.5, 0]} castShadow receiveShadow onClick={handleClick}>
+            <cylinderGeometry args={[2, 2, 5, 16]} />
+            <meshStandardMaterial color="#4a6a7a" metalness={0.5} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 5.1, 0]}>
+            <cylinderGeometry args={[2.1, 2.1, 0.2, 16]} />
+            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 4 : 1.5} />
+          </mesh>
+        </group>
+      ))}
+      <Border w={20} d={10} h={5} color={color} />
+      <Board text={name} position={[0, 11, 0]} color={color} locKey={locKey} />
     </group>
   )
 }
@@ -435,20 +832,16 @@ function House({ pos = [0, 0, 0], h = 8, color = '#a67c52', name = 'House', turb
         )
       })}
 
-      <mesh position={[0, h / 2 + 0.5, 0]} castShadow>
-        <boxGeometry args={[5.4, 1, 5.4]} />
-        <meshStandardMaterial color="#34495e" />
+      {/* Roof */}
+      <mesh position={[0, h / 2 + 1, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[4.2, 2.5, 4]} />
+        <meshStandardMaterial color="#5a3d24" />
       </mesh>
 
-      <mesh position={[0, h / 2 + 1.2, 0]}>
-        <boxGeometry args={[4, 0.1, 4]} />
-        <meshStandardMaterial color="#082c4b" emissive="#063b62" emissiveIntensity={1} metalness={0.7} />
-      </mesh>
-
-      {turbine && <Turbine pos={[0, h / 2 + 1, 0]} scale={0.6} />}
+      {turbine && <Turbine pos={[0, h / 2 + 2, 0]} scale={0.6} />}
 
       <Border w={5} d={5} h={h} color={bc} />
-      <Board text={name} position={[0, h + 4, 0]} color={bc} w={7} h={1.6} />
+      <Board text={name} position={[0, h + 5, 0]} color={bc} w={7} h={1.6} />
     </group>
   )
 }
@@ -831,7 +1224,6 @@ function Car({ lane, startPos }) {
 
     posRef.current += speed * lane.dir * dt
 
-    const span = Math.abs(lane.end - lane.start)
     if (lane.dir > 0 && posRef.current > lane.end) {
       posRef.current = lane.start + (posRef.current - lane.end)
     } else if (lane.dir < 0 && posRef.current < lane.end) {
@@ -1122,37 +1514,8 @@ function BatteryBank({ pos }) {
               opacity={0.8}
             />
           </mesh>
-          <mesh position={[0, 2.1, 0]}>
-            <cylinderGeometry args={[0.1, 0.1, 0.2, 8]} />
-            <meshStandardMaterial color="#ffcc22" emissive="#ffcc22" emissiveIntensity={1} />
-          </mesh>
         </group>
       ))}
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[8, 3]} />
-        <meshStandardMaterial color="#4a4a4a" roughness={0.9} />
-      </mesh>
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   WIND TURBINE FARM
-   ═══════════════════════════════════════════════════════════ */
-function WindTurbineFarm({ pos }) {
-  const turbines = [
-    [0, 0], [15, 5], [-15, 5], [8, -12], [-8, -12],
-    [22, -8], [-22, -8], [5, 18], [-5, 18],
-  ]
-  return (
-    <group position={pos}>
-      {turbines.map(([x, z], i) => (
-        <Turbine key={i} pos={[x, 0, z]} scale={0.8 + Math.random() * 0.4} />
-      ))}
-      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[60, 60]} />
-        <meshStandardMaterial color="#4a6a4a" roughness={0.95} />
-      </mesh>
     </group>
   )
 }
@@ -1163,9 +1526,16 @@ function WindTurbineFarm({ pos }) {
 function PowerSupplyZone() {
   const timeOfDay = useS(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
+  const pos = [-180, 0, 180]
+
+  const handleClick = (e) => {
+    e.stopPropagation()
+    setS({ infoPopup: { key: 'power', ...LOCATIONS.power.info } })
+    setS({ focus: { x: pos[0] + 40, y: pos[1] + 25, z: pos[2] + 40, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
 
   return (
-    <group position={[-180, 0, 180]}>
+    <group position={pos}>
       {Array.from({ length: 9 }).map((_, i) => {
         const row = Math.floor(i / 3)
         const col = i % 3
@@ -1182,7 +1552,7 @@ function PowerSupplyZone() {
       <BatteryBank pos={[0, 0, 15]} />
 
       <group position={[15, 0, 0]}>
-        <mesh position={[0, 2, 0]} castShadow>
+        <mesh position={[0, 2, 0]} castShadow onClick={handleClick}>
           <boxGeometry args={[6, 4, 5]} />
           <meshStandardMaterial color="#3a4a5a" metalness={0.4} roughness={0.6} />
         </mesh>
@@ -1193,7 +1563,10 @@ function PowerSupplyZone() {
         <Board text="⚡ POWER ZONE" position={[0, 7, 0]} color="#ffcc22" w={8} h={2} locKey="power" />
       </group>
 
-      <WindTurbineFarm pos={[-30, 0, -10]} />
+      {/* Wind turbines */}
+      {[[0, 0], [15, 5], [-15, 5], [8, -12], [-8, -12], [22, -8], [-22, -8], [5, 18], [-5, 18]].map(([x, z], i) => (
+        <Turbine key={i} pos={[-30 + x, 0, -10 + z]} scale={0.8 + Math.random() * 0.4} />
+      ))}
 
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[80, 80]} />
@@ -1204,62 +1577,18 @@ function PowerSupplyZone() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   FILTRATION SYSTEM
-   ═══════════════════════════════════════════════════════════ */
-function FiltrationSystem() {
-  const timeOfDay = useS(s => s.timeOfDay)
-  const isNight = timeOfDay === 'night'
-
-  return (
-    <group position={[180, 0, -180]}>
-      {[0, 1, 2].map(i => (
-        <group key={i} position={[i * 6 - 6, 0, 0]}>
-          <mesh position={[0, 2.5, 0]} castShadow>
-            <cylinderGeometry args={[2, 2, 5, 16]} />
-            <meshStandardMaterial color="#4a6a7a" metalness={0.4} roughness={0.5} />
-          </mesh>
-          <mesh position={[0, 5.1, 0]}>
-            <cylinderGeometry args={[2.1, 2.1, 0.2, 16]} />
-            <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 3 : 1.5} />
-          </mesh>
-          <mesh position={[0, 2, 2.05]}>
-            <boxGeometry args={[3, 3.5, 0.1]} />
-            <meshStandardMaterial color="#1a4a6a" transparent opacity={0.7} />
-          </mesh>
-        </group>
-      ))}
-
-      <mesh position={[0, 1, 3.5]} rotation={[0, 0, 0]}>
-        <cylinderGeometry args={[0.3, 0.3, 18, 8]} />
-        <meshStandardMaterial color="#6a7a8a" metalness={0.6} />
-      </mesh>
-      <mesh position={[0, 1, -3.5]} rotation={[0, 0, 0]}>
-        <cylinderGeometry args={[0.3, 0.3, 18, 8]} />
-        <meshStandardMaterial color="#6a7a8a" metalness={0.6} />
-      </mesh>
-
-      <group position={[12, 0, 0]}>
-        <mesh position={[0, 1.5, 0]} castShadow>
-          <boxGeometry args={[6, 3, 5]} />
-          <meshStandardMaterial color="#3a5a6a" metalness={0.3} roughness={0.6} />
-        </mesh>
-        <Board text="💧 FILTRATION" position={[0, 5.5, 0]} color="#22cfff" w={9} h={2} locKey="filtration" />
-      </group>
-
-      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[50, 40]} />
-        <meshStandardMaterial color="#5a5a6a" roughness={0.9} />
-      </mesh>
-    </group>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════
-   AI FOOD PRODUCTION
+   FOOD PRODUCTION
    ═══════════════════════════════════════════════════════════ */
 function FoodProduction() {
   const timeOfDay = useS(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
+  const pos = [-180, 0, -180]
+
+  const handleClick = (e) => {
+    e.stopPropagation()
+    setS({ infoPopup: { key: 'food', ...LOCATIONS.food.info } })
+    setS({ focus: { x: pos[0] + 40, y: pos[1] + 25, z: pos[2] + 40, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
 
   const cropRows = []
   for (let i = 0; i < 6; i++) {
@@ -1269,7 +1598,7 @@ function FoodProduction() {
   }
 
   return (
-    <group position={[-180, 0, -180]}>
+    <group position={pos}>
       {cropRows.map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
           <mesh position={[0, 0.3, 0]} castShadow>
@@ -1286,7 +1615,7 @@ function FoodProduction() {
       ))}
 
       <group position={[15, 0, 0]}>
-        <mesh position={[0, 2.5, 0]} castShadow>
+        <mesh position={[0, 2.5, 0]} castShadow onClick={handleClick}>
           <boxGeometry args={[8, 5, 6]} />
           <meshStandardMaterial color="#5a6a5a" metalness={0.3} roughness={0.7} />
         </mesh>
@@ -1295,17 +1624,6 @@ function FoodProduction() {
           <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={isNight ? 3 : 1.5} />
         </mesh>
         <Board text="🍎 FOOD PRODUCTION" position={[0, 8, 0]} color="#2ecc71" w={11} h={2} locKey="food" />
-      </group>
-
-      <group position={[-15, 0, 10]}>
-        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[3, 16]} />
-          <meshStandardMaterial color="#2a4a2a" emissive="#2ecc71" emissiveIntensity={0.5} />
-        </mesh>
-        <mesh position={[0, 0.12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[2.5, 2.8, 16]} />
-          <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={2} />
-        </mesh>
       </group>
 
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -1322,9 +1640,16 @@ function FoodProduction() {
 function WasteManagement() {
   const timeOfDay = useS(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
+  const pos = [180, 0, 180]
+
+  const handleClick = (e) => {
+    e.stopPropagation()
+    setS({ infoPopup: { key: 'waste', ...LOCATIONS.waste.info } })
+    setS({ focus: { x: pos[0] + 40, y: pos[1] + 25, z: pos[2] + 40, lookAt: { x: pos[0], y: pos[1] + 5, z: pos[2] } } })
+  }
 
   return (
-    <group position={[180, 0, 180]}>
+    <group position={pos}>
       {Array.from({ length: 9 }).map((_, i) => {
         const row = Math.floor(i / 3)
         const col = i % 3
@@ -1344,7 +1669,7 @@ function WasteManagement() {
       })}
 
       <group position={[0, 0, 15]}>
-        <mesh position={[0, 3, 0]} castShadow>
+        <mesh position={[0, 3, 0]} castShadow onClick={handleClick}>
           <boxGeometry args={[10, 6, 8]} />
           <meshStandardMaterial color="#4a5a4a" metalness={0.3} roughness={0.7} />
         </mesh>
@@ -1352,22 +1677,7 @@ function WasteManagement() {
           <boxGeometry args={[10.5, 0.4, 8.5]} />
           <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={isNight ? 3 : 1.5} />
         </mesh>
-        <mesh position={[3, 7, 0]} castShadow>
-          <cylinderGeometry args={[0.5, 0.6, 4, 8]} />
-          <meshStandardMaterial color="#5a5a5a" />
-        </mesh>
         <Board text="♻️ WASTE MGMT" position={[0, 10, 0]} color="#2ecc71" w={10} h={2} locKey="waste" />
-      </group>
-
-      <group position={[-15, 0, 0]}>
-        <mesh position={[0, 2, 0]} castShadow>
-          <sphereGeometry args={[2.5, 16, 16]} />
-          <meshStandardMaterial color="#4a6a4a" metalness={0.4} roughness={0.5} />
-        </mesh>
-        <mesh position={[0, 4.6, 0]}>
-          <cylinderGeometry args={[0.3, 0.3, 1, 8]} />
-          <meshStandardMaterial color="#ffcc22" emissive="#ffcc22" emissiveIntensity={isNight ? 2 : 1} />
-        </mesh>
       </group>
 
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -1583,7 +1893,6 @@ function ControlPanel() {
                 cursor: 'pointer',
                 fontSize: 11,
                 fontWeight: 600,
-                textTransform: 'capitalize',
               }}
             >{t === 'day' ? '☀️ Day' : '🌙 Night'}</button>
           ))}
@@ -1657,7 +1966,7 @@ function ControlPanel() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MENU SYSTEM
+   MENU
    ═══════════════════════════════════════════════════════════ */
 function Menu() {
   const menuOpen = useS(s => s.menuOpen)
@@ -1720,7 +2029,6 @@ function Menu() {
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 0 20px rgba(34,207,255,0.25)',
-          transition: 'all 0.2s ease',
         }}
         title="Menu"
       >
@@ -1918,29 +2226,28 @@ function Menu() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CITY BUILDINGS
+   CITY BUILDINGS — all procedural, no GLB
    ═══════════════════════════════════════════════════════════ */
 function CityBuildings() {
   return (
     <group>
-      <GLBBuilding url="/american_high_school.glb" size={22} pos={[-100, 0, -100]} name="🏫 Beacon School" color="#1a5490" locKey="school" />
-      <GLBBuilding url="/low_poly_hospital.glb" size={22} pos={[100, 0, -100]} name="🏥 Smart Hospital" color="#c0392b" locKey="hospital" />
-      <GLBBuilding url="/us_bank_tower.glb" size={26} pos={[100, 0, 100]} name="🏦 State Bank" color="#8e44ad" locKey="bank" />
-      <GLBBuilding url="/simple_farm_free.glb" size={28} pos={[-150, 0, -100]} name="🌾 Eco Farm" color="#27ae60" locKey="farm" />
-      <GLBBuilding url="/liverpool_street_station_south_entrance.glb" size={24} pos={[100, 0, 180]} name="🎪 Event Hall" color="#d4a017" locKey="event" />
-      <GLBBuilding url="/gas_station.glb" size={20} pos={[180, 0, 100]} name="⛽ Gas Station" color="#e74c3c" locKey="gas" />
-      <GLBBuilding url="/office.glb" size={22} pos={[180, 0, -100]} name="🏭 Sewage & Gas" color="#2ecc71" locKey="office" />
-      <GLBBuilding url="/national_archives_research_center.glb" size={28} pos={[-150, 0, 100]} name="🏛 Culture Center" color="#f39c12" locKey="culture" />
-      <GLBBuilding url="/power-suply-companey.glb" size={22} pos={[-150, 0, 0]} name="🔌 Power Supply Co." color="#f1c40f" locKey="powerCo" />
-      <GLBBuilding url="/sci-fi_building_9.glb" size={26} pos={[-180, 0, -140]} name="🛸 Sci-Fi Bldg 9" color="#66ff99" locKey="scifi9" />
-      <GLBBuilding url="/beautifultowerbuilding.glb" size={30} pos={[-180, 0, 0]} name="🗼 Beautiful Tower" color="#22cfff" locKey="tower" />
-      <GLBBuilding url="/sci-fi_building_10.glb" size={26} pos={[-180, 0, 140]} name="🚀 Sci-Fi Bldg 10" color="#ff66dd" locKey="scifi10" />
-      <GLBBuilding url="/skid_filtration_system.glb" size={20} pos={[180, 0, -180]} name="💧 Filtration" color="#22cfff" locKey="filtration" />
+      <SchoolBuilding pos={[-100, 0, -100]} name="🏫 Beacon School" color="#1a5490" locKey="school" />
+      <HospitalBuilding pos={[100, 0, -100]} name="🏥 Smart Hospital" color="#c0392b" locKey="hospital" />
+      <BankBuilding pos={[100, 0, 100]} name="🏦 State Bank" color="#8e44ad" locKey="bank" />
+      <FarmBuilding pos={[-150, 0, -100]} name="🌾 Eco Farm" color="#27ae60" locKey="farm" />
+      <EventBuilding pos={[100, 0, 180]} name="🎪 Event Hall" color="#d4a017" locKey="event" />
+      <GasStationBuilding pos={[180, 0, 100]} name="⛽ Gas Station" color="#e74c3c" locKey="gas" />
+      <OfficeBuilding pos={[180, 0, -100]} name="🏭 Sewage & Gas" color="#2ecc71" locKey="office" />
+      <CultureBuilding pos={[-150, 0, 100]} name="🏛 Culture Center" color="#f39c12" locKey="culture" />
+      <PowerCoBuilding pos={[-150, 0, 0]} name="🔌 Power Supply Co." color="#f1c40f" locKey="powerCo" />
+      <SciFi9Building pos={[-180, 0, -140]} name="🛸 Sci-Fi Bldg 9" color="#66ff99" locKey="scifi9" />
+      <TowerBuilding pos={[-180, 0, 0]} name="🗼 Beautiful Tower" color="#22cfff" locKey="tower" />
+      <SciFi10Building pos={[-180, 0, 140]} name="🚀 Sci-Fi Bldg 10" color="#ff66dd" locKey="scifi10" />
+      <FiltrationBuilding pos={[180, 0, -180]} name="💧 Filtration" color="#22cfff" locKey="filtration" />
 
       <PowerSupplyZone />
       <FoodProduction />
       <WasteManagement />
-      <FiltrationSystem />
 
       <House pos={[-50, 0, -50]} h={6} color="#c9a66b" name="Smart Home A" turbine />
       <House pos={[50, 0, -50]} h={7} color="#b08d5a" name="Smart Home B" />
@@ -2031,7 +2338,7 @@ function SkyAndLights() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN SCENE
+   SCENE
    ═══════════════════════════════════════════════════════════ */
 function Scene() {
   return (
