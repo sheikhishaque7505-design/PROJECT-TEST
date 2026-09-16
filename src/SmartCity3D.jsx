@@ -1556,6 +1556,490 @@ const SmartCity3D = forwardRef((props, ref) => {
         new THREE.SphereGeometry(8 + Math.random() * 4, 6, 6),
         new THREE.MeshStandardMaterial({ color: 0xcccccc, transparent: true, opacity: 0.4 })
       );
+          // ═══════════════════════════════════════════════════════════
+    // CARS — on lanes, no tilt, correct direction
+    // ═══════════════════════════════════════════════════════════
+    s.cars = [];
+    const carColors = [0x287ca3, 0xc83f49, 0xe1a72e, 0x5b72c9, 0x2f9d65, 0xd8d8d8, 0xd97b2a, 0x8b3ad9, 0x16a085, 0x8e44ad];
+    const V_LEN = 28, V_WID = 12, V_HGT = 6;
+    const carBodyGeo = new THREE.BoxGeometry(V_LEN, V_HGT, V_WID);
+    const carCabinGeo = new THREE.BoxGeometry(V_LEN * 0.45, V_HGT * 0.85, V_WID * 0.85);
+    const carWheelGeo = new THREE.CylinderGeometry(2.8, 2.8, 2, 12);
+    const carGlassMat = new THREE.MeshStandardMaterial({ color: 0x1a3a4a, emissive: 0x0a2535, emissiveIntensity: 0.8, roughness: 0.12, metalness: 0.5 });
+    const wheelMat = mat(0x0c1012, 0.6, 0.1);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff8e0, emissiveIntensity: 4 });
+    const tailMat = new THREE.MeshStandardMaterial({ color: 0xff1e1e, emissive: 0xff1010, emissiveIntensity: 4 });
+
+    function makeCar(colorHex) {
+      const g = new THREE.Group();
+      const bMat = mat(colorHex, 0.35, 0.5);
+      const body = new THREE.Mesh(carBodyGeo, bMat); body.position.y = 5; g.add(body);
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.3, V_HGT * 0.6, V_WID * 0.95), bMat);
+      hood.position.set(V_LEN * 0.35, 4.5, 0); g.add(hood);
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.28, V_HGT * 0.55, V_WID * 0.95), bMat);
+      trunk.position.set(-V_LEN * 0.36, 4.3, 0); g.add(trunk);
+      const cabin = new THREE.Mesh(carCabinGeo, carGlassMat); cabin.position.set(-1, 9.8, 0); g.add(cabin);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(V_LEN * 0.4, 0.6, V_WID * 0.7), mat(0x2a2a2a, 0.5, 0.4));
+      roof.position.set(-1, 13, 0); g.add(roof);
+      for (const wp of [[V_LEN * 0.33, V_WID * 0.5], [V_LEN * 0.33, -V_WID * 0.5], [-V_LEN * 0.33, V_WID * 0.5], [-V_LEN * 0.33, -V_WID * 0.5]]) {
+        const w = new THREE.Mesh(carWheelGeo, wheelMat);
+        w.rotation.x = Math.PI / 2; w.position.set(wp[0], 3, wp[1]); g.add(w);
+      }
+      for (const z of [-4, 4]) {
+        const l = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2.5), headMat);
+        l.position.set(V_LEN * 0.5, 5, z); g.add(l);
+        const t = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2.5), tailMat);
+        t.position.set(-V_LEN * 0.5, 5, z); g.add(t);
+      }
+      return g;
+    }
+
+    const STOP_DIST = 130;
+    const CAR_GAP = 90;
+    // ✅ Lane offsets inside road half-width 55
+    const LANES = [
+      { id: "N1", axis: "z", dir: 1, fixed: -25, road: 1, start: -3600, end: 3600 },
+      { id: "N2", axis: "z", dir: 1, fixed: -45, road: 1, start: -3600, end: 3600 },
+      { id: "S1", axis: "z", dir: -1, fixed: 25, road: 2, start: 3600, end: -3600 },
+      { id: "S2", axis: "z", dir: -1, fixed: 45, road: 2, start: 3600, end: -3600 },
+      { id: "E1", axis: "x", dir: 1, fixed: 25, road: 3, start: -3600, end: 3600 },
+      { id: "E2", axis: "x", dir: 1, fixed: 45, road: 3, start: -3600, end: 3600 },
+      { id: "W1", axis: "x", dir: -1, fixed: -25, road: 4, start: 3600, end: -3600 },
+      { id: "W2", axis: "x", dir: -1, fixed: -45, road: 4, start: 3600, end: -3600 },
+    ];
+
+    function updateCarTransform(c) {
+      const { lane, pos } = c;
+      const lockedPos = Math.round(pos * 10) / 10;
+      if (lane.axis === "z") {
+        c.car.position.set(lane.fixed, CAR_Y, lockedPos);
+        c.car.rotation.y = lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+      } else {
+        c.car.position.set(lockedPos, CAR_Y, lane.fixed);
+        c.car.rotation.y = lane.dir > 0 ? 0 : Math.PI;
+      }
+      c.car.rotation.x = 0;
+      c.car.rotation.z = 0;
+    }
+
+    function makeCarObj(lane, startPos) {
+      const car = makeCar(carColors[Math.floor(Math.random() * carColors.length)]);
+      scene.add(car);
+      const obj = { car, lane, pos: startPos, speed: 0, baseSpeed: 50 + Math.random() * 25 };
+      s.cars.push(obj);
+      updateCarTransform(obj);
+      return obj;
+    }
+
+    LANES.forEach(lane => {
+      const count = 3;
+      const totalDist = Math.abs(lane.end - lane.start);
+      const gap = totalDist / count;
+      for (let i = 0; i < count; i++) {
+        let startPos;
+        if (lane.dir > 0) startPos = lane.start + gap * i + Math.random() * 50;
+        else startPos = lane.start - gap * i - Math.random() * 50;
+        makeCarObj(lane, startPos);
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // PEOPLE
+    // ═══════════════════════════════════════════════════════════
+    const people = [];
+    const skinColors = [0xf2c9a0, 0xd9a373, 0xa06a3c, 0x6b4a2f, 0xffd8b8];
+    const shirtColors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf1c40f, 0x9b59b6, 0x1abc9c];
+
+    function makePerson() {
+      const g = new THREE.Group();
+      const skinMat = mat(skinColors[Math.floor(Math.random() * skinColors.length)], 0.9);
+      const shirtMat = mat(shirtColors[Math.floor(Math.random() * shirtColors.length)], 0.85);
+      const pantsMat = mat(0x2c3e50, 0.85);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 6), skinMat); head.position.y = 10; g.add(head);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(3, 5.5, 2), shirtMat); body.position.y = 6; g.add(body);
+      const legL = new THREE.Mesh(new THREE.BoxGeometry(1.2, 4.5, 1.2), pantsMat); legL.position.set(-0.8, 2.2, 0); g.add(legL);
+      const legR = new THREE.Mesh(new THREE.BoxGeometry(1.2, 4.5, 1.2), pantsMat); legR.position.set(0.8, 2.2, 0); g.add(legR);
+      return { g, legL, legR };
+    }
+
+    function spawnPeople(cx, cz, count, radius) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = radius * (0.5 + Math.random() * 0.5);
+        const px = cx + Math.cos(angle) * r;
+        const pz = cz + Math.sin(angle) * r;
+        if (isOnBuilding(px, pz) || isOnRoad(px, pz)) continue;
+        const p = makePerson();
+        p.g.position.set(px, 5, pz);
+        p.g.rotation.y = angle;
+        scene.add(p.g);
+        people.push({
+          obj: p.g, legL: p.legL, legR: p.legR,
+          cx, cz, r, angle,
+          dir: Math.random() > 0.5 ? 1 : -1,
+          speed: 0.01 + Math.random() * 0.012,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+    spawnPeople(-600, -900, 6, 180);
+    spawnPeople(600, -900, 6, 180);
+    spawnPeople(-600, 1100, 8, 250);
+    spawnPeople(600, 900, 5, 180);
+
+    // ═══════════════════════════════════════════════════════════
+    // AI TRAFFIC SYSTEM
+    // ═══════════════════════════════════════════════════════════
+    s.aiSystem = createAITrafficSystem((data) => {
+      if (s.onAITrafficUpdate) s.onAITrafficUpdate(data);
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // CLICK HANDLER — opens popup with location info
+    // ═══════════════════════════════════════════════════════════
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const onClick = (e) => {
+      if (e.target !== renderer.domElement) return;
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      for (const item of s.clickable) {
+        const hit = raycaster.intersectObject(item.object, true);
+        if (hit.length) {
+          if (s.onPanel) {
+            // Match to LOCATIONS to pass full info
+            const locKey = Object.keys(LOCATIONS).find(k => LOCATIONS[k].type === item.type);
+            const locInfo = locKey ? LOCATIONS[locKey] : null;
+            s.onPanel({
+              type: item.type,
+              name: item.name,
+              label: item.name,
+              info: locInfo?.info || "",
+            });
+          }
+          return;
+        }
+      }
+    };
+    renderer.domElement.addEventListener("click", onClick);
+
+    // ═══════════════════════════════════════════════════════════
+    // ANIMATE LOOP
+    // ═══════════════════════════════════════════════════════════
+    const clock = new THREE.Clock();
+    let fc = 0;
+    let rafId;
+
+    function animate() {
+      rafId = requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.1);
+      const t = clock.elapsedTime;
+      fc++;
+
+      try {
+        s.aiSystem.tick(delta);
+
+        // ── CARS ──
+        const byLane = {};
+        for (const c of s.cars) {
+          if (!byLane[c.lane.id]) byLane[c.lane.id] = [];
+          byLane[c.lane.id].push(c);
+        }
+        for (const laneId in byLane) {
+          const laneCars = byLane[laneId];
+          const lane = laneCars[0].lane;
+          const ai = s.aiSystem;
+          laneCars.sort((a, b) => lane.dir > 0 ? b.pos - a.pos : a.pos - b.pos);
+          for (let i = 0; i < laneCars.length; i++) {
+            const c = laneCars[i];
+            const leader = i > 0 ? laneCars[i - 1] : null;
+            let targetSpeed = c.baseSpeed;
+            const isGreen = ai.isGreen(lane.road);
+            const isYellow = ai.isYellowRoad(lane.road);
+            const stopLine = lane.dir > 0 ? -STOP_DIST : STOP_DIST;
+            const distToStop = Math.abs(c.pos - stopLine);
+            if (!isGreen && distToStop < 220) {
+              if (distToStop < 40) targetSpeed = 0;
+              else targetSpeed = c.baseSpeed * (distToStop / 220) * 0.5;
+            } else if (isYellow && distToStop < 120) {
+              targetSpeed = c.baseSpeed * 0.4;
+            }
+            if (leader) {
+              const gap = Math.abs(leader.pos - c.pos);
+              if (gap < CAR_GAP) {
+                targetSpeed = Math.min(targetSpeed, leader.speed * 0.9);
+                if (gap < 45) targetSpeed = 0;
+              }
+            }
+            c.speed += (targetSpeed - c.speed) * Math.min(1, delta * 4);
+            c.pos += c.speed * lane.dir * delta;
+            if (lane.dir > 0 && c.pos > lane.end) c.pos = lane.start;
+            else if (lane.dir < 0 && c.pos < lane.end) c.pos = lane.start;
+            updateCarTransform(c);
+          }
+        }
+
+        // ── TRAFFIC LIGHTS BLINK ──
+        const blinkFast = Math.floor(t * 4) % 2 === 0;
+        const blinkMed = Math.floor(t * 2) % 2 === 0;
+        for (const l of s.intersectionLights) {
+          const ai = s.aiSystem;
+          l.r.material.emissiveIntensity = 0;
+          l.y.material.emissiveIntensity = 0;
+          l.gr.material.emissiveIntensity = 0;
+          l.rHalo.material.opacity = 0;
+          l.yHalo.material.opacity = 0;
+          l.grHalo.material.opacity = 0;
+          if (ai.isGreen(l.road)) {
+            l.gr.material.emissiveIntensity = 5 + Math.sin(t * 3) * 1.5;
+            l.grHalo.material.opacity = 0.35 + Math.sin(t * 3) * 0.15;
+          } else if (ai.isYellowRoad(l.road)) {
+            l.y.material.emissiveIntensity = blinkFast ? 8 : 1;
+            l.yHalo.material.opacity = blinkFast ? 0.6 : 0.1;
+          } else {
+            l.r.material.emissiveIntensity = blinkMed ? 7 : 2.5;
+            l.rHalo.material.opacity = blinkMed ? 0.55 : 0.15;
+          }
+        }
+
+        // ── PEOPLE ──
+        for (const p of people) {
+          p.angle += p.speed * p.dir;
+          if (p.angle > Math.PI * 2) p.angle -= Math.PI * 2;
+          if (p.angle < 0) p.angle += Math.PI * 2;
+          p.obj.position.x = p.cx + Math.cos(p.angle) * p.r;
+          p.obj.position.z = p.cz + Math.sin(p.angle) * p.r;
+          p.obj.rotation.y = p.angle + (p.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
+          const swing = Math.sin(t * 6 + p.phase) * 0.5;
+          p.legL.rotation.x = swing;
+          p.legR.rotation.x = -swing;
+        }
+
+        // ── TURBINES ──
+        if (fc % 3 === 0) for (const bl of s.turbines) bl.rotation.z = t * 2.4;
+
+        // ── AI TOWER ANIMATIONS ──
+        if (s.radar) s.radar.rotation.z = t * 1.7;
+        if (s.controllerRing) s.controllerRing.rotation.z = t * 0.5;
+        if (s.controllerSig) {
+          s.controllerSig.scale.setScalar(1 + Math.sin(t * 4) * 0.2);
+          s.controllerSig.material.emissiveIntensity = 4 + Math.sin(t * 4) * 2;
+        }
+
+        // ── BATTERY RINGS ──
+        for (let i = 0; i < s.powerRings.length; i++) {
+          s.powerRings[i].rotation.z = t * 0.8 + i;
+        }
+
+        // ── FILTRATION ──
+        s.filtrationStageElapsed += delta;
+        const curFilt = FILTRATION_STAGES[s.filtrationStageIndex];
+        if (s.filtrationStageElapsed >= curFilt.duration) {
+          s.filtrationStageElapsed = 0;
+          s.filtrationStageIndex = (s.filtrationStageIndex + 1) % FILTRATION_STAGES.length;
+        }
+        if (fc % 15 === 0 && s.onFiltrationUpdate) {
+          s.onFiltrationUpdate({
+            stageIndex: s.filtrationStageIndex,
+            stage: FILTRATION_STAGES[s.filtrationStageIndex],
+            allStages: FILTRATION_STAGES,
+            progress: s.filtrationStageElapsed / curFilt.duration,
+          });
+        }
+        for (let i = 0; i < s.filtrationStageMeshes.length; i++) {
+          const sm = s.filtrationStageMeshes[i];
+          if (!sm || !sm.waterFill) continue;
+          const isActive = i === s.filtrationStageIndex;
+          if (isActive) {
+            sm.tankBody.material.emissiveIntensity = 1.5 + Math.sin(t * 4) * 0.8;
+            const fillH = 40 + Math.sin(t * 2.5) * 12;
+            sm.waterFill.scale.y = fillH;
+            sm.waterFill.position.y = sm.baseY + fillH / 2;
+          } else {
+            sm.tankBody.material.emissiveIntensity = 0.5;
+            sm.waterFill.scale.y = 10;
+            sm.waterFill.position.y = sm.baseY + 5;
+          }
+        }
+
+        // ── POWER ──
+        s.powerStageElapsed += delta;
+        const curPower = POWER_STAGES[s.powerStageIndex];
+        if (s.powerStageElapsed >= curPower.duration) {
+          s.powerStageElapsed = 0;
+          s.powerStageIndex = (s.powerStageIndex + 1) % POWER_STAGES.length;
+        }
+        if (fc % 15 === 0 && s.onPowerUpdate) {
+          s.onPowerUpdate({
+            stageIndex: s.powerStageIndex,
+            stage: POWER_STAGES[s.powerStageIndex],
+            allStages: POWER_STAGES,
+            progress: s.powerStageElapsed / curPower.duration,
+          });
+        }
+
+        // ── FOOD ──
+        s.foodStageElapsed += delta;
+        const curFood = FOOD_STAGES[s.foodStageIndex];
+        if (s.foodStageElapsed >= curFood.duration) {
+          s.foodStageElapsed = 0;
+          s.foodStageIndex = (s.foodStageIndex + 1) % FOOD_STAGES.length;
+        }
+        if (fc % 15 === 0 && s.onFoodUpdate) {
+          s.onFoodUpdate({
+            stageIndex: s.foodStageIndex,
+            stage: FOOD_STAGES[s.foodStageIndex],
+            allStages: FOOD_STAGES,
+            progress: s.foodStageElapsed / curFood.duration,
+          });
+        }
+        const foodStageId = FOOD_STAGES[s.foodStageIndex].id;
+        for (let i = 0; i < s.foodCropMeshes.length; i++) {
+          const crop = s.foodCropMeshes[i];
+          if (!crop) continue;
+          crop.rotation.z = Math.sin(t * 1.5 + crop.userData.phase) * 0.08;
+          const growthBoost = (foodStageId === "planting" || foodStageId === "irrigation")
+            ? (1 + Math.sin(t * 0.8 + crop.userData.phase) * 0.15) : 1;
+          crop.scale.y = crop.userData.scale * growthBoost;
+        }
+        for (const spr of s.foodSprinklers) {
+          const phase = (t * 0.8 + spr.phase) % 2;
+          spr.ring.scale.setScalar(1 + phase * 0.8);
+          spr.ring.material.opacity = Math.max(0, 0.7 - phase * 0.35);
+          spr.ring.visible = foodStageId === "irrigation" || foodStageId === "planting";
+        }
+        const beltSpeed = foodStageId === "processing" ? 1.5 : 0.5;
+        for (const item of s.foodConveyorItems) {
+          item.position.x += beltSpeed * delta * 30;
+          if (item.position.x > item.userData.endX) item.position.x = item.userData.startX;
+          item.position.y = 23 + Math.sin(t * 5 + item.userData.offset) * 1.5;
+        }
+        const gearSpeed = foodStageId === "processing" ? 4 : 1.5;
+        for (const gear of s.foodGears) gear.rotation.y += delta * gearSpeed;
+        if (s.foodBeacon) {
+          s.foodBeacon.scale.setScalar(1 + Math.sin(t * 3) * 0.3);
+          s.foodBeacon.material.emissiveIntensity = 5 + Math.sin(t * 3) * 2;
+        }
+        if (s.foodDrone) {
+          const droneAngle = t * 0.4;
+          s.foodDrone.position.x = Math.cos(droneAngle) * 320;
+          s.foodDrone.position.z = Math.sin(droneAngle) * 320;
+          s.foodDrone.position.y = 80 + Math.sin(t * 1.5) * 10;
+          s.foodDrone.rotation.y = -droneAngle + Math.PI / 2;
+          for (const rotor of s.foodDroneRotors) rotor.rotation.y += delta * 30;
+        }
+
+        // ── WASTE ──
+        s.wasteStageElapsed += delta;
+        const curWaste = WASTE_STAGES[s.wasteStageIndex];
+        if (s.wasteStageElapsed >= curWaste.duration) {
+          s.wasteStageElapsed = 0;
+          s.wasteStageIndex = (s.wasteStageIndex + 1) % WASTE_STAGES.length;
+        }
+        if (fc % 15 === 0 && s.onWasteUpdate) {
+          s.onWasteUpdate({
+            stageIndex: s.wasteStageIndex,
+            stage: WASTE_STAGES[s.wasteStageIndex],
+            allStages: WASTE_STAGES,
+            progress: s.wasteStageElapsed / curWaste.duration,
+          });
+        }
+
+        // Waste bins LED pulse
+        for (const bin of s.wasteBins) {
+          const pulse = 2.5 + Math.sin(t * 3 + bin.phase) * 1.5;
+          bin.led.emissiveIntensity = pulse;
+        }
+
+        // Waste conveyor items
+        for (const item of s.wasteConveyorItems) {
+          item.position.x += item.userData.speed * delta * 30;
+          if (item.position.x > item.userData.endX) item.position.x = item.userData.startX;
+          item.position.y = 26 + Math.sin(t * 6 + item.userData.offset) * 2;
+          item.rotation.y += delta * 2;
+        }
+
+        // Waste gears
+        for (const gear of s.wasteRecycleGears) {
+          gear.rotation.y += delta * 3;
+        }
+
+        // Biogas flame flicker
+        if (s.wasteBiogasFlame) {
+          s.wasteBiogasFlame.scale.y = 1 + Math.sin(t * 8) * 0.3;
+          s.wasteBiogasFlame.material.emissiveIntensity = 4 + Math.sin(t * 8) * 2;
+        }
+
+        // Compost steam
+        for (const steam of s.wasteSteamParticles) {
+          steam.position.y += delta * 5;
+          steam.scale.setScalar(1 + (steam.position.y - 32) * 0.02);
+          steam.material.opacity = Math.max(0, 0.35 - (steam.position.y - 32) * 0.008);
+          if (steam.position.y > 55) {
+            steam.position.y = 32;
+            steam.scale.setScalar(1);
+            steam.material.opacity = 0.35;
+          }
+        }
+
+        // Incinerator smoke
+        for (const smoke of s.wasteSmokeParticles) {
+          smoke.position.y += delta * 8;
+          smoke.scale.setScalar(1 + (smoke.position.y - 240) * 0.01);
+          smoke.material.opacity = Math.max(0, 0.4 - (smoke.position.y - 240) * 0.003);
+          if (smoke.position.y > 420) {
+            smoke.position.y = 240;
+            smoke.scale.setScalar(1);
+            smoke.material.opacity = 0.4;
+          }
+        }
+
+        // ── CAMERA TRANSITION ──
+        if (s.camTransition && s.camera && s.controls) {
+          const now = performance.now();
+          const elapsed = now - s.camTransition.startTime;
+          const tt = Math.min(elapsed / s.camTransition.duration, 1);
+          const ease = tt < 0.5 ? 2 * tt * tt : 1 - Math.pow(-2 * tt + 2, 2) / 2;
+          s.camera.position.lerpVectors(s.camTransition.startPos, s.camTransition.targetPos, ease);
+          s.controls.target.lerpVectors(s.camTransition.startLook, s.camTransition.targetLook, ease);
+          if (tt >= 1) s.camTransition = null;
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      } catch (err) {
+        console.error("Animate error:", err);
+      }
+    }
+    animate();
+
+    const onResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", onResize);
+      renderer.domElement.removeEventListener("click", onClick);
+      controls.dispose();
+      renderer.dispose();
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={mountRef}
+      style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh" }}
+    />
+  );
+});
+
+export default SmartCity3D;
       smoke.position.set((Math.random() - 0.5) * 15, 240 + i * 15, (Math.random() - 0.5) * 15);
       incineratorGroup.add(smoke);
       s.wasteSmokeParticles.push(smoke);
