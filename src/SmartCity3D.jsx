@@ -2266,3 +2266,705 @@ function Scene() {
     </>
   )
 }
+/* ═══════════════════════════════════════════════════════════
+   INFO POPUP — click building → detailed popup
+   ═══════════════════════════════════════════════════════════ */
+function InfoPopup() {
+  const infoPopup = useStore(s => s.infoPopup)
+  const setInfoPopup = (v) => setState({ infoPopup: v })
+
+  if (!infoPopup) return null
+
+  const openCameraView = () => {
+    const loc = LOCATIONS[infoPopup.key]
+    if (loc) {
+      setState({
+        cameraMode: { location: infoPopup.key, cameras: loc.cameras, position: loc.position },
+        infoPopup: null,
+        menuOpen: false,
+        aiLog: [{ message: `📷 Opening cameras for ${loc.label}`, type: 'info', time: Date.now() }, ...state.aiLog].slice(0, 8),
+      })
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'absolute', top: '50%', left: '50%',
+      transform: 'translate(-50%, -50%)', zIndex: 300,
+      width: 'min(560px, 92vw)', maxHeight: '88vh', overflowY: 'auto',
+      background: 'rgba(6, 14, 24, 0.98)', border: '2px solid #22cfff',
+      borderRadius: 16, fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#e8f7ff',
+      boxShadow: '0 0 60px rgba(34,207,255,0.5), 0 20px 60px rgba(0,0,0,0.8)',
+      backdropFilter: 'blur(20px)',
+      animation: 'popupIn 0.28s cubic-bezier(0.4,0,0.2,1)',
+    }}>
+      <style>{`
+        @keyframes popupIn {
+          from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+      `}</style>
+
+      <div style={{
+        padding: '20px 24px',
+        background: 'linear-gradient(135deg, rgba(34,207,255,0.18), rgba(10,50,80,0.4))',
+        borderBottom: '1px solid rgba(34,207,255,0.3)',
+        position: 'relative',
+      }}>
+        <button
+          onClick={() => setInfoPopup(null)}
+          style={{
+            position: 'absolute', top: 16, right: 16, width: 32, height: 32,
+            borderRadius: '50%', background: 'rgba(255,80,80,0.15)',
+            border: '1.5px solid rgba(255,100,100,0.5)', color: '#ff8a8a',
+            fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#22cfff', letterSpacing: 0.5, marginBottom: 4 }}>
+          {infoPopup.title}
+        </div>
+        <div style={{ fontSize: 12, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase' }}>
+          {infoPopup.subtitle}
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 24px' }}>
+        <div style={{ fontSize: 13, color: '#b8e8ff', lineHeight: 1.6, marginBottom: 20 }}>
+          {infoPopup.description}
+        </div>
+
+        {infoPopup.stats && (
+          <>
+            <div style={{ fontSize: 11, color: '#7fe3ff', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
+              📊 Live Stats
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
+              {infoPopup.stats.map(([label, value], i) => (
+                <div key={i} style={{
+                  background: 'rgba(34,207,255,0.06)', border: '1px solid rgba(34,207,255,0.2)',
+                  borderRadius: 8, padding: '10px 14px', display: 'flex',
+                  justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{ fontSize: 11, color: '#8fd8f0', fontWeight: 600 }}>{label}</span>
+                  <span style={{ fontSize: 13, color: '#22cfff', fontWeight: 800, textAlign: 'right' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {infoPopup.features && (
+          <>
+            <div style={{ fontSize: 11, color: '#7fe3ff', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
+              ✨ Features
+            </div>
+            <div style={{
+              background: 'rgba(34,207,255,0.05)', border: '1px solid rgba(34,207,255,0.15)',
+              borderRadius: 10, padding: 14, marginBottom: 20,
+            }}>
+              {infoPopup.features.map((f, i) => (
+                <div key={i} style={{ fontSize: 12, color: '#d0e8f5', lineHeight: 1.8, letterSpacing: 0.3 }}>
+                  {f}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {LOCATIONS[infoPopup.key] && (
+          <button
+            onClick={openCameraView}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 10,
+              background: 'linear-gradient(135deg, #22cfff, #0a8fbf)',
+              border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
+              letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer',
+              fontFamily: 'inherit', boxShadow: '0 8px 24px rgba(34,207,255,0.4)',
+              transition: 'all 0.2s',
+            }}
+          >
+            📷 Open Camera Views (5 cameras)
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CAMERA PANEL — Camera 1-4 + Top View
+   ═══════════════════════════════════════════════════════════ */
+function CameraPanel() {
+  const cameraMode = useStore(s => s.cameraMode)
+  const [activeCamera, setActiveCamera] = useState(0)
+  const setFocus = (f) => setState({ focus: f })
+
+  useEffect(() => {
+    if (cameraMode) applyCamera(0)
+  }, [cameraMode])
+
+  function applyCamera(index) {
+    if (!cameraMode) return
+    setActiveCamera(index)
+    const cam = cameraMode.cameras[index]
+    if (!cam) return
+    const [x, y, z] = cameraMode.position
+    if (cam.top) {
+      setFocus({ x, y: y + cam.height, z: z + 0.1, lookAt: { x, y, z } })
+    } else {
+      const cx = x + Math.sin(cam.angle) * cam.dist
+      const cz = z + Math.cos(cam.angle) * cam.dist
+      setFocus({ x: cx, y: y + cam.height, z: cz, lookAt: { x, y, z } })
+    }
+  }
+
+  if (!cameraMode) return null
+  const loc = LOCATIONS[cameraMode.location]
+
+  return (
+    <div style={{
+      position: 'absolute', bottom: 24, left: '50%',
+      transform: 'translateX(-50%)', zIndex: 150,
+      background: 'rgba(6, 14, 24, 0.96)',
+      border: '2px solid rgba(34,207,255,0.5)', borderRadius: 14,
+      padding: '14px 18px', fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: '#e8f7ff',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 30px rgba(34,207,255,0.3)',
+      backdropFilter: 'blur(16px)', minWidth: 480,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#22cfff', letterSpacing: 0.5 }}>
+            📷 Camera Views — {loc?.label || 'Location'}
+          </div>
+          <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 }}>
+            Click a camera to change view angle
+          </div>
+        </div>
+        <button
+          onClick={() => setState({ cameraMode: null })}
+          style={{
+            padding: '6px 12px', borderRadius: 8,
+            background: 'rgba(255,80,80,0.15)',
+            border: '1.5px solid rgba(255,100,100,0.5)', color: '#ff8a8a',
+            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            fontFamily: 'inherit', letterSpacing: 0.5,
+          }}
+        >✕ EXIT</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        {cameraMode.cameras.map((cam, i) => (
+          <button
+            key={i}
+            onClick={() => applyCamera(i)}
+            style={{
+              flex: 1, padding: '10px 8px', borderRadius: 10,
+              background: activeCamera === i
+                ? 'linear-gradient(135deg, rgba(34,207,255,0.35), rgba(10,143,191,0.35))'
+                : 'rgba(34,207,255,0.06)',
+              border: activeCamera === i ? '1.5px solid #22cfff' : '1.5px solid rgba(34,207,255,0.2)',
+              color: activeCamera === i ? '#22cfff' : '#8fd8f0',
+              fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 4, transition: 'all 0.2s',
+            }}
+          >
+            <span style={{ fontSize: 18 }}>{cam.top ? '🛰' : '📹'}</span>
+            <span style={{ letterSpacing: 0.3 }}>{cam.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI CONSOLE — live AI decisions panel
+   ═══════════════════════════════════════════════════════════ */
+function AIConsole() {
+  const aiLog = useStore(s => s.aiLog)
+  const [minimized, setMinimized] = useState(false)
+
+  const typeColor = (type) => {
+    if (type === 'success') return '#2ecc71'
+    if (type === 'warning') return '#ffcc22'
+    if (type === 'adaptive') return '#b266ff'
+    if (type === 'phase') return '#22cfff'
+    return '#7fe3ff'
+  }
+
+  if (minimized) {
+    return (
+      <button
+        onClick={() => setMinimized(false)}
+        style={{
+          position: 'absolute', right: 20, bottom: 90, zIndex: 90,
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'rgba(5,10,18,0.95)',
+          border: '2px solid rgba(34,207,255,0.5)', color: '#22cfff',
+          fontSize: 22, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+        }}
+      >🤖</button>
+    )
+  }
+
+  return (
+    <div style={{
+      position: 'absolute', right: 20, bottom: 90, zIndex: 90, width: 340,
+      background: 'rgba(5, 10, 18, 0.95)',
+      border: '2px solid rgba(34,207,255,0.5)', borderRadius: 14,
+      fontFamily: 'system-ui, -apple-system, sans-serif', color: '#e8f7ff',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 30px rgba(34,207,255,0.3)',
+      backdropFilter: 'blur(16px)', overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '12px 16px',
+        background: 'linear-gradient(135deg, rgba(34,207,255,0.2), rgba(10,50,80,0.3))',
+        borderBottom: '1px solid rgba(34,207,255,0.3)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 10, height: 10, borderRadius: '50%', background: '#22ff88',
+            boxShadow: '0 0 10px #22ff88',
+          }} />
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#22cfff', letterSpacing: 0.8 }}>
+            🤖 AI TRAFFIC CONSOLE
+          </span>
+        </div>
+        <button
+          onClick={() => setMinimized(true)}
+          style={{ background: 'transparent', border: 'none', color: '#7fe3ff', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}
+        >−</button>
+      </div>
+
+      <div style={{
+        padding: '10px 16px', background: 'rgba(34,207,255,0.06)',
+        borderBottom: '1px solid rgba(34,207,255,0.15)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase' }}>Active Phase</div>
+        <div style={{
+          fontSize: 12, fontWeight: 800,
+          color: trafficSystemState.inYellow ? '#ffcc22' : trafficSystemState.inAllRed ? '#ff4444' : '#22ff88',
+        }}>
+          {trafficSystemState.inAllRed ? '⛔ ALL RED'
+            : trafficSystemState.inYellow ? '⚠️ YELLOW'
+            : trafficSystemState.phase === 0 ? '🟢 NS GREEN' : '🟢 EW GREEN'}
+        </div>
+      </div>
+
+      <div style={{ maxHeight: 240, overflowY: 'auto', padding: '8px 12px' }}>
+        <div style={{ fontSize: 9, color: '#7fe3ff', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 }}>
+          Live AI Decisions
+        </div>
+        {aiLog.length === 0 ? (
+          <div style={{ fontSize: 11, color: '#5a8a9a', fontStyle: 'italic', padding: '8px 0' }}>
+            Monitoring traffic flow...
+          </div>
+        ) : aiLog.map((entry, i) => (
+          <div key={i} style={{
+            fontSize: 11, color: typeColor(entry.type), padding: '6px 10px',
+            background: 'rgba(255,255,255,0.02)',
+            borderLeft: `3px solid ${typeColor(entry.type)}`,
+            borderRadius: '0 6px 6px 0', marginBottom: 4, lineHeight: 1.4,
+          }}>
+            {entry.message}
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        padding: '8px 16px', borderTop: '1px solid rgba(34,207,255,0.15)',
+        background: 'rgba(34,207,255,0.04)',
+        display: 'flex', justifyContent: 'space-between',
+        fontSize: 10, color: '#7fe3ff',
+      }}>
+        <span>🎯 Efficiency: <strong style={{ color: '#22ff88' }}>98%</strong></span>
+        <span>📡 Sensors: <strong style={{ color: '#22cfff' }}>24</strong></span>
+        <span>🚗 Managed: <strong style={{ color: '#22cfff' }}>160+</strong></span>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MENU — slide-out panel
+   ═══════════════════════════════════════════════════════════ */
+function SectionTitle({ children, style }) {
+  return (
+    <div style={{
+      fontSize: 10, color: '#7fe3ff', letterSpacing: 1.5,
+      textTransform: 'uppercase', marginBottom: 10, fontWeight: 700,
+      ...style,
+    }}>{children}</div>
+  )
+}
+
+function MenuButton({ onClick, label, color = '#22cfff' }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%', padding: '10px 12px', marginBottom: 6, borderRadius: 8,
+        background: 'rgba(34,207,255,0.06)',
+        border: `1px solid ${color}30`,
+        color: '#e8f7ff', fontSize: 12, fontWeight: 600,
+        cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={e => { e.target.style.background = `${color}25`; e.target.style.borderColor = color }}
+      onMouseLeave={e => { e.target.style.background = 'rgba(34,207,255,0.06)'; e.target.style.borderColor = `${color}30` }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function InfoLine({ icon, label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 11, color: '#b8e8ff' }}>
+      <span style={{ fontSize: 14 }}>{icon}</span>
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function Menu() {
+  const menuOpen = useStore(s => s.menuOpen)
+  const [tab, setTab] = useState('locations')
+  const timeOfDay = useStore(s => s.timeOfDay)
+  const trafficDensity = useStore(s => s.trafficDensity)
+  const streetLightsOn = useStore(s => s.streetLightsOn)
+  const setFocus = (f) => setState({ focus: f })
+
+  useEffect(() => {
+    if (timeOfDay === 'night' && !streetLightsOn) setState({ streetLightsOn: true })
+  }, [timeOfDay])
+
+  const openLocation = (key) => {
+    const loc = LOCATIONS[key]
+    if (!loc) return
+    setState({ infoPopup: { key, ...loc.info }, menuOpen: false })
+  }
+
+  const openCameras = (key) => {
+    const loc = LOCATIONS[key]
+    if (!loc) return
+    setState({
+      cameraMode: { location: key, cameras: loc.cameras, position: loc.position },
+      menuOpen: false,
+      aiLog: [{ message: `📷 Opening cameras for ${loc.label}`, type: 'info', time: Date.now() }, ...state.aiLog].slice(0, 8),
+    })
+  }
+
+  if (!menuOpen) {
+    return (
+      <button
+        onClick={() => setState({ menuOpen: true })}
+        style={{
+          position: 'absolute', left: 20, top: 20, zIndex: 100,
+          padding: '10px 18px', borderRadius: 10,
+          background: 'rgba(5,10,18,0.9)',
+          border: '1.5px solid rgba(34,207,255,0.5)',
+          color: '#22cfff', fontSize: 13, fontWeight: 800,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          letterSpacing: 0.5,
+        }}
+      >
+        <span style={{ fontSize: 16 }}>☰</span>
+        <span>SMART CITY MENU</span>
+      </button>
+    )
+  }
+
+  return (
+    <div style={{
+      position: 'absolute', left: 0, top: 0, bottom: 0, width: 360,
+      background: 'rgba(5,10,18,0.97)',
+      borderRight: '2px solid rgba(34,207,255,0.4)',
+      zIndex: 200, display: 'flex', flexDirection: 'column',
+      backdropFilter: 'blur(16px)',
+      boxShadow: '8px 0 40px rgba(0,0,0,0.7)',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    }}>
+      <div style={{
+        padding: '18px 20px',
+        borderBottom: '1px solid rgba(34,207,255,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#22cfff', letterSpacing: 1.5 }}>
+            🏙 BSS WORLD
+          </div>
+          <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginTop: 3 }}>
+            Smart City Menu
+          </div>
+        </div>
+        <button
+          onClick={() => setState({ menuOpen: false })}
+          style={{
+            width: 34, height: 34, borderRadius: '50%',
+            background: 'rgba(255,80,80,0.15)',
+            border: '1px solid rgba(255,100,100,0.5)',
+            color: '#ff8a8a', fontSize: 16, fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >✕</button>
+      </div>
+
+      <div style={{ display: 'flex', borderBottom: '1px solid rgba(34,207,255,0.15)' }}>
+        {[
+          { id: 'locations', label: '🏛 Places' },
+          { id: 'cameras', label: '📷 Cameras' },
+          { id: 'controls', label: '🎛 Controls' },
+          { id: 'info', label: 'ℹ Info' },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              flex: 1, padding: '12px 4px',
+              background: tab === t.id ? 'rgba(34,207,255,0.12)' : 'transparent',
+              border: 'none',
+              borderBottom: tab === t.id ? '2px solid #22cfff' : '2px solid transparent',
+              color: tab === t.id ? '#22cfff' : '#8fd8f0',
+              fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'all 0.2s',
+            }}
+          >{t.label}</button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: 16, color: '#e8f7ff' }}>
+        {tab === 'locations' && (
+          <>
+            <SectionTitle>🏛 Buildings & Places</SectionTitle>
+            {['school', 'hospital', 'bank', 'farm', 'event', 'gas', 'office', 'culture', 'powerCo', 'scifi9', 'tower', 'scifi10'].map(k => (
+              <MenuButton key={k} onClick={() => openLocation(k)} label={LOCATIONS[k].label} color="#22cfff" />
+            ))}
+            <SectionTitle style={{ marginTop: 20 }}>⚡ System Zones</SectionTitle>
+            {['traffic', 'power', 'filtration', 'food', 'waste'].map(k => (
+              <MenuButton key={k} onClick={() => openLocation(k)} label={LOCATIONS[k].label} color="#ffcc22" />
+            ))}
+            <SectionTitle style={{ marginTop: 20 }}>🏘 Other Areas</SectionTitle>
+            <MenuButton onClick={() => openLocation('residential')} label={LOCATIONS.residential.label} color="#2ecc71" />
+          </>
+        )}
+
+        {tab === 'cameras' && (
+          <>
+            <SectionTitle>📷 Camera Views</SectionTitle>
+            <div style={{ fontSize: 11, color: '#8fd8f0', marginBottom: 12, lineHeight: 1.5 }}>
+              Click any location to open its camera panel with 5 different views.
+            </div>
+            {Object.keys(LOCATIONS).map(k => (
+              <MenuButton key={k} onClick={() => openCameras(k)} label={LOCATIONS[k].label} color="#b266ff" />
+            ))}
+          </>
+        )}
+
+        {tab === 'controls' && (
+          <>
+            <SectionTitle>🌅 Time of Day</SectionTitle>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              {[{v:'day',l:'☀️ Day'},{v:'evening',l:'🌆 Evening'},{v:'night',l:'🌙 Night'}].map(t => (
+                <button key={t.v} onClick={() => setState({ timeOfDay: t.v })} style={{
+                  flex: 1, padding: '10px 6px', borderRadius: 8,
+                  background: timeOfDay === t.v ? 'rgba(34,207,255,0.25)' : 'rgba(34,207,255,0.05)',
+                  border: timeOfDay === t.v ? '1.5px solid #22cfff' : '1.5px solid rgba(34,207,255,0.2)',
+                  color: timeOfDay === t.v ? '#22cfff' : '#8fd8f0',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                }}>{t.l}</button>
+              ))}
+            </div>
+
+            <SectionTitle>🚗 Traffic Density</SectionTitle>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              {[{v:'low',l:'🟢 Low'},{v:'medium',l:'🟡 Med'},{v:'high',l:'🔴 High'}].map(t => (
+                <button key={t.v} onClick={() => setState({ trafficDensity: t.v })} style={{
+                  flex: 1, padding: '10px 6px', borderRadius: 8,
+                  background: trafficDensity === t.v ? 'rgba(34,207,255,0.25)' : 'rgba(34,207,255,0.05)',
+                  border: trafficDensity === t.v ? '1.5px solid #22cfff' : '1.5px solid rgba(34,207,255,0.2)',
+                  color: trafficDensity === t.v ? '#22cfff' : '#8fd8f0',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                }}>{t.l}</button>
+              ))}
+            </div>
+
+            <SectionTitle>💡 Street Lights</SectionTitle>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              <button onClick={() => setState({ streetLightsOn: true })} style={{
+                flex: 1, padding: '10px', borderRadius: 8,
+                background: streetLightsOn ? 'rgba(46,204,113,0.3)' : 'rgba(46,204,113,0.06)',
+                border: '1.5px solid rgba(46,204,113,0.5)',
+                color: '#2ecc71', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}>ON</button>
+              <button onClick={() => setState({ streetLightsOn: false })} style={{
+                flex: 1, padding: '10px', borderRadius: 8,
+                background: !streetLightsOn ? 'rgba(231,76,60,0.3)' : 'rgba(231,76,60,0.06)',
+                border: '1.5px solid rgba(231,76,60,0.5)',
+                color: '#e74c3c', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}>OFF</button>
+            </div>
+
+            <SectionTitle>📷 Camera Presets</SectionTitle>
+            <MenuButton onClick={() => { setFocus({ x: 280, y: 220, z: 280, lookAt: { x: 0, y: 0, z: 0 } }); setState({ menuOpen: false }) }} label="🌐 Overview" color="#b266ff" />
+            <MenuButton onClick={() => { setFocus({ x: 0, y: 400, z: 100, lookAt: { x: 0, y: 0, z: 0 } }); setState({ menuOpen: false }) }} label="🛰 Top Down" color="#b266ff" />
+            <MenuButton onClick={() => { setFocus({ x: 30, y: 25, z: 30, lookAt: { x: 0, y: 0, z: 0 } }); setState({ menuOpen: false }) }} label="🚦 Traffic Center" color="#b266ff" />
+          </>
+        )}
+
+        {tab === 'info' && (
+          <>
+            <SectionTitle>About BSS World</SectionTitle>
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: '#b8e8ff', marginBottom: 20 }}>
+              A 3D smart city simulation with AI-driven traffic control, renewable energy, water filtration, food production, and smart waste management.
+            </div>
+            <SectionTitle>Features</SectionTitle>
+            <InfoLine icon="🚦" label="AI Adaptive Traffic Control" />
+            <InfoLine icon="⚡" label="Renewable Power Zone" />
+            <InfoLine icon="💧" label="9-Stage Water Filtration" />
+            <InfoLine icon="🍎" label="AI Food Production" />
+            <InfoLine icon="♻️" label="Smart Waste Management" />
+            <InfoLine icon="🏫" label="12 Smart GLB Buildings" />
+            <InfoLine icon="🏘" label="20+ Residential Houses" />
+            <InfoLine icon="📷" label="Camera System (5 views)" />
+            <SectionTitle style={{ marginTop: 20 }}>Controls</SectionTitle>
+            <div style={{ fontSize: 11, color: '#8fd8f0', lineHeight: 1.7 }}>
+              • <strong>Drag</strong> to rotate<br />
+              • <strong>Scroll</strong> to zoom<br />
+              • <strong>Click buildings</strong> to focus<br />
+              • <strong>Right-click drag</strong> to pan
+            </div>
+          </>
+        )}
+      </div>
+
+      <div style={{
+        padding: '12px 20px',
+        borderTop: '1px solid rgba(34,207,255,0.15)',
+        fontSize: 10, color: '#7fe3ff',
+        textAlign: 'center', letterSpacing: 0.5,
+      }}>
+        © BSS WORLD • Smart City Simulation
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOP HUD
+   ═══════════════════════════════════════════════════════════ */
+function TopHUD() {
+  const timeOfDay = useStore(s => s.timeOfDay)
+  const trafficDensity = useStore(s => s.trafficDensity)
+
+  return (
+    <div style={{
+      position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 16,
+      zIndex: 50, pointerEvents: 'none',
+    }}>
+      <div style={{
+        background: 'rgba(5,10,18,0.85)',
+        border: '1px solid rgba(34,207,255,0.4)',
+        borderRadius: 999, padding: '10px 22px',
+        color: '#b8e8ff', fontSize: 12,
+        fontFamily: 'system-ui, sans-serif',
+        backdropFilter: 'blur(10px)',
+        display: 'flex', alignItems: 'center', gap: 12,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+      }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: timeOfDay === 'night' ? '#8f8fff' : timeOfDay === 'evening' ? '#ff9944' : '#ffdd44',
+        }} />
+        <span style={{ fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{timeOfDay}</span>
+        <span style={{ color: '#4a7a8a' }}>·</span>
+        <span>🚗 {trafficDensity}</span>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CAMERA CONTROLLER
+   ═══════════════════════════════════════════════════════════ */
+function CameraController() {
+  const { camera } = useThree()
+  const focus = useStore(s => s.focus)
+
+  useFrame(() => {
+    if (!focus) return
+    const tgt = new THREE.Vector3(focus.x, focus.y, focus.z)
+    camera.position.lerp(tgt, 0.06)
+    camera.lookAt(focus.lookAt.x, focus.lookAt.y, focus.lookAt.z)
+  })
+
+  return null
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN APP — SmartCity3D (default export)
+   ═══════════════════════════════════════════════════════════ */
+export default function SmartCity3D() {
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden', background: '#050a14' }}>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+      `}</style>
+
+      <TopHUD />
+      <Menu />
+      <AIConsole />
+      <CameraPanel />
+      <InfoPopup />
+
+      <Canvas
+        shadows
+        camera={{ position: [180, 150, 180], fov: 55, near: 0.5, far: 2000 }}
+        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        dpr={[1, 1.5]}
+      >
+        <Suspense fallback={null}>
+          <Scene />
+        </Suspense>
+        <OrbitControls
+          makeDefault
+          enablePan
+          enableRotate
+          enableZoom
+          minDistance={10}
+          maxDistance={500}
+          maxPolarAngle={Math.PI / 2.1}
+          target={[0, 2, 0]}
+        />
+        <CameraController />
+      </Canvas>
+
+      {/* Bottom hint */}
+      <div style={{
+        position: 'absolute', left: 20, bottom: 20, zIndex: 50,
+        background: 'rgba(5,10,18,0.85)',
+        border: '1px solid rgba(34,207,255,0.3)',
+        borderRadius: 10, padding: '10px 16px',
+        color: '#b8e8ff', fontSize: 11, fontFamily: 'system-ui',
+        backdropFilter: 'blur(10px)', maxWidth: 400,
+      }}>
+        🎮 <strong>Drag</strong> rotate · <strong>Scroll</strong> zoom · <strong>Click buildings</strong> focus · <strong>☰ Menu</strong> left
+      </div>
+    </div>
+  )
+}
