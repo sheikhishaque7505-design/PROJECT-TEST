@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, Suspense, forwardRef, useImperativeHandle } from 'react'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Html, useGLTF, ContactShadows, Sky, Text, Sparkles, useTexture } from '@react-three/drei'
+import { OrbitControls, Html, useGLTF, ContactShadows, Sky, Text, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 
 /* ═══════════════════════════════════════════════════════════
-   GLOBAL STATE
+   SIMPLE GLOBAL STATE
    ═══════════════════════════════════════════════════════════ */
 const state = {
   timeOfDay: 'day',
@@ -12,7 +12,6 @@ const state = {
   streetLightsOn: false,
   emergencyAlarm: false,
   focus: null,
-  alert: null,
 }
 const subscribers = new Set()
 const setState = (update) => {
@@ -30,7 +29,7 @@ const useStore = (selector) => {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   BUILDING BORDER — glowing edges around any GLB
+   BUILDING BORDER
    ═══════════════════════════════════════════════════════════ */
 function BuildingBorder({ width = 4, depth = 4, height = 8, color = "#22cfff", position = [0, 0, 0] }) {
   const timeOfDay = useStore(s => s.timeOfDay)
@@ -41,7 +40,6 @@ function BuildingBorder({ width = 4, depth = 4, height = 8, color = "#22cfff", p
 
   return (
     <group position={position}>
-      {/* 4 base border lines */}
       <mesh position={[0, 0.15, halfD + 0.1]}>
         <boxGeometry args={[width + 0.4, 0.15, 0.1]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
@@ -59,7 +57,6 @@ function BuildingBorder({ width = 4, depth = 4, height = 8, color = "#22cfff", p
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
       </mesh>
 
-      {/* Corner posts with glowing caps */}
       {[
         [-halfW - 0.1, halfD + 0.1], [halfW + 0.1, halfD + 0.1],
         [-halfW - 0.1, -halfD - 0.1], [halfW + 0.1, -halfD - 0.1]
@@ -77,7 +74,6 @@ function BuildingBorder({ width = 4, depth = 4, height = 8, color = "#22cfff", p
         </group>
       ))}
 
-      {/* Top border */}
       <mesh position={[0, height + 0.3, 0]}>
         <boxGeometry args={[width + 0.4, 0.08, 0.1]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow * 0.6} />
@@ -94,7 +90,6 @@ function BuildingBorder({ width = 4, depth = 4, height = 8, color = "#22cfff", p
    BOARD — sign above building
    ═══════════════════════════════════════════════════════════ */
 function Board({ text, position = [0, 0, 0], color = "#22cfff", width = 6, height = 1.2 }) {
-  const canvasRef = useRef()
   const [texture, setTexture] = useState(null)
 
   useEffect(() => {
@@ -121,17 +116,14 @@ function Board({ text, position = [0, 0, 0], color = "#22cfff", width = 6, heigh
 
   return (
     <group position={position}>
-      {/* Board backing */}
       <mesh>
         <boxGeometry args={[width, height, 0.1]} />
         <meshStandardMaterial color="#1a1a1a" emissive={color} emissiveIntensity={0.5} />
       </mesh>
-      {/* Text plane */}
       <mesh position={[0, 0, 0.06]}>
         <planeGeometry args={[width - 0.2, height - 0.2]} />
         <meshBasicMaterial map={texture} transparent />
       </mesh>
-      {/* Support poles */}
       <mesh position={[-width / 2 + 0.3, -height / 2 - 1.5, 0]}>
         <cylinderGeometry args={[0.08, 0.08, 3, 8]} />
         <meshStandardMaterial color="#333" />
@@ -145,63 +137,54 @@ function Board({ text, position = [0, 0, 0], color = "#22cfff", width = 6, heigh
 }
 
 /* ═══════════════════════════════════════════════════════════
-   GLB BUILDING — load any GLTF/GLB with auto-scale + border + board
+   GLB BUILDING — using drei's useGLTF
    ═══════════════════════════════════════════════════════════ */
 function GLBBuilding({ 
-  url, 
-  size = 300, 
-  position = [0, 0, 0], 
-  name = "Building", 
-  borderColor = "#22cfff",
-  boardColor = "#22cfff",
-  yOffset = 0
+  url, size = 10, position = [0, 0, 0], 
+  name = "Building", borderColor = "#22cfff", 
+  boardColor = "#22cfff", yOffset = 0,
+  fallbackColor
 }) {
   const setFocus = useStore(s => s.setFocus)
-  const groupRef = useRef()
-  const [model, setModel] = useState(null)
-  const [error, setError] = useState(false)
   const [dimensions, setDimensions] = useState({ w: 3, d: 3, h: 8 })
 
-  useEffect(() => {
-    const loader = new THREE.GLTFLoader ? new THREE.GLTFLoader() : null
-    // Use drei's useGLTF loading pattern
-    import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
-      const gltfLoader = new GLTFLoader()
-      gltfLoader.load(
-        url,
-        (gltf) => {
-          const scene = gltf.scene
-          // Compute bounding box
-          const box = new THREE.Box3().setFromObject(scene)
-          const sizeVec = new THREE.Vector3()
-          box.getSize(sizeVec)
-          const maxDim = Math.max(sizeVec.x, sizeVec.y, sizeVec.z)
-          const scale = size / Math.max(maxDim, 0.001)
-          scene.scale.setScalar(scale)
+  // Load GLB using drei hook
+  let gltf = null
+  try {
+    gltf = useGLTF(url)
+  } catch (e) {
+    console.warn('GLB load failed:', url)
+  }
 
-          // Recompute box after scaling, center and bottom-align
-          const box2 = new THREE.Box3().setFromObject(scene)
-          const center = new THREE.Vector3()
-          box2.getCenter(center)
-          scene.position.x -= center.x
-          scene.position.z -= center.z
-          scene.position.y -= box2.min.y
+  // Clone and prepare model
+  const model = React.useMemo(() => {
+    if (!gltf || !gltf.scene) return null
+    const cloned = gltf.scene.clone(true)
+    
+    const box = new THREE.Box3().setFromObject(cloned)
+    const sizeVec = new THREE.Vector3()
+    box.getSize(sizeVec)
+    const maxDim = Math.max(sizeVec.x, sizeVec.y, sizeVec.z)
+    const scale = size / Math.max(maxDim, 0.001)
+    cloned.scale.setScalar(scale)
 
-          // Compute actual dimensions
-          const finalSize = new THREE.Vector3()
-          box2.getSize(finalSize)
-          setDimensions({ w: finalSize.x * scale, d: finalSize.z * scale, h: finalSize.y * scale })
+    const box2 = new THREE.Box3().setFromObject(cloned)
+    const center = new THREE.Vector3()
+    box2.getCenter(center)
+    cloned.position.x -= center.x
+    cloned.position.z -= center.z
+    cloned.position.y -= box2.min.y
 
-          setModel(scene)
-        },
-        undefined,
-        (err) => {
-          console.warn('GLB load failed:', url, err)
-          setError(true)
-        }
-      )
+    const finalSize = new THREE.Vector3()
+    box2.getSize(finalSize)
+    setDimensions({
+      w: Math.max(finalSize.x * scale, 3),
+      d: Math.max(finalSize.z * scale, 3),
+      h: Math.max(finalSize.y * scale, 6)
     })
-  }, [url, size])
+
+    return cloned
+  }, [gltf, size])
 
   const handleClick = () => {
     setFocus({
@@ -212,36 +195,33 @@ function GLBBuilding({
     })
   }
 
-  if (error) {
-    // Fallback if GLB missing
+  // Fallback if GLB missing
+  if (!model) {
+    const fbColor = fallbackColor || borderColor
+    const w = size / 10
+    const h = size / 10
     return (
-      <group position={position}>
+      <group position={[position[0], position[1] + yOffset, position[2]]}>
         <mesh onClick={handleClick} castShadow>
-          <boxGeometry args={[size / 100, size / 100 * 2, size / 100]} />
-          <meshStandardMaterial color={borderColor} />
+          <boxGeometry args={[w, h * 2, w]} />
+          <meshStandardMaterial color={fbColor} roughness={0.6} metalness={0.3} />
         </mesh>
-        <BuildingBorder width={size / 100} depth={size / 100} height={size / 50} color={borderColor} />
-        <Board text={name} position={[0, size / 50 + 2, 0]} color={boardColor} />
+        <BuildingBorder width={w} depth={w} height={h * 2} color={borderColor} />
+        <Board text={name} position={[0, h * 2 + 3, 0]} color={boardColor} />
       </group>
     )
   }
 
-  if (!model) return null
-
   return (
-    <group ref={groupRef} position={[position[0], position[1] + yOffset, position[2]]}>
+    <group position={[position[0], position[1] + yOffset, position[2]]}>
       <primitive object={model} onClick={handleClick} castShadow receiveShadow />
       <BuildingBorder 
-        width={Math.max(dimensions.w, 3)} 
-        depth={Math.max(dimensions.d, 3)} 
+        width={dimensions.w} 
+        depth={dimensions.d} 
         height={dimensions.h} 
         color={borderColor} 
       />
-      <Board 
-        text={name} 
-        position={[0, dimensions.h + 3, 0]} 
-        color={boardColor} 
-      />
+      <Board text={name} position={[0, dimensions.h + 3, 0]} color={boardColor} />
     </group>
   )
 }
@@ -277,21 +257,19 @@ function StreetLight({ position = [0, 0, 0] }) {
   )
 }
 
-/* ═══════════════════════════════════════════════════════════
-   STREET LIGHT SYSTEM
-   ═══════════════════════════════════════════════════════════ */
 function StreetLightSystem() {
   const positions = []
-  // Along main roads
-  for (let x = -45; x <= 45; x += 10) {
-    positions.push([x, 0, 0])
-    positions.push([x, 0, 25])
-    positions.push([x, 0, -25])
+  for (let x = -45; x <= 45; x += 15) {
+    positions.push([x, 0, 3.5])
+    positions.push([x, 0, 28.5])
+    positions.push([x, 0, -28.5])
+    positions.push([x, 0, -3.5])
   }
-  for (let z = -45; z <= 45; z += 10) {
-    positions.push([0, 0, z])
-    positions.push([25, 0, z])
-    positions.push([-25, 0, z])
+  for (let z = -45; z <= 45; z += 15) {
+    positions.push([3.5, 0, z])
+    positions.push([28.5, 0, z])
+    positions.push([-3.5, 0, z])
+    positions.push([-28.5, 0, z])
   }
   return (
     <group>
@@ -300,17 +278,13 @@ function StreetLightSystem() {
   )
 }
 /* ═══════════════════════════════════════════════════════════
-   ROAD SYSTEM — proper markings + glow edges
+   ROAD SYSTEM
    ═══════════════════════════════════════════════════════════ */
 function RoadSystem() {
   const ROAD_W = 6
   const ROAD_LEN = 100
   const roadZs = [-25, 0, 25]
   const roadXs = [-25, 0, 25]
-
-  const roadMat = <meshStandardMaterial color="#2a2a2a" roughness={0.9} metalness={0.1} />
-  const yellowMat = <meshStandardMaterial color="#f5c84b" emissive="#f5c84b" emissiveIntensity={0.4} />
-  const whiteMat = <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} />
 
   return (
     <group>
@@ -319,28 +293,26 @@ function RoadSystem() {
         <group key={`e${i}`}>
           <mesh position={[0, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
             <planeGeometry args={[ROAD_LEN, ROAD_W]} />
-            {roadMat}
+            <meshStandardMaterial color="#2a2a2a" roughness={0.9} metalness={0.1} />
           </mesh>
-          {/* Yellow center lines */}
           <mesh position={[0, 0.025, z - 0.4]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[ROAD_LEN, 0.15]} />
-            {yellowMat}
+            <meshStandardMaterial color="#f5c84b" emissive="#f5c84b" emissiveIntensity={0.4} />
           </mesh>
           <mesh position={[0, 0.025, z + 0.4]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[ROAD_LEN, 0.15]} />
-            {yellowMat}
+            <meshStandardMaterial color="#f5c84b" emissive="#f5c84b" emissiveIntensity={0.4} />
           </mesh>
-          {/* White dashed side lines */}
           {Array.from({ length: 40 }).map((_, k) => (
             <mesh key={k} position={[-45 + k * 2.3, 0.03, z - ROAD_W / 2 + 0.3]} rotation={[-Math.PI / 2, 0, 0]}>
               <planeGeometry args={[1.2, 0.12]} />
-              {whiteMat}
+              <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.3} />
             </mesh>
           ))}
           {Array.from({ length: 40 }).map((_, k) => (
             <mesh key={`b${k}`} position={[-45 + k * 2.3, 0.03, z + ROAD_W / 2 - 0.3]} rotation={[-Math.PI / 2, 0, 0]}>
               <planeGeometry args={[1.2, 0.12]} />
-              {whiteMat}
+              <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.3} />
             </mesh>
           ))}
         </group>
@@ -351,41 +323,38 @@ function RoadSystem() {
         <group key={`n${i}`}>
           <mesh position={[x, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
             <planeGeometry args={[ROAD_W, ROAD_LEN]} />
-            {roadMat}
+            <meshStandardMaterial color="#2a2a2a" roughness={0.9} metalness={0.1} />
           </mesh>
           <mesh position={[x - 0.4, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[0.15, ROAD_LEN]} />
-            {yellowMat}
+            <meshStandardMaterial color="#f5c84b" emissive="#f5c84b" emissiveIntensity={0.4} />
           </mesh>
           <mesh position={[x + 0.4, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[0.15, ROAD_LEN]} />
-            {yellowMat}
+            <meshStandardMaterial color="#f5c84b" emissive="#f5c84b" emissiveIntensity={0.4} />
           </mesh>
           {Array.from({ length: 40 }).map((_, k) => (
             <mesh key={k} position={[x - ROAD_W / 2 + 0.3, 0.03, -45 + k * 2.3]} rotation={[-Math.PI / 2, 0, 0]}>
               <planeGeometry args={[0.12, 1.2]} />
-              {whiteMat}
+              <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.3} />
             </mesh>
           ))}
           {Array.from({ length: 40 }).map((_, k) => (
             <mesh key={`r${k}`} position={[x + ROAD_W / 2 - 0.3, 0.03, -45 + k * 2.3]} rotation={[-Math.PI / 2, 0, 0]}>
               <planeGeometry args={[0.12, 1.2]} />
-              {whiteMat}
+              <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.3} />
             </mesh>
           ))}
         </group>
       ))}
 
-      {/* Crosswalks at intersections */}
-      {[
-        [0, 0], [0, 25], [0, -25], [25, 0], [-25, 0],
-        [25, 25], [25, -25], [-25, 25], [-25, -25]
-      ].map(([x, z], idx) => (
+      {/* Crosswalks */}
+      {[[0, 0], [0, 25], [0, -25], [25, 0], [-25, 0], [25, 25], [25, -25], [-25, 25], [-25, -25]].map(([x, z], idx) => (
         <group key={idx} position={[x, 0.03, z]}>
           {Array.from({ length: 8 }).map((_, k) => (
             <mesh key={k} position={[k * 0.6 - 2.1, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
               <planeGeometry args={[0.4, 1.5]} />
-              {whiteMat}
+              <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.3} />
             </mesh>
           ))}
         </group>
@@ -405,7 +374,7 @@ function RoadSystem() {
         </group>
       ))}
 
-      {/* Road glow edges (cyan) */}
+      {/* Road glow edges */}
       {roadZs.map((z, i) => (
         <group key={`glow${i}`}>
           <mesh position={[0, 0.05, z - ROAD_W / 2 - 2.1]}>
@@ -423,7 +392,7 @@ function RoadSystem() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   AI TRAFFIC CONTROLLER TOWER
+   AI TRAFFIC TOWER
    ═══════════════════════════════════════════════════════════ */
 function AITrafficTower() {
   const setFocus = useStore(s => s.setFocus)
@@ -445,17 +414,11 @@ function AITrafficTower() {
   })
 
   return (
-    <group 
-      position={[0, 0, 0]} 
-      onClick={() => setFocus({ x: 10, y: 10, z: 10, lookAt: { x: 0, y: 0, z: 0 } })}
-    >
-      {/* Base */}
+    <group position={[0, 0, 0]} onClick={() => setFocus({ x: 10, y: 10, z: 10, lookAt: { x: 0, y: 0, z: 0 } })}>
       <mesh position={[0, 0.5, 0]} castShadow>
         <cylinderGeometry args={[4, 4.5, 1, 32]} />
         <meshStandardMaterial color="#142f3b" metalness={0.5} roughness={0.3} />
       </mesh>
-
-      {/* Rotating rings */}
       <mesh ref={ringRef} position={[0, 1.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[3.8, 0.12, 10, 48]} />
         <meshStandardMaterial color="#32dfff" emissive="#18cfff" emissiveIntensity={3} />
@@ -464,8 +427,6 @@ function AITrafficTower() {
         <torusGeometry args={[3, 0.1, 10, 48]} />
         <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2.5} />
       </mesh>
-
-      {/* Corner beacons */}
       {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
         const angle = (i / 8) * Math.PI * 2
         return (
@@ -475,47 +436,31 @@ function AITrafficTower() {
           </mesh>
         )
       })}
-
-      {/* Tower body */}
       <mesh position={[0, 4, 0]} castShadow>
         <cylinderGeometry args={[1.2, 1.5, 5, 10]} />
         <meshStandardMaterial color="#185a72" metalness={0.5} roughness={0.3} />
       </mesh>
-
-      {/* Upper observatory */}
       <mesh position={[0, 7, 0]} castShadow>
         <cylinderGeometry args={[1.6, 1.4, 1.2, 12]} />
         <meshStandardMaterial color="#0a3345" emissive="#1a7a9a" emissiveIntensity={2} />
       </mesh>
-
-      {/* Glowing windows */}
       {Array.from({ length: 10 }).map((_, i) => {
         const angle = (i / 10) * Math.PI * 2
         return (
-          <mesh 
-            key={i} 
-            position={[Math.cos(angle) * 1.5, 7, Math.sin(angle) * 1.5]} 
-            rotation={[0, -angle, 0]}
-          >
+          <mesh key={i} position={[Math.cos(angle) * 1.5, 7, Math.sin(angle) * 1.5]} rotation={[0, -angle, 0]}>
             <boxGeometry args={[0.5, 0.7, 0.06]} />
             <meshStandardMaterial color="#03141b" emissive="#21cfff" emissiveIntensity={isNight ? 5 : 3} />
           </mesh>
         )
       })}
-
-      {/* Radar dish */}
       <mesh ref={radarRef} position={[0, 8.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[1.2, 0.08, 10, 32]} />
         <meshStandardMaterial color="#61e7ff" emissive="#23dfff" emissiveIntensity={3} />
       </mesh>
-
-      {/* Signal sphere */}
       <mesh ref={sigRef} position={[0, 9.5, 0]}>
         <sphereGeometry args={[0.4, 20, 20]} />
         <meshStandardMaterial color="#66e5ff" emissive="#33dfff" emissiveIntensity={5} />
       </mesh>
-
-      {/* Antenna */}
       <mesh position={[0, 11, 0]}>
         <cylinderGeometry args={[0.05, 0.08, 3.5, 6]} />
         <meshStandardMaterial color="#99a0a6" metalness={0.6} />
@@ -525,25 +470,20 @@ function AITrafficTower() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TRAFFIC LIGHTS — 4 poles with blinking
+   AI TRAFFIC SYSTEM (phase manager)
    ═══════════════════════════════════════════════════════════ */
 const trafficSystemState = {
-  phase: 0,      // 0 = NS green, 1 = EW green
+  phase: 0,
   inYellow: false,
   inAllRed: false,
-  phaseTime: 0,
 }
 const trafficSystemListeners = new Set()
-const emitTrafficUpdate = () => {
-  trafficSystemListeners.forEach(cb => cb({ ...trafficSystemState }))
-}
 
 function AITrafficSystem() {
   const elapsedRef = useRef(0)
   const PHASE_DURATION = 8
   const YELLOW = 2.5
   const ALL_RED = 0.8
-  const [tick, setTick] = useState(0)
 
   useFrame((_, dt) => {
     elapsedRef.current += dt
@@ -554,38 +494,29 @@ function AITrafficSystem() {
         trafficSystemState.inAllRed = false
         trafficSystemState.phase = trafficSystemState.phase === 0 ? 1 : 0
         elapsedRef.current = 0
-        emitTrafficUpdate()
       }
     } else if (trafficSystemState.inYellow) {
       if (e >= YELLOW) {
         trafficSystemState.inYellow = false
         trafficSystemState.inAllRed = true
         elapsedRef.current = 0
-        emitTrafficUpdate()
       }
     } else if (e >= PHASE_DURATION) {
       trafficSystemState.inYellow = true
       elapsedRef.current = 0
-      emitTrafficUpdate()
     }
   })
-
-  // Force re-render for UI
-  useEffect(() => {
-    const cb = () => setTick(t => t + 1)
-    trafficSystemListeners.add(cb)
-    return () => trafficSystemListeners.delete(cb)
-  }, [])
 
   return null
 }
 
+/* ═══════════════════════════════════════════════════════════
+   TRAFFIC LIGHT POLE
+   ═══════════════════════════════════════════════════════════ */
 function TrafficLightPole({ position, roadId }) {
-  const timeOfDay = useStore(s => s.timeOfDay)
   const redRef = useRef()
   const yellowRef = useRef()
   const greenRef = useRef()
-  const isNight = timeOfDay === 'night'
 
   useFrame(() => {
     const s = trafficSystemState
@@ -606,32 +537,26 @@ function TrafficLightPole({ position, roadId }) {
 
   return (
     <group position={position}>
-      {/* Pole */}
       <mesh position={[0, 3, 0]} castShadow>
         <cylinderGeometry args={[0.12, 0.15, 6, 8]} />
         <meshStandardMaterial color="#1a1a1a" />
       </mesh>
-      {/* Arm */}
       <mesh position={[0.8, 5.5, 0]} castShadow>
         <boxGeometry args={[1.6, 0.12, 0.12]} />
         <meshStandardMaterial color="#1a1a1a" />
       </mesh>
-      {/* Light box */}
       <mesh position={[1.6, 5.5, 0]} castShadow>
         <boxGeometry args={[0.5, 1.4, 0.5]} />
         <meshStandardMaterial color="#0a0a0a" />
       </mesh>
-      {/* Red */}
       <mesh ref={redRef} position={[1.6, 5.9, 0.3]}>
         <sphereGeometry args={[0.16, 16, 16]} />
         <meshStandardMaterial color="#ff2222" emissive="#ff2222" emissiveIntensity={0} />
       </mesh>
-      {/* Yellow */}
       <mesh ref={yellowRef} position={[1.6, 5.5, 0.3]}>
         <sphereGeometry args={[0.16, 16, 16]} />
         <meshStandardMaterial color="#ffcc22" emissive="#ffcc22" emissiveIntensity={0} />
       </mesh>
-      {/* Green */}
       <mesh ref={greenRef} position={[1.6, 5.1, 0.3]}>
         <sphereGeometry args={[0.16, 16, 16]} />
         <meshStandardMaterial color="#22ff66" emissive="#22ff66" emissiveIntensity={0} />
@@ -652,7 +577,7 @@ function TrafficLights() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CAR — on road, correct direction, headlights at night
+   CAR
    ═══════════════════════════════════════════════════════════ */
 function Car({ lane, startPos }) {
   const carRef = useRef()
@@ -660,28 +585,25 @@ function Car({ lane, startPos }) {
   const timeOfDay = useStore(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
   const colorRef = useRef(null)
+  const speedRef = useRef(8 + Math.random() * 4)
+
   if (!colorRef.current) {
     const colors = ["#287ca3", "#c83f49", "#e1a72e", "#5b72c9", "#2f9d65", "#d8d8d8", "#d97b2a", "#8b3ad9", "#16a085", "#8e44ad"]
     colorRef.current = colors[Math.floor(Math.random() * colors.length)]
   }
 
-  const speed = useRef(8 + Math.random() * 4)
-
   useFrame((_, dt) => {
     if (!carRef.current) return
-    // Check traffic light
     const s = trafficSystemState
     const nsGreen = s.phase === 0 && !s.inYellow && !s.inAllRed
     const ewGreen = s.phase === 1 && !s.inYellow && !s.inAllRed
     const yellow = s.inYellow
-    const stopLine = 15
 
-    let shouldStop = false
     const roadId = lane.road
     const isNs = roadId === 1 || roadId === 2
     const isEw = roadId === 3 || roadId === 4
-    
-    // If approaching intersection and light is not green for this road
+
+    const stopLine = 15
     let distToStop = 0
     if (lane.axis === 'z') {
       distToStop = Math.abs(pos - (lane.dir > 0 ? -stopLine : stopLine))
@@ -689,12 +611,13 @@ function Car({ lane, startPos }) {
       distToStop = Math.abs(pos - (lane.dir > 0 ? -stopLine : stopLine))
     }
 
+    let shouldStop = false
     if (distToStop < 15) {
       if (isNs && !nsGreen && !yellow) shouldStop = true
       if (isEw && !ewGreen && !yellow) shouldStop = true
     }
 
-    let currentSpeed = shouldStop && distToStop < 8 ? 0 : speed.current
+    let currentSpeed = speedRef.current
     if (shouldStop && distToStop < 15) currentSpeed = Math.max(0, currentSpeed * (distToStop / 15))
 
     const newPos = pos + currentSpeed * lane.dir * dt
@@ -714,29 +637,24 @@ function Car({ lane, startPos }) {
 
   return (
     <group ref={carRef}>
-      {/* Body */}
       <mesh castShadow position={[0, 0.15, 0]}>
         <boxGeometry args={[2.8, 0.6, 1.2]} />
         <meshStandardMaterial color={colorRef.current} metalness={0.4} roughness={0.4} />
       </mesh>
-      {/* Cabin */}
       <mesh castShadow position={[-0.1, 0.55, 0]}>
         <boxGeometry args={[1.3, 0.5, 0.85]} />
         <meshStandardMaterial color="#1a3a4a" emissive="#0a2535" emissiveIntensity={0.8} metalness={0.5} roughness={0.2} />
       </mesh>
-      {/* Roof */}
       <mesh position={[-0.1, 0.82, 0]}>
         <boxGeometry args={[1.1, 0.06, 0.7]} />
         <meshStandardMaterial color="#2a2a2a" />
       </mesh>
-      {/* Wheels */}
       {[[-0.9, 0.65], [-0.9, -0.65], [0.9, 0.65], [0.9, -0.65]].map(([x, z], i) => (
         <mesh key={i} position={[x, 0.15, z]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <cylinderGeometry args={[0.15, 0.15, 0.1, 8]} />
           <meshStandardMaterial color="#0c1012" />
         </mesh>
       ))}
-      {/* Headlights */}
       <mesh position={[1.4, 0.35, 0.35]}>
         <boxGeometry args={[0.05, 0.15, 0.2]} />
         <meshStandardMaterial color="#ffffff" emissive="#fff8e0" emissiveIntensity={isNight ? 5 : 2} />
@@ -745,7 +663,6 @@ function Car({ lane, startPos }) {
         <boxGeometry args={[0.05, 0.15, 0.2]} />
         <meshStandardMaterial color="#ffffff" emissive="#fff8e0" emissiveIntensity={isNight ? 5 : 2} />
       </mesh>
-      {/* Tail lights */}
       <mesh position={[-1.4, 0.35, 0.35]}>
         <boxGeometry args={[0.05, 0.15, 0.2]} />
         <meshStandardMaterial color="#ff1e1e" emissive="#ff1010" emissiveIntensity={3} />
@@ -754,32 +671,25 @@ function Car({ lane, startPos }) {
         <boxGeometry args={[0.05, 0.15, 0.2]} />
         <meshStandardMaterial color="#ff1e1e" emissive="#ff1010" emissiveIntensity={3} />
       </mesh>
-      {/* Headlight glow at night */}
-      {isNight && (
-        <pointLight position={[3, 0.4, 0]} intensity={1} distance={15} color="#ffffcc" />
-      )}
+      {isNight && <pointLight position={[3, 0.4, 0]} intensity={1} distance={15} color="#ffffcc" />}
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TRAFFIC SYSTEM — spawn cars on 8 lanes
+   TRAFFIC SYSTEM
    ═══════════════════════════════════════════════════════════ */
 function TrafficSystem() {
   const trafficDensity = useStore(s => s.trafficDensity)
   const carsPerLane = trafficDensity === 'low' ? 3 : trafficDensity === 'medium' ? 5 : 8
 
   const LANES = [
-    // North-bound (+Z), left side of road
     { id: 'N1', axis: 'z', dir: 1, fixed: -1.5, road: 1, start: -45, end: 45 },
     { id: 'N2', axis: 'z', dir: 1, fixed: -4, road: 1, start: -45, end: 45 },
-    // South-bound (-Z), right side
     { id: 'S1', axis: 'z', dir: -1, fixed: 1.5, road: 2, start: 45, end: -45 },
     { id: 'S2', axis: 'z', dir: -1, fixed: 4, road: 2, start: 45, end: -45 },
-    // East-bound (+X), bottom side
     { id: 'E1', axis: 'x', dir: 1, fixed: 1.5, road: 3, start: -45, end: 45 },
     { id: 'E2', axis: 'x', dir: 1, fixed: 4, road: 3, start: -45, end: 45 },
-    // West-bound (-X), top side
     { id: 'W1', axis: 'x', dir: -1, fixed: -1.5, road: 4, start: 45, end: -45 },
     { id: 'W2', axis: 'x', dir: -1, fixed: -4, road: 4, start: 45, end: -45 },
   ]
@@ -798,19 +708,21 @@ function TrafficSystem() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   PEOPLE — walking pedestrians
+   PERSON
    ═══════════════════════════════════════════════════════════ */
 function Person({ cx = 0, cz = 0, radius = 8, speed = 0.5 }) {
   const ref = useRef()
   const angleRef = useRef(Math.random() * Math.PI * 2)
   const dirRef = useRef(Math.random() > 0.5 ? 1 : -1)
-  const skinRef = useRef(null)
-  const shirtRef = useRef(null)
-  if (!skinRef.current) {
+  const colorRef = useRef(null)
+
+  if (!colorRef.current) {
     const skins = ["#f2c9a0", "#d9a373", "#a06a3c", "#6b4a2f", "#ffd8b8"]
     const shirts = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#1abc9c"]
-    skinRef.current = skins[Math.floor(Math.random() * skins.length)]
-    shirtRef.current = shirts[Math.floor(Math.random() * shirts.length)]
+    colorRef.current = {
+      skin: skins[Math.floor(Math.random() * skins.length)],
+      shirt: shirts[Math.floor(Math.random() * shirts.length)],
+    }
   }
 
   useFrame((_, dt) => {
@@ -826,11 +738,11 @@ function Person({ cx = 0, cz = 0, radius = 8, speed = 0.5 }) {
     <group ref={ref}>
       <mesh position={[0, 0.9, 0]} castShadow>
         <cylinderGeometry args={[0.18, 0.18, 0.7, 8]} />
-        <meshStandardMaterial color={shirtRef.current} />
+        <meshStandardMaterial color={colorRef.current.shirt} />
       </mesh>
       <mesh position={[0, 1.45, 0]} castShadow>
         <sphereGeometry args={[0.15, 8, 8]} />
-        <meshStandardMaterial color={skinRef.current} />
+        <meshStandardMaterial color={colorRef.current.skin} />
       </mesh>
       <mesh position={[-0.08, 0.35, 0]} castShadow>
         <boxGeometry args={[0.08, 0.4, 0.08]} />
@@ -857,12 +769,14 @@ function PeopleSystem() {
       <Person cx={0} cz={-20} radius={4} />
       <Person cx={30} cz={30} radius={6} />
       <Person cx={-30} cz={-30} radius={6} />
+      <Person cx={45} cz={-15} radius={3} />
+      <Person cx={-45} cz={15} radius={3} />
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TREES
+   TREE
    ═══════════════════════════════════════════════════════════ */
 function Tree({ position, scale = 1 }) {
   return (
@@ -885,16 +799,15 @@ function Tree({ position, scale = 1 }) {
 
 function TreesSystem() {
   const positions = []
-  // Random trees avoiding roads and center
   for (let i = 0; i < 60; i++) {
     const x = (Math.random() - 0.5) * 90
     const z = (Math.random() - 0.5) * 90
-    // Skip roads
     if (Math.abs(x) < 6 || Math.abs(z) < 6) continue
     if (Math.abs(x - 25) < 6 || Math.abs(z - 25) < 6) continue
     if (Math.abs(x + 25) < 6 || Math.abs(z + 25) < 6) continue
-    // Skip center
     if (Math.sqrt(x * x + z * z) < 8) continue
+    if (Math.sqrt((x - 30) * (x - 30) + (z - 30) * (z - 30)) < 15) continue
+    if (Math.sqrt((x + 30) * (x + 30) + (z + 30) * (z + 30)) < 15) continue
     positions.push([x, 0, z])
   }
   return (
@@ -906,7 +819,7 @@ function TreesSystem() {
   )
 }
 /* ═══════════════════════════════════════════════════════════
-   POWER ZONE — turbines + solar + batteries
+   POWER ZONE
    ═══════════════════════════════════════════════════════════ */
 function WindTurbine({ position, scale = 1 }) {
   const bladesRef = useRef()
@@ -950,23 +863,19 @@ function SolarPanelUnit({ position, rotation = [0, 0, 0] }) {
   )
 }
 
-function PowerZone({ position = [-40, 0, 30] }) {
-  const setFocus = useStore(s => s.setFocus)
+function PowerZone({ position = [-80, 0, 80] }) {
   const timeOfDay = useStore(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
 
   return (
     <group position={position}>
-      {/* Ground pad */}
       <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[30, 25]} />
         <meshStandardMaterial color="#1d3a2e" roughness={0.95} />
       </mesh>
 
-      {/* Border */}
       <BuildingBorder width={30} depth={25} height={0.2} color="#ffcc22" />
 
-      {/* Wind turbines grid */}
       {[0, 1, 2].map(row =>
         [0, 1, 2].map(col => (
           <WindTurbine 
@@ -977,35 +886,32 @@ function PowerZone({ position = [-40, 0, 30] }) {
         ))
       )}
 
-      {/* Solar panels */}
       <group position={[0, 0, 10]}>
         {[-8, -4, 0, 4, 8].map((x, i) => (
-          <SolarPanelUnit key={i} position={[x, 0, 0]} rotation={[0, 0, 0]} />
+          <SolarPanelUnit key={i} position={[x, 0, 0]} />
         ))}
       </group>
 
-      {/* Battery banks */}
       {[-8, -4, 0, 4, 8].map((x, i) => (
         <group key={i} position={[x, 0, -12]}>
           <mesh position={[0, 1.5, 0]} castShadow>
             <boxGeometry args={[2, 3, 2]} />
             <meshStandardMaterial color="#2a5a4a" metalness={0.4} roughness={0.5} />
           </mesh>
-          <mesh position={[0, 0.3, 0]}>
+          <mesh position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[1.4, 0.06, 6, 16]} />
             <meshStandardMaterial color="#22ff9d" emissive="#22ff9d" emissiveIntensity={isNight ? 5 : 3} />
           </mesh>
         </group>
       ))}
 
-      {/* Board */}
       <Board text="POWER SUPPLY" position={[0, 12, 0]} color="#ffcc22" width={8} />
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   FILTRATION ZONE — with skid GLB + animated flow
+   FILTRATION ZONE
    ═══════════════════════════════════════════════════════════ */
 const FILTRATION_STAGES = [
   { id: "wastewater", label: "Wastewater", color: "#6b4a2f" },
@@ -1021,28 +927,24 @@ const FILTRATION_STAGES = [
 
 function WaterFlow({ from, to, active }) {
   const dotsRef = useRef([])
-  const [dots] = useState(() => Array.from({ length: 3 }).map((_, i) => ({ id: i, progress: Math.random() })))
+  const [progress] = useState(() => [0, 0.33, 0.66])
 
   useFrame((_, dt) => {
-    dotsRef.current.forEach((d, i) => {
-      if (!d) return
-      const p = (dots[i].progress + dt * 0.5) % 1
-      dots[i].progress = p
-      const x = from[0] + (to[0] - from[0]) * p
-      const z = from[2] + (to[2] - from[2]) * p
-      const y = 2 + Math.sin(p * Math.PI) * 0.5
+    for (let i = 0; i < progress.length; i++) {
+      progress[i] = (progress[i] + dt * 0.5) % 1
+      const d = dotsRef.current[i]
+      if (!d) continue
+      const x = from[0] + (to[0] - from[0]) * progress[i]
+      const z = from[2] + (to[2] - from[2]) * progress[i]
+      const y = 2 + Math.sin(progress[i] * Math.PI) * 0.5
       d.position.set(x, y, z)
-    })
+    }
   })
 
   return (
     <group>
-      {dots.map((dot, i) => (
-        <mesh 
-          key={dot.id} 
-          ref={el => dotsRef.current[i] = el}
-          visible={active}
-        >
+      {progress.map((_, i) => (
+        <mesh key={i} ref={el => dotsRef.current[i] = el} visible={active}>
           <sphereGeometry args={[0.15, 8, 8]} />
           <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={4} />
         </mesh>
@@ -1053,8 +955,6 @@ function WaterFlow({ from, to, active }) {
 
 function FiltrationTank({ position, color, stageIndex, active }) {
   const waterRef = useRef()
-  const timeOfDay = useStore(s => s.timeOfDay)
-  const isNight = timeOfDay === 'night'
 
   useFrame(() => {
     if (!waterRef.current || !active) return
@@ -1064,22 +964,18 @@ function FiltrationTank({ position, color, stageIndex, active }) {
 
   return (
     <group position={position}>
-      {/* Tank body */}
       <mesh position={[0, 1.25, 0]} castShadow>
         <cylinderGeometry args={[1, 1.1, 2.5, 16]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 1.5 : 0.4} metalness={0.3} roughness={0.3} transparent opacity={0.85} />
       </mesh>
-      {/* Cap */}
       <mesh position={[0, 2.5, 0]} castShadow>
         <sphereGeometry args={[1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 1.5 : 0.4} metalness={0.3} roughness={0.3} transparent opacity={0.85} />
       </mesh>
-      {/* Water inside */}
       <mesh ref={waterRef} position={[0, 1.2, 0]}>
         <cylinderGeometry args={[0.85, 0.85, 1.5, 16]} />
         <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={active ? 3 : 1} transparent opacity={0.7} />
       </mesh>
-      {/* Stage number */}
       <Text position={[0, 3.2, 0]} fontSize={0.4} color="#fff" anchorX="center">
         {stageIndex + 1}
       </Text>
@@ -1087,8 +983,7 @@ function FiltrationTank({ position, color, stageIndex, active }) {
   )
 }
 
-function FiltrationZone({ position = [40, 0, -30] }) {
-  const setFocus = useStore(s => s.setFocus)
+function FiltrationZone({ position = [80, 0, -80] }) {
   const [stageIdx, setStageIdx] = useState(0)
   const elapsedRef = useRef(0)
 
@@ -1100,7 +995,6 @@ function FiltrationZone({ position = [40, 0, -30] }) {
     }
   })
 
-  // 3x3 grid of tanks
   const tankPositions = []
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
@@ -1110,16 +1004,13 @@ function FiltrationZone({ position = [40, 0, -30] }) {
 
   return (
     <group position={position}>
-      {/* Ground pad */}
       <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[26, 26]} />
         <meshStandardMaterial color="#1a2836" roughness={0.95} />
       </mesh>
 
-      {/* Border */}
       <BuildingBorder width={26} depth={26} height={0.2} color="#22cfff" />
 
-      {/* Skid filtration GLB */}
       <GLBBuilding 
         url="/skid_filtration_system.glb"
         size={10}
@@ -1129,7 +1020,6 @@ function FiltrationZone({ position = [40, 0, -30] }) {
         boardColor="#22cfff"
       />
 
-      {/* 9 stage tanks */}
       {tankPositions.map((pos, i) => (
         <FiltrationTank 
           key={i}
@@ -1140,7 +1030,6 @@ function FiltrationZone({ position = [40, 0, -30] }) {
         />
       ))}
 
-      {/* Water flow between tanks */}
       {tankPositions.slice(0, -1).map((pos, i) => {
         const next = tankPositions[i + 1]
         return (
@@ -1153,7 +1042,6 @@ function FiltrationZone({ position = [40, 0, -30] }) {
         )
       })}
 
-      {/* Big reservoir */}
       <mesh position={[-10, 1.5, 0]} castShadow>
         <cylinderGeometry args={[2, 2.2, 3, 24]} />
         <meshStandardMaterial color="#0a4a6a" emissive="#0a2a4a" emissiveIntensity={1} metalness={0.5} roughness={0.3} />
@@ -1163,7 +1051,6 @@ function FiltrationZone({ position = [40, 0, -30] }) {
         <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={2} transparent opacity={0.8} />
       </mesh>
 
-      {/* Board */}
       <Board text="FILTRATION" position={[0, 10, 0]} color="#22cfff" width={8} />
     </group>
   )
@@ -1172,7 +1059,7 @@ function FiltrationZone({ position = [40, 0, -30] }) {
 /* ═══════════════════════════════════════════════════════════
    FOOD ZONE
    ═══════════════════════════════════════════════════════════ */
-function FoodZone({ position = [-40, 0, -30] }) {
+function FoodZone({ position = [-80, 0, -80] }) {
   const timeOfDay = useStore(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
   const droneRef = useRef()
@@ -1185,7 +1072,6 @@ function FoodZone({ position = [-40, 0, -30] }) {
     droneRef.current.position.y = 8 + Math.sin(t * 3) * 0.5
   })
 
-  // Crop plot
   const Crop = ({ position }) => (
     <group position={position}>
       <mesh position={[0, 0.5, 0]} castShadow>
@@ -1197,39 +1083,32 @@ function FoodZone({ position = [-40, 0, -30] }) {
 
   return (
     <group position={position}>
-      {/* Ground pad */}
       <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[26, 26]} />
         <meshStandardMaterial color="#1a2e1e" roughness={0.95} />
       </mesh>
 
-      {/* Border */}
       <BuildingBorder width={26} depth={26} height={0.2} color="#2ecc71" />
 
-      {/* 3x3 farming plots */}
       {[0, 1, 2].map(r =>
         [0, 1, 2].map(c => {
           const px = -7 + c * 7
           const pz = -7 + r * 7
           return (
             <group key={`${r}-${c}`} position={[px, 0, pz]}>
-              {/* Soil plot */}
               <mesh position={[0, 0.15, 0]} receiveShadow>
                 <boxGeometry args={[5, 0.3, 5]} />
                 <meshStandardMaterial color="#4a2f1a" />
               </mesh>
-              {/* Green border */}
               <mesh position={[0, 0.35, 0]}>
                 <boxGeometry args={[5.2, 0.1, 5.2]} />
                 <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={1.5} />
               </mesh>
-              {/* Crops */}
               {Array.from({ length: 9 }).map((_, i) => {
                 const cx = -1.8 + (i % 3) * 1.8
                 const cz = -1.8 + Math.floor(i / 3) * 1.8
                 return <Crop key={i} position={[cx, 0, cz]} />
               })}
-              {/* Sprinkler */}
               <mesh position={[0, 0.8, 0]} castShadow>
                 <cylinderGeometry args={[0.15, 0.15, 1, 8]} />
                 <meshStandardMaterial color="#9aa0a6" />
@@ -1243,7 +1122,6 @@ function FoodZone({ position = [-40, 0, -30] }) {
         })
       )}
 
-      {/* Processing plant */}
       <group position={[10, 0, 0]}>
         <mesh position={[0, 3, 0]} castShadow>
           <boxGeometry args={[5, 6, 4]} />
@@ -1259,7 +1137,6 @@ function FoodZone({ position = [-40, 0, -30] }) {
         </mesh>
       </group>
 
-      {/* Drone */}
       <group ref={droneRef}>
         <mesh>
           <boxGeometry args={[0.8, 0.15, 0.8]} />
@@ -1269,7 +1146,6 @@ function FoodZone({ position = [-40, 0, -30] }) {
           <sphereGeometry args={[0.15, 8, 8]} />
           <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={3} />
         </mesh>
-        {/* Rotors */}
         {[[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]].map(([x, z], i) => (
           <mesh key={i} position={[x, 0.1, z]} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.25, 0.25, 0.05, 12]} />
@@ -1278,7 +1154,6 @@ function FoodZone({ position = [-40, 0, -30] }) {
         ))}
       </group>
 
-      {/* Board */}
       <Board text="AI FOOD" position={[0, 10, 0]} color="#2ecc71" width={6} />
     </group>
   )
@@ -1287,7 +1162,7 @@ function FoodZone({ position = [-40, 0, -30] }) {
 /* ═══════════════════════════════════════════════════════════
    WASTE ZONE
    ═══════════════════════════════════════════════════════════ */
-function WasteZone({ position = [40, 0, 30] }) {
+function WasteZone({ position = [80, 0, 80] }) {
   const timeOfDay = useStore(s => s.timeOfDay)
   const isNight = timeOfDay === 'night'
   const flameRef = useRef()
@@ -1306,16 +1181,13 @@ function WasteZone({ position = [40, 0, 30] }) {
 
   return (
     <group position={position}>
-      {/* Ground pad */}
       <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[26, 26]} />
         <meshStandardMaterial color="#2a3a2e" roughness={0.95} />
       </mesh>
 
-      {/* Border */}
       <BuildingBorder width={26} depth={26} height={0.2} color="#2ecc71" />
 
-      {/* 9 smart bins */}
       {[0, 1, 2].map(r =>
         [0, 1, 2].map(c => {
           const colors = ['#2ecc71', '#3498db', '#e74c3c', '#f39c12']
@@ -1330,7 +1202,6 @@ function WasteZone({ position = [40, 0, 30] }) {
                 <cylinderGeometry args={[0.75, 0.75, 0.15, 12]} />
                 <meshStandardMaterial color="#1a1a1a" />
               </mesh>
-              {/* LED ring */}
               <mesh position={[0, 1.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
                 <torusGeometry args={[0.75, 0.04, 6, 20]} />
                 <meshStandardMaterial color={col} emissive={col} emissiveIntensity={isNight ? 5 : 3} />
@@ -1340,7 +1211,6 @@ function WasteZone({ position = [40, 0, 30] }) {
         })
       )}
 
-      {/* Recycling machine */}
       <group position={[-8, 0, 10]}>
         <mesh position={[0, 2, 0]} castShadow>
           <boxGeometry args={[4, 4, 4]} />
@@ -1352,7 +1222,6 @@ function WasteZone({ position = [40, 0, 30] }) {
         </mesh>
       </group>
 
-      {/* Biogas digester with flame */}
       <group position={[8, 0, 10]}>
         <mesh position={[0, 2, 0]} castShadow>
           <sphereGeometry args={[2, 16, 12]} />
@@ -1364,13 +1233,13 @@ function WasteZone({ position = [40, 0, 30] }) {
         </mesh>
       </group>
 
-      {/* Composting + Incinerator */}
       {[-8, 0, 8].map((x, i) => (
         <mesh key={i} position={[x, 0.5, -10]} castShadow>
           <cylinderGeometry args={[1.2, 1.2, 1, 16]} />
           <meshStandardMaterial color="#5a3a1a" roughness={0.9} />
         </mesh>
       ))}
+
       <group position={[10, 0, -8]}>
         <mesh position={[0, 2.5, 0]} castShadow>
           <cylinderGeometry args={[1.5, 1.5, 5, 16]} />
@@ -1386,14 +1255,13 @@ function WasteZone({ position = [40, 0, 30] }) {
         </mesh>
       </group>
 
-      {/* Board */}
       <Board text="WASTE MGMT" position={[0, 12, 0]} color="#2ecc71" width={7} />
     </group>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   GROUND + SKY
+   GROUND
    ═══════════════════════════════════════════════════════════ */
 function Ground() {
   return (
@@ -1410,12 +1278,12 @@ function Ground() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CITY BUILDINGS — all GLBs
+   CITY BUILDINGS — all 13 GLBs
    ═══════════════════════════════════════════════════════════ */
 function CityBuildings() {
   return (
     <group>
-      {/* Core buildings */}
+      {/* Core buildings — GLBs */}
       <GLBBuilding 
         url="/american_high_school.glb" 
         size={10} 
@@ -1513,7 +1381,7 @@ function CityBuildings() {
         boardColor="#ff66dd"
       />
 
-      {/* Systems */}
+      {/* System zones */}
       <PowerZone position={[-80, 0, 80]} />
       <FiltrationZone position={[80, 0, -80]} />
       <FoodZone position={[-80, 0, -80]} />
@@ -1565,22 +1433,22 @@ function Scene() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   HUD — overlay UI
+   HUD — UI overlay
    ═══════════════════════════════════════════════════════════ */
 function HUD() {
   const timeOfDay = useStore(s => s.timeOfDay)
-  const setTimeOfDay = useStore(s => s.setTimeOfDay)
+  const setTimeOfDay = (t) => setState({ timeOfDay: t })
   const trafficDensity = useStore(s => s.trafficDensity)
-  const setTrafficDensity = useStore(s => s.setTrafficDensity)
+  const setTrafficDensity = (d) => setState({ trafficDensity: d })
   const streetLightsOn = useStore(s => s.streetLightsOn)
-  const setStreetLightsOn = useStore(s => s.setStreetLightsOn)
-  const setFocus = useStore(s => s.setFocus)
+  const setStreetLightsOn = (v) => setState({ streetLightsOn: v })
+  const setFocus = (f) => setState({ focus: f })
   const emergencyAlarm = useStore(s => s.emergencyAlarm)
   const [showPanel, setShowPanel] = useState(true)
 
   useEffect(() => {
     if (timeOfDay === 'night') setStreetLightsOn(true)
-  }, [timeOfDay, setStreetLightsOn])
+  }, [timeOfDay])
 
   const locations = {
     '🏫 Beacon School': { x: -15, y: 12, z: -15, lookAt: { x: -30, y: 0, z: -30 } },
@@ -1599,27 +1467,23 @@ function HUD() {
 
   return (
     <>
-      {/* Title / brand */}
       <div style={{ position: 'absolute', left: 16, top: 16, zIndex: 50, fontFamily: 'system-ui', color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
         <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 2 }}>🏙 BSS WORLD</div>
         <div style={{ fontSize: 11, letterSpacing: 1.5, color: '#7fe3ff', textTransform: 'uppercase' }}>Smart City Control Center</div>
       </div>
 
-      {/* Top status pill */}
-      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 16, zIndex: 50, display: 'flex', gap: 8 }}>
+      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 16, zIndex: 50 }}>
         <div style={{ background: 'rgba(5,10,18,0.85)', border: '1px solid rgba(34,207,255,0.4)', borderRadius: 999, padding: '8px 16px', color: '#b8e8ff', fontSize: 12, fontFamily: 'system-ui', backdropFilter: 'blur(10px)' }}>
           {timeOfDay === 'night' ? '🌙 Night' : timeOfDay === 'evening' ? '🌆 Evening' : '☀ Day'} • Traffic: {trafficDensity}
         </div>
       </div>
 
-      {/* Emergency banner */}
       {emergencyAlarm && (
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 70, zIndex: 100, background: 'linear-gradient(135deg, #e74c3c, #c0392b)', color: '#fff', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 700, fontFamily: 'system-ui', animation: 'pulse 0.5s infinite' }}>
           🚨 EMERGENCY ALARM 🚨
         </div>
       )}
 
-      {/* Settings gear */}
       <button
         onClick={() => setShowPanel(p => !p)}
         style={{ position: 'absolute', right: 20, top: 20, zIndex: 100, width: 48, height: 48, borderRadius: '50%', background: 'rgba(5,10,18,0.9)', border: '1px solid rgba(34,207,255,0.4)', color: '#22cfff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s', transform: showPanel ? 'rotate(90deg)' : 'rotate(0)' }}
@@ -1627,7 +1491,6 @@ function HUD() {
         ⚙️
       </button>
 
-      {/* Control panel */}
       {showPanel && (
         <div style={{ position: 'absolute', right: 80, top: 20, zIndex: 50, background: 'rgba(5,10,18,0.92)', border: '1px solid rgba(34,207,255,0.3)', borderRadius: 12, padding: 16, fontFamily: 'system-ui', color: '#e8f7ff', width: 240, backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -1635,12 +1498,11 @@ function HUD() {
             <button onClick={() => setShowPanel(false)} style={{ background: 'none', border: 'none', color: '#ff8a8a', fontSize: 18, cursor: 'pointer', fontWeight: 700 }}>✕</button>
           </div>
 
-          {/* Time of day */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Time of Day</div>
             <select 
               value={timeOfDay} 
-              onChange={(e) => { setTimeOfDay(e.target.value); setStreetLightsOn(e.target.value === 'night') }}
+              onChange={(e) => setTimeOfDay(e.target.value)}
               style={{ width: '100%', padding: '6px 8px', borderRadius: 6, background: 'rgba(34,207,255,0.08)', border: '1px solid rgba(34,207,255,0.3)', color: '#e8f7ff', fontSize: 12, cursor: 'pointer' }}
             >
               <option value="day">☀️ Day</option>
@@ -1649,7 +1511,6 @@ function HUD() {
             </select>
           </div>
 
-          {/* Traffic density */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Traffic Density</div>
             <div style={{ display: 'flex', gap: 4 }}>
@@ -1665,7 +1526,6 @@ function HUD() {
             </div>
           </div>
 
-          {/* Street lights */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Street Lights</div>
             <div style={{ display: 'flex', gap: 4 }}>
@@ -1684,7 +1544,6 @@ function HUD() {
             </div>
           </div>
 
-          {/* Quick nav */}
           <div>
             <div style={{ fontSize: 10, color: '#7fe3ff', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Quick Nav</div>
             <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1692,9 +1551,7 @@ function HUD() {
                 <button 
                   key={name}
                   onClick={() => setFocus(pos)}
-                  style={{ padding: '6px 8px', borderRadius: 6, background: 'rgba(34,207,255,0.06)', border: '1px solid rgba(34,207,255,0.2)', color: '#b8e8ff', fontSize: 11, cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s' }}
-                  onMouseEnter={e => e.target.style.background = 'rgba(34,207,255,0.15)'}
-                  onMouseLeave={e => e.target.style.background = 'rgba(34,207,255,0.06)'}
+                  style={{ padding: '6px 8px', borderRadius: 6, background: 'rgba(34,207,255,0.06)', border: '1px solid rgba(34,207,255,0.2)', color: '#b8e8ff', fontSize: 11, cursor: 'pointer', textAlign: 'left' }}
                 >
                   {name}
                 </button>
@@ -1704,18 +1561,17 @@ function HUD() {
         </div>
       )}
 
-      {/* Bottom hint */}
       <div style={{ position: 'absolute', left: 16, bottom: 16, zIndex: 50, background: 'rgba(5,10,18,0.85)', border: '1px solid rgba(34,207,255,0.3)', borderRadius: 10, padding: '10px 16px', color: '#b8e8ff', fontSize: 11, fontFamily: 'system-ui', backdropFilter: 'blur(10px)', maxWidth: 400 }}>
         🎮 <strong>Drag</strong> rotate • <strong>Scroll</strong> zoom • <strong>Click buildings</strong> to focus
         <br />
-        🌟 Features: GLBs • AI Traffic • Filtration Flow • Boards • Night Lights
+        🌟 GLBs • AI Traffic • Filtration Flow • Boards • Night Lights
       </div>
     </>
   )
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CAMERA CONTROLLER — smooth focus on click
+   CAMERA CONTROLLER
    ═══════════════════════════════════════════════════════════ */
 function CameraController() {
   const { camera } = useThree()
@@ -1732,7 +1588,7 @@ function CameraController() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN APP — single file export default
+   MAIN APP
    ═══════════════════════════════════════════════════════════ */
 export default function SmartCity3D() {
   return (
