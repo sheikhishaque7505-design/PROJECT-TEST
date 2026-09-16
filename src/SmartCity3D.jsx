@@ -8,12 +8,51 @@ const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
 
 /* ============================================================
-   VEHICLE CONSTANTS  (all cars locked to ground level)
+   VEHICLE CONSTANTS — all cars locked to ground, slow speed
    ============================================================ */
-const CAR_Y = 5.2;          // fixed ground height for every car
-const CITY_CAR_SPEED = 0.009;   // slow consistent speed for outer/mid cars
-const INNER_CAR_SPEED = 0.012;  // slightly faster but still slow
-const INTERSECTION_SPEED = 0.12; // slow intersection flow
+const CAR_Y = 5.2;
+const CITY_CAR_SPEED = 0.006;      // slower, consistent
+const INNER_CAR_SPEED = 0.008;     // still slow
+const INTERSECTION_BASE_SPEED = 0.08;  // very slow — cars don't freeze
+
+/* ============================================================
+   BUILDING INFO DATABASE — for popup
+   ============================================================ */
+const BUILDING_INFO = {
+  school: { title: "American High School", type: "EDUCATION", icon: "🏫", desc: "AI-powered classrooms, robotics lab, smart boards and digital attendance.", stats: [["👨‍🎓 Students", "450"], ["👩‍🏫 Teachers", "32"], ["📚 Classes", "18"], ["🤖 Robotics Lab", "Active"]] },
+  hospital: { title: "Smart Hospital", type: "HEALTHCARE", icon: "🏥", desc: "24/7 emergency, AI-assisted diagnosis, robotic surgery & smart ICU beds.", stats: [["🏥 Patients", "32"], ["🚑 Ambulances", "2 ready"], ["💊 ICU Beds", "8 free"], ["🩺 AI Diagnosis", "Online"]] },
+  society: { title: "BSS Smart Society", type: "RESIDENTIAL", icon: "🏘", desc: "12 IoT residential towers with solar power, AI security and smart meters.", stats: [["🏠 Towers", "12"], ["👥 Residents", "2,400"], ["☀️ Solar", "82% self"], ["🔒 Security", "AI Active"]] },
+  bank: { title: "Smart City State Bank", type: "FINANCIAL", icon: "🏦", desc: "Digital banking, AI fraud detection, 24/7 smart ATMs and blockchain vaults.", stats: [["💰 Transactions", "1,240/hr"], ["🏧 ATMs", "8 online"], ["🔐 AI Security", "Active"], ["📈 Uptime", "99.9%"]] },
+  farm: { title: "Smart Eco Farm", type: "AGRICULTURE", icon: "🌾", desc: "IoT sensors, drip irrigation, drone monitoring and AI fertilizer dosing.", stats: [["🌾 Crop Health", "94%"], ["💧 Soil Moisture", "68%"], ["🚁 Drones", "3 active"], ["🌡️ Temp", "24°C"]] },
+  newHall: { title: "Liverpool Event Hall", type: "EVENT VENUE", icon: "🎪", desc: "Smart auditorium with adaptive lighting and immersive surround sound.", stats: [["🎪 Capacity", "2,000"], ["🎤 Events", "3 today"], ["💡 Lights", "Smart ON"], ["🎵 Sound", "Surround"]] },
+  carWash: { title: "Car Wash · Gas Station", type: "AUTOMOTIVE", icon: "🚗", desc: "Automated car wash with water recycling and EV fast charging stations.", stats: [["🚗 Cars today", "87"], ["⚡ EV Chargers", "4"], ["⛽ Fuel Pumps", "6"], ["💧 Recycle", "78%"]] },
+  powerCompany: { title: "City Power Supply Co.", type: "UTILITY", icon: "🔌", desc: "AI load balancing, grid monitoring and smart distribution substation.", stats: [["⚡ Load", "68 MW"], ["🔋 Reserve", "22%"], ["📊 Grid", "Stable"], ["🔌 Outages", "0"]] },
+  powerSupply: { title: "Power Supply Zone", type: "RENEWABLE", icon: "⚡", desc: "Solar + wind hybrid renewable generation and battery storage farm.", stats: [["☀️ Solar", "42 MW"], ["💨 Wind", "28 MW"], ["🔋 Batteries", "78%"], ["⚡ Output", "70 MW"]] },
+  filtration: { title: "Filtration System", type: "WATER TREATMENT", icon: "💧", desc: "9-stage purification: wastewater → primary → biological → UV → clean reuse.", stats: [["💧 Processed", "12M L/day"], ["🧪 Purity", "99.7%"], ["🔬 Sensors", "24"], ["♻️ Recycle", "82%"]] },
+  fertilizer: { title: "AI Fertilizer System", type: "FERTILIZER MGMT", icon: "🌱", desc: "AI nutrient mixing with real-time soil analysis and automated dosing.", stats: [["🌱 NPK Ratio", "Optimal"], ["🤖 AI Dosing", "Active"], ["🚚 Trucks", "2 out"], ["📊 Soil Health", "94%"]] },
+  wasteManagement: { title: "Waste Management", type: "MUNICIPAL", icon: "♻", desc: "Smart segregation, recycling and waste-to-energy conversion plant.", stats: [["♻️ Recycled", "68%"], ["⚡ Energy", "4.2 MW"], ["🗑️ Trucks", "3 out"], ["📊 Bins", "42%"]] },
+  cultureCenter: { title: "Culture Center", type: "CULTURAL", icon: "🏛", desc: "Museums, galleries, VR tours and immersive cultural workshops.", stats: [["🎭 Visitors", "320"], ["🖼️ Exhibits", "45"], ["🎬 VR Tours", "Online"], ["🎨 Workshops", "2 today"]] },
+  sewageCompany: { title: "Sewage & Gas Co.", type: "INDUSTRIAL", icon: "🏭", desc: "AI sewage treatment, biogas generation and industrial water recycling.", stats: [["🏭 Processed", "8M L/day"], ["💨 Biogas", "2.1 MW"], ["♻️ Recycle", "75%"], ["🔬 Quality", "Clean"]] },
+  scifi9: { title: "Sci-Fi Building 9", type: "SCI-FI R&D", icon: "🛸", desc: "Futuristic holographic labs and quantum computing research centre.", stats: [["🧪 Labs", "12"], ["💻 Quantum", "Online"], ["🔬 Projects", "8"], ["⚡ Power", "Stable"]] },
+  beautifulTower: { title: "Beautiful Tower", type: "SKYLINE", icon: "🗼", desc: "Iconic landmark with smart LED facade and observation deck.", stats: [["🏙️ Height", "320 m"], ["👁️ Visitors", "180"], ["💡 Lights", "Show"], ["📡 Antenna", "Active"]] },
+  scifi10: { title: "Sci-Fi Building 10", type: "SCI-FI", icon: "🚀", desc: "Space tech hub with satellite control and AI mission planning.", stats: [["🛰️ Satellites", "6"], ["🚀 Missions", "2"], ["📡 Signal", "Strong"], ["🤖 AI", "Online"]] },
+  wasteCollector: { title: "Waste Collector Point", type: "MUNICIPAL", icon: "🗑", desc: "Smart bins with AI route optimisation and odour control.", stats: [["🗑️ Bins", "24"], ["📊 Fill", "42%"], ["🚛 Pickup", "18 min"], ["♻️ Sorted", "78%"]] },
+  trafficController: { title: "AI Traffic Controller", type: "TRANSPORTATION", icon: "🤖", desc: "Monitors 4 city roads, adaptive signals, jam detection and AI rerouting.", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24"]] },
+  dataCenter: { title: "Smart Data Center", type: "TECHNOLOGY", icon: "💾", desc: "Cloud servers, AI compute cluster and secure city data vaults.", stats: [["🖥️ Servers", "2,400"], ["💾 Storage", "18 PB"], ["🔒 Security", "Tier-4"], ["🌡️ Temp", "18°C"]] },
+  telecom: { title: "Smart Telecom Tower", type: "TELECOM", icon: "📡", desc: "5G/6G broadcast tower with AI signal optimisation.", stats: [["📶 Bands", "5G+6G"], ["📡 Range", "25 km"], ["📊 Uptime", "99.9%"], ["🔋 Power", "Solar"]] },
+  waterTower: { title: "Smart Water Tower", type: "UTILITY", icon: "💧", desc: "Elevated reservoir with quality sensors and automated distribution.", stats: [["💧 Capacity", "2M L"], ["🧪 Quality", "Optimal"], ["📊 Level", "78%"], ["🔬 Sensors", "8"]] },
+  ev: { title: "EV Charging Station", type: "ENERGY", icon: "⚡", desc: "Fast-charging station with solar canopy and smart grid integration.", stats: [["⚡ Chargers", "4"], ["🚗 Today", "22"], ["☀️ Solar", "Yes"], ["⏱️ Fast", "30 min"]] },
+  police: { title: "Smart Police Station", type: "SAFETY", icon: "🚔", desc: "AI surveillance hub with drone dispatch and emergency response.", stats: [["👮 Officers", "48"], ["🚔 Units", "6"], ["📹 Cameras", "120"], ["📞 Response", "4 min"]] },
+  fire: { title: "Fire Station", type: "SAFETY", icon: "🚒", desc: "Emergency fire response with smart dispatch and thermal drones.", stats: [["🚒 Trucks", "4"], ["👨‍🚒 Crew", "24"], ["🚁 Drones", "2"], ["⏱️ Response", "3 min"]] },
+  library: { title: "Smart Public Library", type: "EDUCATION", icon: "📚", desc: "Digital library with AI book finder and VR reading rooms.", stats: [["📚 Books", "45K"], ["💻 Digital", "12K"], ["👥 Today", "180"], ["🎬 VR Rooms", "4"]] },
+  helipad: { title: "Emergency Helipad", type: "EMERGENCY", icon: "🚁", desc: "Rooftop helipad for medical and emergency air response.", stats: [["🚁 Landings", "12"], ["⏱️ Ready", "24/7"], ["📡 Radar", "Active"], ["💡 Lights", "ON"]] },
+  parking: { title: "Smart Parking", type: "TRANSPORT", icon: "🅿️", desc: "AI-guided multi-level parking with EV charging and auto valet.", stats: [["🚗 Spaces", "240"], ["🅿️ Free", "82"], ["⚡ EV", "Yes"], ["📱 App", "Live"]] },
+  wasteBin: { title: "Waste Container", type: "WASTE", icon: "🗑", desc: "IoT-enabled smart bin with auto-notification when full.", stats: [["📊 Fill", "42%"], ["🔋 Battery", "88%"], ["📡 Signal", "Good"], ["♻️ Type", "Mixed"]] },
+  filtrationMachine: { title: "Filtration Machine", type: "WATER TREATMENT", icon: "⚙️", desc: "Reverse osmosis + UV purification core unit.", stats: [["💧 Flow", "180 L/min"], ["🧪 Purity", "99.7%"], ["🔬 Stages", "9"], ["⚡ Power", "12 kW"]] },
+  battery: { title: "Battery Storage", type: "ENERGY", icon: "🔋", desc: "Grid-scale battery bank for peak shaving and backup.", stats: [["⚡ Capacity", "20 MWh"], ["🔋 Charge", "78%"], ["📊 Cycles", "1,240"], ["🌡️ Temp", "Stable"]] },
+  antenna: { title: "Smart Antenna", type: "TELECOM", icon: "📡", desc: "Multi-band antenna for city-wide network coverage.", stats: [["📶 Bands", "4"], ["📡 Range", "30 km"], ["🔋 Power", "Solar"], ["📊 Uptime", "99%"]] },
+  shop: { title: "Smart Shop", type: "COMMERCE", icon: "🛒", desc: "AI-powered retail shop with cashless payment.", stats: [["🛒 Items", "1,200"], ["💳 Digital", "100%"], ["👥 Today", "86"], ["📦 Delivery", "Yes"]] },
+};
 
 export const LOCATIONS = {
   school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
@@ -182,13 +221,14 @@ const SmartCity3D = forwardRef((props, ref) => {
   } = props;
   const mountRef = useRef(null);
   const [locationPopup, setLocationPopup] = useState(null);
+  const [buildingPopup, setBuildingPopup] = useState(null);
 
   const s = useRef({
     camera: null, controls: null, renderer: null, scene: null,
     isLocked: false, lockedLocation: null, followTarget: null,
     savedCamPos: null, savedCamTarget: null, camTransition: null,
     trucks: {}, people: [], tourists: [], cityCars: [], intersectionCars: [],
-    dubaiCars: [],            // NEW: Dubai-style luxury cars
+    dubaiCars: [],
     trafficLights: [], intersectionLights: [],
     turbines: [], streetBulbMats: [], batteryRings: [],
     waterParticles: [], clickable: [], borderLights: [],
@@ -635,6 +675,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const controllerSig = new THREE.Mesh(new THREE.SphereGeometry(2.2, 12, 12), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 3.5 }));
     controllerSig.position.y = 68; controller.add(controllerSig); s.controllerSig = controllerSig;
     scene.add(controller);
+    clickable.push({ object: controller, type: "trafficController", name: "AI Traffic Controller" });
 
     const loader = new GLTFLoader(); const clickable = []; s.clickable = clickable;
 
@@ -1426,7 +1467,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
 
     /* ============================================================
-       CITY CARS — ALL FIXED (no flying, slow, never disappear)
+       CITY CARS — SLOW & CONSISTENT (no flying, no freezing)
        ============================================================ */
     const cityCars = []; s.cityCars = cityCars;
     const carColors = [
@@ -1493,7 +1534,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const midRoutePoints = [
       { x: -1200, z: -1200 }, { x: 1200, z: -1200 }, { x: 1200, z: 1200 }, { x: -1200, z: 1200 }
     ];
-    // IMPORTANT: Inner route is pushed AWAY from city centre (0,0) so cars never go over Traffic Manager building
+    // Inner route away from traffic controller — min distance from center = 900
     const innerRoutePoints = [
       { x: -900, z: -900 }, { x: 900, z: -900 }, { x: 900, z: 900 }, { x: -900, z: 900 }
     ];
@@ -1573,14 +1614,16 @@ const SmartCity3D = forwardRef((props, ref) => {
         if (d.progress > 1) d.progress -= 1;
         if (d.progress < 0) d.progress += 1;
         const p = getPointOnRoute(d.segments, d.progress);
-        d.car.position.set(p.x, CAR_Y, p.z);   // always at fixed ground height
+        d.car.position.set(p.x, CAR_Y, p.z);
         d.car.rotation.y = -p.angle;
-        d.car.visible = true;                  // never disappear
+        d.car.visible = true;
       }
     }
 
+    /* ============================================================
+       INTERSECTION CARS — smooth movement, no permanent freeze
+       ============================================================ */
     const intersectionCars = []; s.intersectionCars = intersectionCars;
-
     const ROAD_LANES = [
       { id: 1, dir: "north", axis: "z", sign: -1, xOffset: -30, startPos: -1000, endPos: 400 },
       { id: 2, dir: "south", axis: "z", sign: 1, xOffset: 30, startPos: 1000, endPos: -400 },
@@ -1598,9 +1641,10 @@ const SmartCity3D = forwardRef((props, ref) => {
         axis: lane.axis, sign: lane.sign,
         xOffset: lane.xOffset || 0, zOffset: lane.zOffset || 0,
         pos: startPos,
-        speed: INTERSECTION_SPEED,
-        baseSpeed: INTERSECTION_SPEED,
+        speed: INTERSECTION_BASE_SPEED,
+        baseSpeed: INTERSECTION_BASE_SPEED,
         waiting: false,
+        waitTimer: 0,               // NEW — prevents permanent freeze
       };
       intersectionCars.push(carObj);
       updateIntersectionCarTransform(carObj);
@@ -1616,7 +1660,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
     }
 
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 40; i++) {
       const roadId = (i % 4) + 1;
       const lane = ROAD_LANES[roadId - 1];
       const startPos = lane.startPos + (i * 40) * Math.sign(lane.endPos - lane.startPos);
@@ -1627,55 +1671,67 @@ const SmartCity3D = forwardRef((props, ref) => {
       for (const c of intersectionCars) {
         const isGreen = aiSystem.isGreen(c.roadId);
         const isYellow = aiSystem.isYellowRoad(c.roadId);
-
-        const stopLinePos = c.axis === "z"
-          ? (c.sign < 0 ? 180 : -180)
-          : (c.sign < 0 ? -180 : 180);
-
+        const stopLinePos = c.axis === "z" ? (c.sign < 0 ? 180 : -180) : (c.sign < 0 ? -180 : 180);
         const distToStop = Math.abs(c.pos - stopLinePos);
+
         let targetSpeed = c.baseSpeed;
 
-        if (isYellow) targetSpeed = c.baseSpeed * 0.6;
-        else if (!isGreen) {
-          if (distToStop < 60) { targetSpeed = 0; c.waiting = true; }
-          else if (distToStop < 180) { targetSpeed = c.baseSpeed * 0.3; c.waiting = false; }
-          else { targetSpeed = c.baseSpeed * 0.7; c.waiting = false; }
-        } else c.waiting = false;
+        if (isGreen) {
+          // Always move — no blocking
+          targetSpeed = c.baseSpeed;
+          c.waiting = false;
+          c.waitTimer = 0;
+        } else if (isYellow) {
+          targetSpeed = c.baseSpeed * 0.55;
+          c.waiting = false;
+          c.waitTimer = 0;
+        } else {
+          // RED — wait, but not forever (waitTimer forces resume)
+          if (distToStop < 60 && c.waitTimer < 6) {
+            targetSpeed = 0;
+            c.waiting = true;
+            c.waitTimer += delta;
+          } else if (distToStop < 180) {
+            targetSpeed = c.baseSpeed * 0.25;
+            c.waiting = false;
+            c.waitTimer = 0;
+          } else {
+            targetSpeed = c.baseSpeed * 0.6;
+            c.waiting = false;
+            c.waitTimer = 0;
+          }
+        }
 
-        // SLOW smooth interpolation, no zipping
-        c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 2);
-        c.pos += c.sign * c.speed * delta * 25;
+        // Smooth lerp
+        c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 2.5);
+        c.pos += c.sign * c.speed * delta * 20;
 
+        // Wrap
         const range = 1200;
-        if (c.sign < 0 && c.pos < -range) c.pos = range;
-        else if (c.sign > 0 && c.pos > range) c.pos = -range;
+        if (c.sign < 0 && c.pos < -range) { c.pos = range; c.waitTimer = 0; }
+        else if (c.sign > 0 && c.pos > range) { c.pos = -range; c.waitTimer = 0; }
 
         updateIntersectionCarTransform(c);
       }
     }
 
-    /* ============================================================
-       DUBAI-STYLE LUXURY VEHICLES (static decorative — no flying)
-       ============================================================ */
+    /* ===== DUBAI LUXURY CARS (static decorative) ===== */
     function makeDubaiLuxuryCar(colorHex) {
       const g = new THREE.Group();
-      const bMat = mat(colorHex, 0.15, 0.9);   // shiny gold-like
+      const bMat = mat(colorHex, 0.15, 0.9);
       const body = new THREE.Mesh(new THREE.BoxGeometry(48, 9, 20), bMat); body.position.y = 6; g.add(body);
       const roof = new THREE.Mesh(new THREE.BoxGeometry(28, 8, 17), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.7, roughness: 0.2, transparent: true, opacity: 0.85 }));
       roof.position.set(-2, 14, 0); g.add(roof);
-      // Wheels
       const wheelGeo = new THREE.CylinderGeometry(4, 4, 2.5, 16);
       for (const wx of [-14, 14]) for (const wz of [-9, 9]) {
         const w = new THREE.Mesh(wheelGeo, wheelMat); w.rotation.x = Math.PI / 2; w.position.set(wx, 4, wz); g.add(w);
       }
-      // Gold trim
       const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 1, roughness: 0.1 });
       const frontLight = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 4), goldMat); frontLight.position.set(24, 6, 5); g.add(frontLight);
       const frontLight2 = frontLight.clone(); frontLight2.position.z = -5; g.add(frontLight2);
       return g;
     }
 
-    // Place a few luxury cars as static decorative near the Bank and Society (not moving)
     const dubaiCarPositions = [
       [900, 600, 0], [700, 400, Math.PI / 2], [-900, 900, Math.PI], [-700, 500, -Math.PI / 2],
     ];
@@ -1795,21 +1851,19 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     function addLandscaping() {
       const grassPatchMat = new THREE.MeshStandardMaterial({ color: 0x3d7f45, roughness: 0.95 });
-      const sidewalkPatchMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9 });
-      const parkingMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.9 });
       const buildingPlots = [
-        { x: -600, z: -600, w: 500, d: 500, sidewalk: true, parking: true, trees: 6 },
-        { x: 600, z: -600, w: 480, d: 480, sidewalk: true, parking: true, trees: 5 },
-        { x: 600, z: 600, w: 520, d: 520, sidewalk: true, parking: true, trees: 6 },
-        { x: 1800, z: -600, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
-        { x: 600, z: 1800, w: 560, d: 560, sidewalk: true, parking: true, trees: 6 },
-        { x: 1800, z: 1750, w: 600, d: 600, sidewalk: true, parking: true, trees: 5 },
-        { x: 1800, z: 600, w: 560, d: 560, sidewalk: true, parking: false, trees: 6 },
-        { x: -1800, z: 1800, w: 620, d: 620, sidewalk: true, parking: false, trees: 8 },
-        { x: -1600, z: 800, w: 480, d: 480, sidewalk: true, parking: true, trees: 5 },
-        { x: -3900, z: -2400, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
-        { x: -3600, z: -800, w: 720, d: 720, sidewalk: true, parking: false, trees: 10 },
-        { x: -3600, z: 800, w: 700, d: 700, sidewalk: true, parking: false, trees: 10 },
+        { x: -600, z: -600, w: 500, d: 500, trees: 6 },
+        { x: 600, z: -600, w: 480, d: 480, trees: 5 },
+        { x: 600, z: 600, w: 520, d: 520, trees: 6 },
+        { x: 1800, z: -600, w: 700, d: 700, trees: 10 },
+        { x: 600, z: 1800, w: 560, d: 560, trees: 6 },
+        { x: 1800, z: 1750, w: 600, d: 600, trees: 5 },
+        { x: 1800, z: 600, w: 560, d: 560, trees: 6 },
+        { x: -1800, z: 1800, w: 620, d: 620, trees: 8 },
+        { x: -1600, z: 800, w: 480, d: 480, trees: 5 },
+        { x: -3900, z: -2400, w: 700, d: 700, trees: 10 },
+        { x: -3600, z: -800, w: 720, d: 720, trees: 10 },
+        { x: -3600, z: 800, w: 700, d: 700, trees: 10 },
       ];
       buildingPlots.forEach(plot => {
         const grass = new THREE.Mesh(new THREE.BoxGeometry(plot.w + 60, 0.35, plot.d + 60), grassPatchMat);
@@ -1828,10 +1882,7 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     const sim = createCitySimulation({ onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason });
     s.sim = sim;
-
-    const aiSystem = createAITrafficSystem({
-      onTrafficUpdate: (data) => onAITrafficUpdate?.(data),
-    });
+    const aiSystem = createAITrafficSystem({ onTrafficUpdate: (data) => onAITrafficUpdate?.(data) });
     s.aiSystem = aiSystem;
 
     const garbageRoute = [
@@ -1871,6 +1922,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       if (Math.abs(dx) + Math.abs(dz) > 0.1) truck.rotation.y = -Math.atan2(dz, dx);
     }
 
+    /* ===== CLICK HANDLER — OPENS POPUP ===== */
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     const onClick = (e) => {
@@ -1882,6 +1934,13 @@ const SmartCity3D = forwardRef((props, ref) => {
       for (const item of clickable) {
         const hit = raycaster.intersectObject(item.object, true);
         if (hit.length) {
+          const info = BUILDING_INFO[item.type];
+          if (info) {
+            setBuildingPopup(info);
+          } else {
+            setBuildingPopup({ title: item.name || "Location", type: "INFO", icon: "📍", desc: "Smart city location.", stats: [] });
+          }
+          // Also call onPanel for parent UI
           onPanel({ title: item.name || "Location", type: "INFO", text: "Details available." });
           return;
         }
@@ -2070,6 +2129,49 @@ const SmartCity3D = forwardRef((props, ref) => {
   return (
     <>
       <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />
+
+      {/* ====== BUILDING CLICK POPUP ====== */}
+      {buildingPopup && (
+        <div style={{
+          position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+          background: "linear-gradient(135deg, rgba(6,20,35,0.97), rgba(12,35,55,0.95))",
+          border: "2px solid #22cfff", borderRadius: 20, padding: "22px 28px",
+          color: "#fff", fontFamily: "system-ui, -apple-system, sans-serif",
+          boxShadow: "0 0 60px rgba(34,207,255,0.6), inset 0 0 30px rgba(34,207,255,0.08)",
+          zIndex: 9999, minWidth: 420, maxWidth: 540, backdropFilter: "blur(16px)",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <span style={{ fontSize: 44 }}>{buildingPopup.icon}</span>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#22cfff", letterSpacing: 0.5 }}>{buildingPopup.title}</div>
+                <div style={{ fontSize: 10, color: "#7fe3ff", letterSpacing: 2, textTransform: "uppercase", marginTop: 3 }}>{buildingPopup.type}</div>
+              </div>
+            </div>
+            <button onClick={() => setBuildingPopup(null)} style={{ background: "transparent", border: "none", color: "#7fe3ff", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+          </div>
+          <div style={{ fontSize: 13, color: "#b8e8ff", marginBottom: 14, lineHeight: 1.6 }}>{buildingPopup.desc}</div>
+          {buildingPopup.stats && buildingPopup.stats.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {buildingPopup.stats.map((stat, i) => (
+                <div key={i} style={{
+                  background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)",
+                  borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between",
+                  alignItems: "center", fontSize: 12,
+                }}>
+                  <span style={{ color: "#8fd8f0" }}>{stat[0]}</span>
+                  <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: 14, fontSize: 10, color: "#22cfff", textAlign: "center", letterSpacing: 1.5, textTransform: "uppercase" }}>
+            Click anywhere outside to close
+          </div>
+        </div>
+      )}
+
+      {/* ====== LOCATION POPUP (bottom) ====== */}
       {locationPopup && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
@@ -2077,7 +2179,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           border: "2px solid #22cfff", borderRadius: 16, padding: "18px 28px", color: "#fff",
           fontFamily: "system-ui, -apple-system, sans-serif",
           boxShadow: "0 0 40px rgba(34, 207, 255, 0.5)",
-          zIndex: 9999, minWidth: 420, maxWidth: 600, backdropFilter: "blur(12px)",
+          zIndex: 9998, minWidth: 420, maxWidth: 600, backdropFilter: "blur(12px)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
             <span style={{ fontSize: 32 }}>{locationPopup.icon}</span>
