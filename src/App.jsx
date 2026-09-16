@@ -23,6 +23,7 @@ export default function App() {
   const [powerData, setPowerData] = useState(null);
   const [filtrationData, setFiltrationData] = useState(null);
   const [foodData, setFoodData] = useState(null);
+  const [wasteData, setWasteData] = useState(null);
 
   const cityRef = useRef(null);
   const mediaRef = useRef(null);
@@ -110,9 +111,9 @@ export default function App() {
         onPowerUpdate={setPowerData}
         onFiltrationUpdate={setFiltrationData}
         onFoodUpdate={setFoodData}
+        onWasteUpdate={setWasteData}
       />
 
-      {/* ═══ TOP BAR ═══ */}
       <div className="topbar">
         <div className="brand">
           <div className="brand-mark">🏙</div>
@@ -121,30 +122,21 @@ export default function App() {
             <div className="brand-sub">Smart City Control Center</div>
           </div>
         </div>
-
         <div className="topbar-center">
           <div className="sys-pill">
-            <span
-              className="pill-dot"
-              style={{ background: sigColor(getRoadSignal(1)) }}
-            />
+            <span className="pill-dot" style={{ background: sigColor(getRoadSignal(1)) }} />
             <span className="pill-label">AI TRAFFIC:</span>
             <span className="pill-phase">{aiTraffic.phaseLabel}</span>
           </div>
         </div>
-
         <div className="topbar-right">
-          <button
-            className={`rec-btn ${recording ? "on" : ""}`}
-            onClick={toggleRecording}
-          >
+          <button className={`rec-btn ${recording ? "on" : ""}`} onClick={toggleRecording}>
             <span className={`rec-dot ${recording ? "on" : ""}`} />
             <span>{recording ? fmt(recTime) : "REC"}</span>
           </button>
         </div>
       </div>
 
-      {/* ═══ 4 SYSTEM CARDS (right side) ═══ */}
       <div className="sys-cards">
         <button className="sys-card traffic" onClick={() => openSystem("traffic")}>
           <div className="card-icon">🚦</div>
@@ -154,7 +146,6 @@ export default function App() {
           </div>
           <div className="card-arrow">›</div>
         </button>
-
         <button className="sys-card power" onClick={() => openSystem("power")}>
           <div className="card-icon">⚡</div>
           <div className="card-info">
@@ -163,7 +154,6 @@ export default function App() {
           </div>
           <div className="card-arrow">›</div>
         </button>
-
         <button className="sys-card water" onClick={() => openSystem("filtration")}>
           <div className="card-icon">💧</div>
           <div className="card-info">
@@ -172,20 +162,24 @@ export default function App() {
           </div>
           <div className="card-arrow">›</div>
         </button>
-
         <button className="sys-card food" onClick={() => openSystem("food")}>
           <div className="card-icon">🍎</div>
           <div className="card-info">
             <div className="card-title">Food System</div>
-            <div className="card-sub">
-              {foodData?.stage?.label || "6-stage production"}
-            </div>
+            <div className="card-sub">{foodData?.stage?.label || "6-stage"}</div>
+          </div>
+          <div className="card-arrow">›</div>
+        </button>
+        <button className="sys-card waste" onClick={() => openSystem("waste")}>
+          <div className="card-icon">♻️</div>
+          <div className="card-info">
+            <div className="card-title">Waste Management</div>
+            <div className="card-sub">{wasteData?.stage?.label || "6-stage"}</div>
           </div>
           <div className="card-arrow">›</div>
         </button>
       </div>
 
-      {/* ═══ BOTTOM CONTROLS ═══ */}
       <div className="bottom-controls">
         <button className="ctrl-btn" onClick={() => cityRef.current?.goToOverview?.()}>
           <span className="ctrl-icon">🏠</span>
@@ -195,16 +189,12 @@ export default function App() {
           <span className="ctrl-icon">🛰</span>
           <span className="ctrl-label">Top View</span>
         </button>
-        <button
-          className={`ctrl-btn ${isNight ? "active" : ""}`}
-          onClick={toggleDayNight}
-        >
+        <button className={`ctrl-btn ${isNight ? "active" : ""}`} onClick={toggleDayNight}>
           <span className="ctrl-icon">{isNight ? "🌙" : "☀"}</span>
           <span className="ctrl-label">{isNight ? "Night" : "Day"}</span>
         </button>
       </div>
 
-      {/* ═══ PANEL POPUP ═══ */}
       {panel && (
         <Panel
           data={panel}
@@ -213,25 +203,18 @@ export default function App() {
           powerData={powerData}
           filtrationData={filtrationData}
           foodData={foodData}
+          wasteData={wasteData}
         />
       )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   PANEL
-   ═══════════════════════════════════════════════════════════════ */
-function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }) {
-  const content = getPanelContent(data, aiTraffic, powerData, filtrationData, foodData);
-
+function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData, wasteData }) {
+  const content = getPanelContent(data, aiTraffic, powerData, filtrationData, foodData, wasteData);
   return (
     <div className="panel-backdrop" onClick={onClose}>
-      <div
-        className="panel"
-        onClick={(e) => e.stopPropagation()}
-        style={{ "--accent": content.color }}
-      >
+      <div className="panel" onClick={(e) => e.stopPropagation()} style={{ "--accent": content.color }}>
         <div className="panel-header" style={{ background: content.headerBg }}>
           <div className="panel-icon">{content.icon}</div>
           <div className="panel-title-group">
@@ -246,22 +229,17 @@ function Panel({ data, onClose, aiTraffic, powerData, filtrationData, foodData }
   );
 }
 
-function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
+function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData, wasteData) {
   const type = data.type;
 
-  /* ═══════════════ AI TRAFFIC ═══════════════ */
   if (type === "traffic") {
     const stats = aiTraffic.stats || {};
     const roadSignal = (r) => {
       if (aiTraffic.inAllRed) return "red";
-      if (aiTraffic.inYellow) {
-        return aiTraffic.currentGreenRoads?.includes(r) ? "yellow" : "red";
-      }
+      if (aiTraffic.inYellow) return aiTraffic.currentGreenRoads?.includes(r) ? "yellow" : "red";
       return aiTraffic.currentGreenRoads?.includes(r) ? "green" : "red";
     };
-    const colorFor = (s) =>
-      s === "green" ? "#22ff66" : s === "yellow" ? "#ffcc22" : "#ff2222";
-
+    const colorFor = (s) => s === "green" ? "#22ff66" : s === "yellow" ? "#ffcc22" : "#ff2222";
     return {
       icon: "🚦",
       title: "AI Traffic Control Center",
@@ -272,55 +250,29 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
         <>
           <div className="p-section">
             <div className="p-label">CURRENT PHASE</div>
-            <div className="p-big" style={{ color: "#22cfff" }}>
-              {aiTraffic.phaseLabel}
-            </div>
+            <div className="p-big" style={{ color: "#22cfff" }}>{aiTraffic.phaseLabel}</div>
             <div className="p-progress">
-              <div
-                className="p-progress-fill"
-                style={{
-                  width: `${(aiTraffic.phaseProgress || 0) * 100}%`,
-                  background: "#22cfff",
-                }}
-              />
+              <div className="p-progress-fill" style={{ width: `${(aiTraffic.phaseProgress || 0) * 100}%`, background: "#22cfff" }} />
             </div>
-            <div className="p-timer">
-              Phase timer: {Math.max(0, stats.phaseTimeRemaining || 0).toFixed(1)}s
-            </div>
+            <div className="p-timer">Phase timer: {Math.max(0, stats.phaseTimeRemaining || 0).toFixed(1)}s</div>
           </div>
-
           <div className="p-section">
             <div className="p-label">SIGNAL STATE — 4 ROADS</div>
             <div className="signal-grid">
-              {[
-                { id: 1, name: "North", icon: "⬆️" },
-                { id: 2, name: "South", icon: "⬇️" },
-                { id: 3, name: "East", icon: "➡️" },
-                { id: 4, name: "West", icon: "⬅️" },
-              ].map((r) => {
+              {[{ id: 1, name: "North", icon: "⬆️" }, { id: 2, name: "South", icon: "⬇️" }, { id: 3, name: "East", icon: "➡️" }, { id: 4, name: "West", icon: "⬅️" }].map((r) => {
                 const sig = roadSignal(r.id);
                 const col = colorFor(sig);
                 return (
-                  <div
-                    key={r.id}
-                    className="signal-box"
-                    style={{ borderColor: col + "60" }}
-                  >
+                  <div key={r.id} className="signal-box" style={{ borderColor: col + "60" }}>
                     <div className="signal-icon">{r.icon}</div>
                     <div className="signal-name">{r.name}</div>
-                    <div
-                      className="signal-light"
-                      style={{ background: col, boxShadow: `0 0 16px ${col}` }}
-                    />
-                    <div className="signal-state" style={{ color: col }}>
-                      {sig.toUpperCase()}
-                    </div>
+                    <div className="signal-light" style={{ background: col, boxShadow: `0 0 16px ${col}` }} />
+                    <div className="signal-state" style={{ color: col }}>{sig.toUpperCase()}</div>
                   </div>
                 );
               })}
             </div>
           </div>
-
           <div className="p-section">
             <div className="p-label">LIVE STATISTICS</div>
             <div className="stats-grid">
@@ -330,7 +282,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
               <StatCard label="Density" value={stats.density ?? "LOW"} color="#ff8888" />
             </div>
           </div>
-
           <div className="p-section">
             <div className="p-label">AI DECISION LOG</div>
             <div className="log-list">
@@ -338,18 +289,10 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
                 <div className="log-empty">Monitoring traffic…</div>
               ) : (
                 (aiTraffic.decisionLog || []).slice(0, 6).map((e, i) => (
-                  <div
-                    key={i}
-                    className="log-item"
-                    style={{
-                      borderLeftColor:
-                        e.type === "emergency" ? "#ff4444" :
-                        e.type === "phase" ? "#ffcc22" : "#22cfff",
-                      color: e.type === "emergency" ? "#ff8888" : "#b8e8ff",
-                    }}
-                  >
-                    {e.message}
-                  </div>
+                  <div key={i} className="log-item" style={{
+                    borderLeftColor: e.type === "emergency" ? "#ff4444" : e.type === "phase" ? "#ffcc22" : "#22cfff",
+                    color: e.type === "emergency" ? "#ff8888" : "#b8e8ff",
+                  }}>{e.message}</div>
                 ))
               )}
             </div>
@@ -359,7 +302,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     };
   }
 
-  /* ═══════════════ POWER ═══════════════ */
   if (type === "power") {
     const stages = [
       { name: "Solar Array", value: "42 MW", color: "#ffcc22", icon: "☀️" },
@@ -369,62 +311,35 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
       { name: "City Load Balance", value: "68 MW", color: "#b266ff", icon: "📊" },
     ];
     const current = powerData?.stage;
-
     return {
-      icon: "⚡",
-      title: "Power Supply System",
-      subtitle: "Renewable energy · 70 MW total output",
-      color: "#ffcc22",
-      headerBg: "linear-gradient(135deg, #3a2a0a, #1c1404)",
+      icon: "⚡", title: "Power Supply System", subtitle: "Renewable energy · 70 MW total output",
+      color: "#ffcc22", headerBg: "linear-gradient(135deg, #3a2a0a, #1c1404)",
       body: (
         <>
           {current && (
             <div className="p-section">
               <div className="p-label">CURRENT STAGE</div>
-              <div
-                className="p-big"
-                style={{
-                  color: current.color
-                    ? `#${current.color.toString(16).padStart(6, "0")}`
-                    : "#ffcc22",
-                }}
-              >
-                {current.label}
-              </div>
+              <div className="p-big" style={{ color: current.color ? `#${current.color.toString(16).padStart(6, "0")}` : "#ffcc22" }}>{current.label}</div>
               <div className="p-desc">{current.desc}</div>
               <div className="p-progress" style={{ marginTop: 10 }}>
-                <div
-                  className="p-progress-fill"
-                  style={{
-                    width: `${(powerData.progress || 0) * 100}%`,
-                    background: "#ffcc22",
-                  }}
-                />
+                <div className="p-progress-fill" style={{ width: `${(powerData.progress || 0) * 100}%`, background: "#ffcc22" }} />
               </div>
             </div>
           )}
-
           <div className="p-section">
             <div className="p-label">POWER PIPELINE</div>
             <div className="stage-list">
               {stages.map((s, i) => (
-                <div
-                  key={i}
-                  className="stage-item"
-                  style={{ borderColor: s.color + "40" }}
-                >
+                <div key={i} className="stage-item" style={{ borderColor: s.color + "40" }}>
                   <div className="stage-icon">{s.icon}</div>
                   <div className="stage-info">
                     <div className="stage-name">{s.name}</div>
-                    <div className="stage-value" style={{ color: s.color }}>
-                      {s.value}
-                    </div>
+                    <div className="stage-value" style={{ color: s.color }}>{s.value}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-
           <div className="p-section">
             <div className="p-label">SYSTEM METRICS</div>
             <div className="stats-grid">
@@ -434,22 +349,11 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
               <StatCard label="Outages Today" value="0" color="#22ff66" />
             </div>
           </div>
-
-          <div className="p-section">
-            <div className="p-label">COMPONENTS</div>
-            <div className="comp-list">
-              <div className="comp-item">🌬 16 Wind turbines (4×4 grid)</div>
-              <div className="comp-item">☀ 10 Solar arrays (2 cols × 5 rows)</div>
-              <div className="comp-item">🔋 10 Battery banks (2×5 grid)</div>
-              <div className="comp-item">🔌 Antenna masts for grid sync</div>
-            </div>
-          </div>
         </>
       ),
     };
   }
 
-  /* ═══════════════ FILTRATION ═══════════════ */
   if (type === "filtration") {
     const stages = [
       { name: "Wastewater Collection", color: "#6b4a2f", desc: "Raw sewage intake" },
@@ -464,41 +368,21 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     ];
     const current = filtrationData?.stage;
     const stageIdx = filtrationData?.stageIndex ?? 0;
-
     return {
-      icon: "💧",
-      title: "Water Filtration System",
-      subtitle: "9-stage purification · 99.7% purity",
-      color: "#22cfff",
-      headerBg: "linear-gradient(135deg, #0a2a4a, #04121c)",
+      icon: "💧", title: "Water Filtration System", subtitle: "9-stage · 99.7% purity",
+      color: "#22cfff", headerBg: "linear-gradient(135deg, #0a2a4a, #04121c)",
       body: (
         <>
           {current && (
             <div className="p-section">
               <div className="p-label">CURRENT STAGE</div>
-              <div
-                className="p-big"
-                style={{
-                  color: current.color
-                    ? `#${current.color.toString(16).padStart(6, "0")}`
-                    : "#22cfff",
-                }}
-              >
-                {current.label}
-              </div>
+              <div className="p-big" style={{ color: current.color ? `#${current.color.toString(16).padStart(6, "0")}` : "#22cfff" }}>{current.label}</div>
               <div className="p-desc">{current.desc}</div>
               <div className="p-progress" style={{ marginTop: 10 }}>
-                <div
-                  className="p-progress-fill"
-                  style={{
-                    width: `${(filtrationData.progress || 0) * 100}%`,
-                    background: "#22cfff",
-                  }}
-                />
+                <div className="p-progress-fill" style={{ width: `${(filtrationData.progress || 0) * 100}%`, background: "#22cfff" }} />
               </div>
             </div>
           )}
-
           <div className="p-section">
             <div className="p-label">PURIFICATION PIPELINE</div>
             <div className="pipeline">
@@ -507,25 +391,9 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
                 const isPast = i < stageIdx;
                 return (
                   <div key={i} className="pipe-stage">
-                    <div
-                      className="pipe-dot"
-                      style={{
-                        background: s.color,
-                        boxShadow: isCurrent
-                          ? `0 0 16px ${s.color}, 0 0 24px ${s.color}`
-                          : `0 0 10px ${s.color}`,
-                        transform: isCurrent ? "scale(1.4)" : "scale(1)",
-                        transition: "all 0.3s",
-                      }}
-                    />
+                    <div className="pipe-dot" style={{ background: s.color, boxShadow: isCurrent ? `0 0 16px ${s.color}, 0 0 24px ${s.color}` : `0 0 10px ${s.color}`, transform: isCurrent ? "scale(1.4)" : "scale(1)", transition: "all 0.3s" }} />
                     <div className="pipe-info">
-                      <div
-                        className="pipe-name"
-                        style={{
-                          color: isCurrent ? "#fff" : isPast ? "#7fe3ff" : "#8ba5b5",
-                          fontWeight: isCurrent ? 800 : 700,
-                        }}
-                      >
+                      <div className="pipe-name" style={{ color: isCurrent ? "#fff" : isPast ? "#7fe3ff" : "#8ba5b5", fontWeight: isCurrent ? 800 : 700 }}>
                         Stage {i + 1}: {s.name}
                         {isCurrent && <span className="pipe-active-badge">● ACTIVE</span>}
                         {isPast && <span className="pipe-done-badge">✓ DONE</span>}
@@ -537,7 +405,6 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
               })}
             </div>
           </div>
-
           <div className="p-section">
             <div className="p-label">PRODUCTION METRICS</div>
             <div className="stats-grid">
@@ -547,65 +414,46 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
               <StatCard label="Recycle Rate" value="82%" color="#2ecc71" />
             </div>
           </div>
+          <div className="p-section">
+            <div className="p-label">MACHINERY</div>
+            <div className="comp-list">
+              <div className="comp-item">⚙️ Skid Filtration Machine (main unit)</div>
+              <div className="comp-item">💧 9-stage tank array</div>
+              <div className="comp-item">🔬 UV purification chamber</div>
+              <div className="comp-item">🚰 Clean water reservoir</div>
+            </div>
+          </div>
         </>
       ),
     };
   }
 
-  /* ═══════════════ FOOD — DETAILED ═══════════════ */
   if (type === "food") {
     const currentStage = foodData?.stage;
     const stageIdx = foodData?.stageIndex ?? 0;
     const progress = foodData?.progress ?? 0;
-
     const stages = [
       { id: "planting", label: "Smart Planting", color: "#2ecc71", icon: "🌱", desc: "9 fields · AI seed placement" },
       { id: "irrigation", label: "Smart Irrigation", color: "#22cfff", icon: "💧", desc: "Sprinklers · 68% moisture" },
-      { id: "monitoring", label: "Drone Monitoring", color: "#ffcc22", icon: "🛸", desc: "3 drones · 94% crop health" },
-      { id: "harvest", label: "Robotic Harvest", color: "#e67e22", icon: "🚜", desc: "Auto-harvesters collecting" },
+      { id: "monitoring", label: "Drone Monitoring", color: "#ffcc22", icon: "🛸", desc: "3 drones · 94% health" },
+      { id: "harvest", label: "Robotic Harvest", color: "#e67e22", icon: "🚜", desc: "Auto-harvesters" },
       { id: "processing", label: "Food Processing", color: "#9b59b6", icon: "🏭", desc: "Washing · cutting · packing" },
       { id: "distribution", label: "City Distribution", color: "#ff6b6b", icon: "🚚", desc: "48 deliveries daily" },
     ];
-
-    const stageStats = {
-      planting: { Fields: "9", Seeds: "720", "AI Score": "98%", Temp: "24°C" },
-      irrigation: { Moisture: "68%", "Water Use": "12K L", Pressure: "2.4 bar", Temp: "23°C" },
-      monitoring: { Drones: "3", "Crop Health": "94%", Coverage: "100%", Temp: "25°C" },
-      harvest: { Yield: "2.4 T", Efficiency: "91%", Trucks: "2", Temp: "22°C" },
-      processing: { Items: "1,240", Quality: "98%", Speed: "180/min", Temp: "18°C" },
-      distribution: { Deliveries: "48", Cities: "12", "On Time": "99%", Temp: "4°C" },
-    };
-    const stats = stageStats[currentStage?.id] || stageStats.planting;
-
     return {
-      icon: "🍎",
-      title: "AI Food Production System",
-      subtitle: "6-stage farm-to-city · Fully automated",
-      color: "#2ecc71",
-      headerBg: "linear-gradient(135deg, #0a3a1e, #041a0e)",
+      icon: "🍎", title: "AI Food Production", subtitle: "6-stage farm-to-city",
+      color: "#2ecc71", headerBg: "linear-gradient(135deg, #0a3a1e, #041a0e)",
       body: (
         <>
           <div className="p-section">
             <div className="p-label">CURRENT STAGE</div>
-            <div className="p-big" style={{ color: "#2ecc71" }}>
-              {currentStage?.label || "Initializing…"}
-            </div>
-            <div className="p-desc">{currentStage?.desc || "AI food system starting up"}</div>
+            <div className="p-big" style={{ color: "#2ecc71" }}>{currentStage?.label || "Initializing…"}</div>
+            <div className="p-desc">{currentStage?.desc}</div>
             <div className="p-progress" style={{ marginTop: 10 }}>
-              <div
-                className="p-progress-fill"
-                style={{
-                  width: `${progress * 100}%`,
-                  background: "#2ecc71",
-                  boxShadow: "0 0 10px #2ecc71",
-                }}
-              />
+              <div className="p-progress-fill" style={{ width: `${progress * 100}%`, background: "#2ecc71", boxShadow: "0 0 10px #2ecc71" }} />
             </div>
-            <div className="p-timer">
-              Stage {stageIdx + 1} of 6 · {Math.round(progress * 100)}% complete
-            </div>
+            <div className="p-timer">Stage {stageIdx + 1} of 6 · {Math.round(progress * 100)}%</div>
           </div>
-
           <div className="p-section">
             <div className="p-label">PRODUCTION PIPELINE</div>
             <div className="pipeline">
@@ -614,30 +462,10 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
                 const isPast = i < stageIdx;
                 return (
                   <div key={s.id} className="pipe-stage">
-                    <div
-                      className="pipe-dot"
-                      style={{
-                        background: s.color,
-                        boxShadow: isCurrent
-                          ? `0 0 16px ${s.color}, 0 0 24px ${s.color}`
-                          : `0 0 10px ${s.color}`,
-                        transform: isCurrent ? "scale(1.4)" : "scale(1)",
-                        transition: "all 0.3s",
-                      }}
-                    />
+                    <div className="pipe-dot" style={{ background: s.color, boxShadow: isCurrent ? `0 0 16px ${s.color}` : `0 0 10px ${s.color}`, transform: isCurrent ? "scale(1.4)" : "scale(1)" }} />
                     <div className="pipe-info">
-                      <div
-                        className="pipe-name"
-                        style={{
-                          color: isCurrent ? "#fff" : isPast ? "#7fe3ff" : "#8ba5b5",
-                          fontWeight: isCurrent ? 800 : 700,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <span style={{ fontSize: 14 }}>{s.icon}</span>
-                        <span>{s.label}</span>
+                      <div className="pipe-name" style={{ color: isCurrent ? "#fff" : isPast ? "#7fe3ff" : "#8ba5b5", fontWeight: isCurrent ? 800 : 700 }}>
+                        <span style={{ fontSize: 14 }}>{s.icon}</span> {s.label}
                         {isCurrent && <span className="pipe-active-badge">● ACTIVE</span>}
                         {isPast && <span className="pipe-done-badge">✓ DONE</span>}
                       </div>
@@ -648,7 +476,95 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
               })}
             </div>
           </div>
+          <div className="p-section">
+            <div className="p-label">FIELD STATUS — 9 FIELDS</div>
+            <div className="field-grid">
+              {[1,2,3,4,5,6,7,8,9].map((n) => {
+                const cols = ["#2ecc71", "#27ae60", "#7bc96f"];
+                const col = cols[n % 3];
+                const health = 85 + (n * 3) % 15;
+                return (
+                  <div key={n} className="field-box">
+                    <div className="field-icon">🌾</div>
+                    <div className="field-name">F{n}</div>
+                    <div className="field-bar" style={{ width: `${health}%`, background: col }} />
+                    <div className="field-value" style={{ color: col }}>{health}%</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="p-section">
+            <div className="p-label">MACHINERY</div>
+            <div className="machinery-list">
+              <div className="machine-item"><span className="machine-icon">🛸</span><span className="machine-name">Drone Fleet</span><span className="machine-status active">3 ACTIVE</span></div>
+              <div className="machine-item"><span className="machine-icon">💧</span><span className="machine-name">Sprinklers</span><span className="machine-status active">9 ONLINE</span></div>
+              <div className="machine-item"><span className="machine-icon">⚙️</span><span className="machine-name">Processing Gears</span><span className="machine-status active">RUNNING</span></div>
+              <div className="machine-item"><span className="machine-icon">🚚</span><span className="machine-name">Delivery Fleet</span><span className="machine-status active">2 OUT</span></div>
+            </div>
+          </div>
+        </>
+      ),
+    };
+  }
 
+  if (type === "waste") {
+    const current = wasteData?.stage;
+    const stageIdx = wasteData?.stageIndex ?? 0;
+    const progress = wasteData?.progress ?? 0;
+    const stages = [
+      { id: "collection", label: "Waste Collection", color: "#8a6a3a", icon: "🗑️", desc: "Smart bins collecting" },
+      { id: "segregation", label: "AI Segregation", color: "#3498db", icon: "🔄", desc: "AI sorts into 4 streams" },
+      { id: "recycling", label: "Recycling", color: "#2ecc71", icon: "♻️", desc: "Processing recyclables" },
+      { id: "biogas", label: "Biogas Generation", color: "#4a7a3a", icon: "🔥", desc: "Organics to energy" },
+      { id: "composting", label: "Composting", color: "#5a3a1a", icon: "🌱", desc: "Organic compost" },
+      { id: "disposal", label: "Safe Disposal", color: "#8a3a3a", icon: "🔥", desc: "Incineration + landfill" },
+    ];
+    const stageStats = {
+      collection: { Bins: "9", "Fill Level": "42%", Trucks: "3", "Next Pickup": "18 min" },
+      segregation: { Sorted: "78%", Organic: "38%", Recyclable: "31%", Hazardous: "9%" },
+      recycling: { Recycled: "68%", Processed: "12.4 T", Rate: "180/hr", "CO2 Saved": "4.2 T" },
+      biogas: { Output: "4.2 MW", "Feed Stock": "8.4 T", Temp: "37°C", Pressure: "2.1 bar" },
+      composting: { "Compost Out": "3.4 T", "Moisture": "58%", Temp: "55°C", "Ready In": "14 d" },
+      disposal: { Incinerated: "2.1 T", "Landfill": "0.4 T", "Filter": "ON", "Emissions": "Low" },
+    };
+    const stats = stageStats[current?.id] || stageStats.collection;
+    return {
+      icon: "♻️", title: "Waste Management System", subtitle: "6-stage · AI-powered circular economy",
+      color: "#2ecc71", headerBg: "linear-gradient(135deg, #0a3a1e, #041a0e)",
+      body: (
+        <>
+          <div className="p-section">
+            <div className="p-label">CURRENT STAGE</div>
+            <div className="p-big" style={{ color: "#2ecc71" }}>{current?.label || "Initializing…"}</div>
+            <div className="p-desc">{current?.desc || "System starting"}</div>
+            <div className="p-progress" style={{ marginTop: 10 }}>
+              <div className="p-progress-fill" style={{ width: `${progress * 100}%`, background: "#2ecc71", boxShadow: "0 0 10px #2ecc71" }} />
+            </div>
+            <div className="p-timer">Stage {stageIdx + 1} of 6 · {Math.round(progress * 100)}%</div>
+          </div>
+          <div className="p-section">
+            <div className="p-label">WASTE PIPELINE</div>
+            <div className="pipeline">
+              {stages.map((s, i) => {
+                const isCurrent = i === stageIdx;
+                const isPast = i < stageIdx;
+                return (
+                  <div key={s.id} className="pipe-stage">
+                    <div className="pipe-dot" style={{ background: s.color, boxShadow: isCurrent ? `0 0 16px ${s.color}` : `0 0 10px ${s.color}`, transform: isCurrent ? "scale(1.4)" : "scale(1)" }} />
+                    <div className="pipe-info">
+                      <div className="pipe-name" style={{ color: isCurrent ? "#fff" : isPast ? "#7fe3ff" : "#8ba5b5", fontWeight: isCurrent ? 800 : 700 }}>
+                        <span style={{ fontSize: 14 }}>{s.icon}</span> {s.label}
+                        {isCurrent && <span className="pipe-active-badge">● ACTIVE</span>}
+                        {isPast && <span className="pipe-done-badge">✓ DONE</span>}
+                      </div>
+                      <div className="pipe-desc">{s.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           <div className="p-section">
             <div className="p-label">LIVE STAGE METRICS</div>
             <div className="stats-grid">
@@ -657,96 +573,40 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
               ))}
             </div>
           </div>
-
           <div className="p-section">
-            <div className="p-label">FIELD STATUS — 9 FIELDS</div>
+            <div className="p-label">9 SMART BINS STATUS</div>
             <div className="field-grid">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
-                const fieldColors = ["#2ecc71", "#27ae60", "#7bc96f"];
-                const col = fieldColors[n % 3];
-                const health = 85 + (n * 3) % 15;
+              {[1,2,3,4,5,6,7,8,9].map((n) => {
+                const colors = ["#2ecc71", "#3498db", "#e74c3c", "#f39c12"];
+                const col = colors[(n - 1) % 4];
+                const fill = 30 + (n * 5) % 60;
                 return (
                   <div key={n} className="field-box">
-                    <div className="field-icon">🌾</div>
-                    <div className="field-name">F{n}</div>
-                    <div
-                      className="field-bar"
-                      style={{ width: `${health}%`, background: col }}
-                    />
-                    <div className="field-value" style={{ color: col }}>
-                      {health}%
-                    </div>
+                    <div className="field-icon">🗑️</div>
+                    <div className="field-name">B{n}</div>
+                    <div className="field-bar" style={{ width: `${fill}%`, background: col }} />
+                    <div className="field-value" style={{ color: col }}>{fill}%</div>
                   </div>
                 );
               })}
             </div>
           </div>
-
           <div className="p-section">
-            <div className="p-label">MACHINERY STATUS</div>
+            <div className="p-label">FACILITIES</div>
             <div className="machinery-list">
-              <div className="machine-item">
-                <span className="machine-icon">🛸</span>
-                <span className="machine-name">Drone Fleet</span>
-                <span className="machine-status active">3 ACTIVE</span>
-              </div>
-              <div className="machine-item">
-                <span className="machine-icon">💧</span>
-                <span className="machine-name">Sprinklers</span>
-                <span className="machine-status active">9 ONLINE</span>
-              </div>
-              <div className="machine-item">
-                <span className="machine-icon">⚙️</span>
-                <span className="machine-name">Processing Gears</span>
-                <span className="machine-status active">RUNNING</span>
-              </div>
-              <div className="machine-item">
-                <span className="machine-icon">🔍</span>
-                <span className="machine-name">Quality Scanner</span>
-                <span className="machine-status active">ONLINE</span>
-              </div>
-              <div className="machine-item">
-                <span className="machine-icon">📦</span>
-                <span className="machine-name">Packaging Line</span>
-                <span className="machine-status active">READY</span>
-              </div>
-              <div className="machine-item">
-                <span className="machine-icon">🚚</span>
-                <span className="machine-name">Delivery Fleet</span>
-                <span className="machine-status active">2 OUT</span>
-              </div>
+              <div className="machine-item"><span className="machine-icon">♻️</span><span className="machine-name">Recycling Plant</span><span className="machine-status active">RUNNING</span></div>
+              <div className="machine-item"><span className="machine-icon">🔥</span><span className="machine-name">Biogas Digester</span><span className="machine-status active">ACTIVE</span></div>
+              <div className="machine-item"><span className="machine-icon">🌱</span><span className="machine-name">Compost Area</span><span className="machine-status active">WORKING</span></div>
+              <div className="machine-item"><span className="machine-icon">🏭</span><span className="machine-name">Incinerator</span><span className="machine-status active">ONLINE</span></div>
             </div>
           </div>
-
           <div className="p-section">
-            <div className="p-label">ENVIRONMENTAL SENSORS</div>
+            <div className="p-label">ENVIRONMENTAL IMPACT</div>
             <div className="sensor-row">
-              <div className="sensor-chip">
-                <span className="sensor-label">🌡️ Temp</span>
-                <span className="sensor-value">24°C</span>
-              </div>
-              <div className="sensor-chip">
-                <span className="sensor-label">💧 Humidity</span>
-                <span className="sensor-value">68%</span>
-              </div>
-              <div className="sensor-chip">
-                <span className="sensor-label">🌱 Soil pH</span>
-                <span className="sensor-value">6.8</span>
-              </div>
-              <div className="sensor-chip">
-                <span className="sensor-label">☀️ Sunlight</span>
-                <span className="sensor-value">82%</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-section">
-            <div className="p-label">DAILY TOTALS</div>
-            <div className="stats-grid">
-              <StatCard label="Crop Yield" value="2.4 T" color="#2ecc71" />
-              <StatCard label="Deliveries" value="48" color="#ffcc22" />
-              <StatCard label="Quality Score" value="98%" color="#22ff66" />
-              <StatCard label="Water Used" value="12K L" color="#22cfff" />
+              <div className="sensor-chip"><span className="sensor-label">♻️ Recycled</span><span className="sensor-value">68%</span></div>
+              <div className="sensor-chip"><span className="sensor-label">⚡ Energy Gen</span><span className="sensor-value">4.2 MW</span></div>
+              <div className="sensor-chip"><span className="sensor-label">🌱 Compost</span><span className="sensor-value">3.4 T</span></div>
+              <div className="sensor-chip"><span className="sensor-label">💨 CO₂ Saved</span><span className="sensor-value">4.2 T</span></div>
             </div>
           </div>
         </>
@@ -754,19 +614,14 @@ function getPanelContent(data, aiTraffic, powerData, filtrationData, foodData) {
     };
   }
 
-  /* ═══════════════ DEFAULT BUILDING ═══════════════ */
   return {
-    icon: "🏢",
-    title: data.name || "Smart Building",
+    icon: "🏢", title: data.name || "Smart Building",
     subtitle: data.type ? data.type.toUpperCase() : "LOCATION",
-    color: "#22cfff",
-    headerBg: "linear-gradient(135deg, #0a2a4a, #04121c)",
+    color: "#22cfff", headerBg: "linear-gradient(135deg, #0a2a4a, #04121c)",
     body: (
       <div className="p-section">
         <p style={{ color: "#b8e8ff", lineHeight: 1.6, fontSize: 13 }}>
-          This smart building is part of the BSS WORLD city network. Use the
-          system cards on the right to explore detailed operations of AI
-          Traffic, Power, Filtration and Food systems.
+          This smart building is part of BSS WORLD. Use system cards on the right to explore.
         </p>
       </div>
     ),
