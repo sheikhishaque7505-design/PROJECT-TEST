@@ -28,10 +28,10 @@ const addLog = (msg, type = 'info') => {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   AI TRAFFIC SYSTEM STATE (global for all components)
+   AI TRAFFIC SYSTEM STATE
    ═══════════════════════════════════════════════════════════ */
 const TS = {
-  phase: 0,          // 0 = NS green, 1 = EW green
+  phase: 0,
   inYellow: false,
   inAllRed: false,
   elapsed: 0,
@@ -41,7 +41,7 @@ const YELLOW_DURATION = 3
 const ALL_RED_DURATION = 1
 
 /* ═══════════════════════════════════════════════════════════
-   LOCATIONS DATA — all buildings, zones, cameras, info
+   LOCATIONS DATA
    ═══════════════════════════════════════════════════════════ */
 export const LOCATIONS = {
   school: {
@@ -270,7 +270,7 @@ function Border({ w = 4, d = 4, h = 8, color = '#22cfff' }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   BOARD — billboard sign above building
+   BOARD
    ═══════════════════════════════════════════════════════════ */
 function Board({ text, position = [0, 0, 0], color = '#22cfff', w = 10, h = 2.5, locKey = null }) {
   const [tex, setTex] = useState(null)
@@ -391,7 +391,7 @@ function GLBBuilding({ url, size = 20, pos = [0, 0, 0], name = 'Building', color
 }
 
 /* ═══════════════════════════════════════════════════════════
-   HOUSE — old style (EnhancedBuilding)
+   HOUSE
    ═══════════════════════════════════════════════════════════ */
 function House({ pos = [0, 0, 0], h = 8, color = '#a67c52', name = 'House', turbine = false }) {
   const timeOfDay = useS(s => s.timeOfDay)
@@ -512,6 +512,7 @@ function StreetLight({ pos }) {
     </group>
   )
 }
+
 /* ═══════════════════════════════════════════════════════════
    CITY DIMENSIONS
    ═══════════════════════════════════════════════════════════ */
@@ -536,7 +537,6 @@ function Roads() {
 
   return (
     <group>
-      {/* East-West roads */}
       {RZ.map((z, i) => (
         <group key={`ew${i}`}>
           <mesh position={[0, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -573,7 +573,6 @@ function Roads() {
         </group>
       ))}
 
-      {/* North-South roads */}
       {RX.map((x, i) => (
         <group key={`ns${i}`}>
           <mesh position={[x, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -610,7 +609,6 @@ function Roads() {
         </group>
       ))}
 
-      {/* Crosswalks */}
       {RX.map(x => RZ.map(z => (
         <group key={`cw-${x}-${z}`} position={[x, 0.04, z]}>
           {Array.from({ length: 12 }).map((_, k) => (
@@ -626,7 +624,6 @@ function Roads() {
         </group>
       )))}
 
-      {/* Boundary wall */}
       {[
         { pos: [0, 5, HALF], rot: [0, 0, 0], len: HALF * 2 + 20 },
         { pos: [0, 5, -HALF], rot: [0, 0, 0], len: HALF * 2 + 20 },
@@ -681,15 +678,13 @@ function StreetLightSystem() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   AI TRAFFIC SYSTEM — phase manager
+   AI TRAFFIC SYSTEM
    ═══════════════════════════════════════════════════════════ */
 function AITrafficSystem() {
   const lastLogRef = useRef(0)
-  const tickRef = useRef(0)
 
   useFrame((_, dt) => {
     TS.elapsed += dt
-    tickRef.current++
 
     if (TS.inAllRed) {
       if (TS.elapsed >= ALL_RED_DURATION) {
@@ -711,7 +706,6 @@ function AITrafficSystem() {
       addLog(`⏱️ ${TS.phase === 0 ? 'NS' : 'EW'} phase ending — yellow`, 'info')
     }
 
-    // Periodic AI decisions
     if (Date.now() - lastLogRef.current > 6000 && Math.random() < 0.4) {
       lastLogRef.current = Date.now()
       const decisions = [
@@ -733,7 +727,7 @@ function AITrafficSystem() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TRAFFIC LIGHT POLE — 4 poles at intersection
+   TRAFFIC LIGHT POLE
    ═══════════════════════════════════════════════════════════ */
 function TrafficLightPole({ pos, roadId }) {
   const redRef = useRef()
@@ -799,7 +793,7 @@ function TrafficLights() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CAR — moves on lane, stops at red light
+   CAR
    ═══════════════════════════════════════════════════════════ */
 function Car({ lane, startPos }) {
   const carRef = useRef()
@@ -899,7 +893,7 @@ function Car({ lane, startPos }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TRAFFIC SYSTEM — spawn cars on lanes
+   TRAFFIC SYSTEM
    ═══════════════════════════════════════════════════════════ */
 function TrafficSystem() {
   const trafficDensity = useS(s => s.trafficDensity)
@@ -1071,6 +1065,7 @@ function Park({ pos, size = 30 }) {
     </group>
   )
 }
+
 /* ═══════════════════════════════════════════════════════════
    SOLAR PANEL
    ═══════════════════════════════════════════════════════════ */
@@ -1163,7 +1158,7 @@ function WindTurbineFarm({ pos }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   POWER SUPPLY ZONE — solar + wind + batteries
+   POWER SUPPLY ZONE
    ═══════════════════════════════════════════════════════════ */
 function PowerSupplyZone() {
   const timeOfDay = useS(s => s.timeOfDay)
@@ -1171,7 +1166,6 @@ function PowerSupplyZone() {
 
   return (
     <group position={[-180, 0, 180]}>
-      {/* Solar arrays */}
       {Array.from({ length: 9 }).map((_, i) => {
         const row = Math.floor(i / 3)
         const col = i % 3
@@ -1185,10 +1179,8 @@ function PowerSupplyZone() {
         )
       })}
 
-      {/* Battery banks */}
       <BatteryBank pos={[0, 0, 15]} />
 
-      {/* Control building */}
       <group position={[15, 0, 0]}>
         <mesh position={[0, 2, 0]} castShadow>
           <boxGeometry args={[6, 4, 5]} />
@@ -1201,10 +1193,8 @@ function PowerSupplyZone() {
         <Board text="⚡ POWER ZONE" position={[0, 7, 0]} color="#ffcc22" w={8} h={2} locKey="power" />
       </group>
 
-      {/* Wind turbines */}
       <WindTurbineFarm pos={[-30, 0, -10]} />
 
-      {/* Ground */}
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[80, 80]} />
         <meshStandardMaterial color="#5a6a5a" roughness={0.95} />
@@ -1222,7 +1212,6 @@ function FiltrationSystem() {
 
   return (
     <group position={[180, 0, -180]}>
-      {/* Main tanks */}
       {[0, 1, 2].map(i => (
         <group key={i} position={[i * 6 - 6, 0, 0]}>
           <mesh position={[0, 2.5, 0]} castShadow>
@@ -1233,7 +1222,6 @@ function FiltrationSystem() {
             <cylinderGeometry args={[2.1, 2.1, 0.2, 16]} />
             <meshStandardMaterial color="#22cfff" emissive="#22cfff" emissiveIntensity={isNight ? 3 : 1.5} />
           </mesh>
-          {/* Water level indicator */}
           <mesh position={[0, 2, 2.05]}>
             <boxGeometry args={[3, 3.5, 0.1]} />
             <meshStandardMaterial color="#1a4a6a" transparent opacity={0.7} />
@@ -1241,7 +1229,6 @@ function FiltrationSystem() {
         </group>
       ))}
 
-      {/* Pipes */}
       <mesh position={[0, 1, 3.5]} rotation={[0, 0, 0]}>
         <cylinderGeometry args={[0.3, 0.3, 18, 8]} />
         <meshStandardMaterial color="#6a7a8a" metalness={0.6} />
@@ -1251,7 +1238,6 @@ function FiltrationSystem() {
         <meshStandardMaterial color="#6a7a8a" metalness={0.6} />
       </mesh>
 
-      {/* Control building */}
       <group position={[12, 0, 0]}>
         <mesh position={[0, 1.5, 0]} castShadow>
           <boxGeometry args={[6, 3, 5]} />
@@ -1260,7 +1246,6 @@ function FiltrationSystem() {
         <Board text="💧 FILTRATION" position={[0, 5.5, 0]} color="#22cfff" w={9} h={2} locKey="filtration" />
       </group>
 
-      {/* Ground */}
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[50, 40]} />
         <meshStandardMaterial color="#5a5a6a" roughness={0.9} />
@@ -1285,7 +1270,6 @@ function FoodProduction() {
 
   return (
     <group position={[-180, 0, -180]}>
-      {/* Crop fields */}
       {cropRows.map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
           <mesh position={[0, 0.3, 0]} castShadow>
@@ -1301,7 +1285,6 @@ function FoodProduction() {
         </group>
       ))}
 
-      {/* Processing plant */}
       <group position={[15, 0, 0]}>
         <mesh position={[0, 2.5, 0]} castShadow>
           <boxGeometry args={[8, 5, 6]} />
@@ -1314,7 +1297,6 @@ function FoodProduction() {
         <Board text="🍎 FOOD PRODUCTION" position={[0, 8, 0]} color="#2ecc71" w={11} h={2} locKey="food" />
       </group>
 
-      {/* Drone landing pad */}
       <group position={[-15, 0, 10]}>
         <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[3, 16]} />
@@ -1326,7 +1308,6 @@ function FoodProduction() {
         </mesh>
       </group>
 
-      {/* Ground */}
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[60, 50]} />
         <meshStandardMaterial color="#4a5a3a" roughness={0.95} />
@@ -1344,7 +1325,6 @@ function WasteManagement() {
 
   return (
     <group position={[180, 0, 180]}>
-      {/* Recycling bins */}
       {Array.from({ length: 9 }).map((_, i) => {
         const row = Math.floor(i / 3)
         const col = i % 3
@@ -1363,7 +1343,6 @@ function WasteManagement() {
         )
       })}
 
-      {/* Processing facility */}
       <group position={[0, 0, 15]}>
         <mesh position={[0, 3, 0]} castShadow>
           <boxGeometry args={[10, 6, 8]} />
@@ -1373,7 +1352,6 @@ function WasteManagement() {
           <boxGeometry args={[10.5, 0.4, 8.5]} />
           <meshStandardMaterial color="#2ecc71" emissive="#2ecc71" emissiveIntensity={isNight ? 3 : 1.5} />
         </mesh>
-        {/* Smokestack */}
         <mesh position={[3, 7, 0]} castShadow>
           <cylinderGeometry args={[0.5, 0.6, 4, 8]} />
           <meshStandardMaterial color="#5a5a5a" />
@@ -1381,7 +1359,6 @@ function WasteManagement() {
         <Board text="♻️ WASTE MGMT" position={[0, 10, 0]} color="#2ecc71" w={10} h={2} locKey="waste" />
       </group>
 
-      {/* Biogas plant */}
       <group position={[-15, 0, 0]}>
         <mesh position={[0, 2, 0]} castShadow>
           <sphereGeometry args={[2.5, 16, 16]} />
@@ -1393,7 +1370,6 @@ function WasteManagement() {
         </mesh>
       </group>
 
-      {/* Ground */}
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[50, 50]} />
         <meshStandardMaterial color="#5a5a5a" roughness={0.9} />
@@ -1403,7 +1379,7 @@ function WasteManagement() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   INFO POPUP — modal for building details
+   INFO POPUP
    ═══════════════════════════════════════════════════════════ */
 function InfoPopup() {
   const infoPopup = useS(s => s.infoPopup)
@@ -1412,10 +1388,7 @@ function InfoPopup() {
   return (
     <div style={{
       position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+      top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0,0,0,0.7)',
       display: 'flex',
       alignItems: 'center',
@@ -1557,7 +1530,7 @@ function AILogPanel() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CONTROL PANEL — top-right UI
+   CONTROL PANEL
    ═══════════════════════════════════════════════════════════ */
 function ControlPanel() {
   const timeOfDay = useS(s => s.timeOfDay)
@@ -1593,7 +1566,6 @@ function ControlPanel() {
         ⚙️ City Controls
       </div>
 
-      {/* Time of day */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 10, color: '#88aacc', marginBottom: 4 }}>TIME OF DAY</div>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -1618,7 +1590,6 @@ function ControlPanel() {
         </div>
       </div>
 
-      {/* Traffic density */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 10, color: '#88aacc', marginBottom: 4 }}>TRAFFIC DENSITY</div>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -1643,7 +1614,6 @@ function ControlPanel() {
         </div>
       </div>
 
-      {/* Street lights */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 10, color: '#88aacc', marginBottom: 4 }}>STREET LIGHTS</div>
         <button
@@ -1662,7 +1632,6 @@ function ControlPanel() {
         >{streetLightsOn ? '💡 Lights ON' : '💡 Lights OFF'}</button>
       </div>
 
-      {/* Traffic phase indicator */}
       <div style={{
         padding: 8,
         borderRadius: 6,
@@ -1688,12 +1657,272 @@ function ControlPanel() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CITY BUILDINGS — all GLB + procedural buildings
+   MENU SYSTEM
+   ═══════════════════════════════════════════════════════════ */
+function Menu() {
+  const menuOpen = useS(s => s.menuOpen)
+  const timeOfDay = useS(s => s.timeOfDay)
+  const trafficDensity = useS(s => s.trafficDensity)
+  const streetLightsOn = useS(s => s.streetLightsOn)
+
+  const close = () => setS({ menuOpen: false })
+
+  const gotoLocation = (key) => {
+    const loc = LOCATIONS[key]
+    if (!loc) return
+    setS({
+      focus: {
+        x: loc.pos[0] + 40,
+        y: loc.pos[1] + 35,
+        z: loc.pos[2] + 40,
+        lookAt: { x: loc.pos[0], y: loc.pos[1] + 8, z: loc.pos[2] },
+      },
+      infoPopup: { key, ...loc.info },
+      menuOpen: false,
+    })
+    addLog(`🧭 Navigated to ${loc.label}`, 'info')
+  }
+
+  const resetView = () => {
+    setS({
+      focus: { x: 120, y: 100, z: 120, lookAt: { x: 0, y: 0, z: 0 } },
+      infoPopup: null,
+      menuOpen: false,
+    })
+    addLog('🎥 Camera reset to city overview', 'info')
+  }
+
+  const categories = {
+    '🏛 Landmarks': ['tower', 'culture', 'event', 'scifi9', 'scifi10'],
+    '🏥 Services': ['school', 'hospital', 'bank', 'gas', 'office'],
+    '🌱 Eco Systems': ['farm', 'powerCo', 'power', 'filtration', 'food', 'waste'],
+    '🚦 Traffic': ['traffic'],
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setS({ menuOpen: !menuOpen })}
+        style={{
+          position: 'fixed',
+          top: 16,
+          left: 16,
+          zIndex: 900,
+          width: 44,
+          height: 44,
+          borderRadius: 10,
+          background: menuOpen ? 'rgba(34,207,255,0.3)' : 'rgba(5,15,30,0.92)',
+          border: '1px solid rgba(34,207,255,0.5)',
+          color: '#22cfff',
+          cursor: 'pointer',
+          fontSize: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 20px rgba(34,207,255,0.25)',
+          transition: 'all 0.2s ease',
+        }}
+        title="Menu"
+      >
+        {menuOpen ? '✕' : '☰'}
+      </button>
+
+      {menuOpen && (
+        <div
+          onClick={close}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 800,
+          }}
+        />
+      )}
+
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        width: 320,
+        maxWidth: '85vw',
+        background: 'linear-gradient(160deg, #071322 0%, #0f2038 100%)',
+        borderRight: '1px solid rgba(34,207,255,0.35)',
+        boxShadow: menuOpen ? '4px 0 40px rgba(34,207,255,0.25)' : 'none',
+        zIndex: 850,
+        transform: menuOpen ? 'translateX(0)' : 'translateX(-105%)',
+        transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        color: '#ccddee',
+        overflowY: 'auto',
+      }}>
+        <div style={{
+          padding: '20px 20px 16px',
+          borderBottom: '1px solid rgba(34,207,255,0.2)',
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#22cfff', letterSpacing: 2 }}>
+            SMART CITY
+          </div>
+          <div style={{ fontSize: 10, color: '#88aacc', letterSpacing: 1, marginTop: 3 }}>
+            NAVIGATION MENU
+          </div>
+        </div>
+
+        <div style={{ flex: 1, padding: '16px 0' }}>
+
+          <div style={{ padding: '0 16px 12px' }}>
+            <div style={{
+              fontSize: 10, color: '#88aacc', letterSpacing: 1,
+              textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
+            }}>Quick Actions</div>
+            <button
+              onClick={resetView}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 8,
+                border: '1px solid rgba(34,207,255,0.3)',
+                background: 'rgba(34,207,255,0.08)',
+                color: '#22cfff',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                textAlign: 'left',
+                marginBottom: 6,
+              }}
+            >🎥 Reset Camera View</button>
+          </div>
+
+          <div style={{ padding: '0 16px 12px' }}>
+            <div style={{
+              fontSize: 10, color: '#88aacc', letterSpacing: 1,
+              textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
+            }}>View Settings</div>
+
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['day', 'night'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => { setS({ timeOfDay: t }); addLog(`🌓 Switched to ${t} mode`, 'info') }}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: 6,
+                    border: timeOfDay === t ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
+                    background: timeOfDay === t ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.04)',
+                    color: timeOfDay === t ? '#22cfff' : '#8899aa',
+                    cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  }}
+                >{t === 'day' ? '☀️ Day' : '🌙 Night'}</button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['low', 'medium', 'high'].map(d => (
+                <button
+                  key={d}
+                  onClick={() => { setS({ trafficDensity: d }); addLog(`🚗 Traffic density: ${d}`, 'info') }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 4px',
+                    borderRadius: 6,
+                    border: trafficDensity === d ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
+                    background: trafficDensity === d ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.04)',
+                    color: trafficDensity === d ? '#22cfff' : '#8899aa',
+                    cursor: 'pointer', fontSize: 10, fontWeight: 600, textTransform: 'capitalize',
+                  }}
+                >{d}</button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { setS({ streetLightsOn: !streetLightsOn }); addLog(`💡 Street lights ${!streetLightsOn ? 'ON' : 'OFF'}`, 'info') }}
+              style={{
+                width: '100%',
+                padding: '9px',
+                borderRadius: 6,
+                border: streetLightsOn ? '1px solid #ffcc22' : '1px solid rgba(255,255,255,0.1)',
+                background: streetLightsOn ? 'rgba(255,204,34,0.18)' : 'rgba(255,255,255,0.04)',
+                color: streetLightsOn ? '#ffcc22' : '#8899aa',
+                cursor: 'pointer', fontSize: 11, fontWeight: 600,
+              }}
+            >{streetLightsOn ? '💡 Street Lights: ON' : '💡 Street Lights: OFF'}</button>
+          </div>
+
+          {Object.entries(categories).map(([cat, keys]) => (
+            <div key={cat} style={{ padding: '0 16px 12px' }}>
+              <div style={{
+                fontSize: 10, color: '#88aacc', letterSpacing: 1,
+                textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
+              }}>{cat}</div>
+              {keys.map(key => {
+                const loc = LOCATIONS[key]
+                if (!loc) return null
+                return (
+                  <button
+                    key={key}
+                    onClick={() => gotoLocation(key)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '9px 12px',
+                      marginBottom: 4,
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: '#ccddee',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(34,207,255,0.15)'
+                      e.currentTarget.style.borderColor = 'rgba(34,207,255,0.5)'
+                      e.currentTarget.style.color = '#22cfff'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+                      e.currentTarget.style.color = '#ccddee'
+                    }}
+                  >
+                    <span style={{ fontSize: 16, width: 22, textAlign: 'center' }}>{loc.icon}</span>
+                    <span style={{ flex: 1, fontWeight: 500 }}>{loc.label}</span>
+                    <span style={{ fontSize: 10, color: '#556677' }}>➜</span>
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+
+        </div>
+
+        <div style={{
+          padding: '12px 20px',
+          borderTop: '1px solid rgba(34,207,255,0.15)',
+          fontSize: 10,
+          color: '#556677',
+          flexShrink: 0,
+        }}>
+          Smart City · AI Urban Simulation · v1.0
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CITY BUILDINGS
    ═══════════════════════════════════════════════════════════ */
 function CityBuildings() {
   return (
     <group>
-      {/* GLB Buildings with location keys */}
       <GLBBuilding url="/american_high_school.glb" size={22} pos={[-100, 0, -100]} name="🏫 Beacon School" color="#1a5490" locKey="school" />
       <GLBBuilding url="/low_poly_hospital.glb" size={22} pos={[100, 0, -100]} name="🏥 Smart Hospital" color="#c0392b" locKey="hospital" />
       <GLBBuilding url="/us_bank_tower.glb" size={26} pos={[100, 0, 100]} name="🏦 State Bank" color="#8e44ad" locKey="bank" />
@@ -1708,13 +1937,11 @@ function CityBuildings() {
       <GLBBuilding url="/sci-fi_building_10.glb" size={26} pos={[-180, 0, 140]} name="🚀 Sci-Fi Bldg 10" color="#ff66dd" locKey="scifi10" />
       <GLBBuilding url="/skid_filtration_system.glb" size={20} pos={[180, 0, -180]} name="💧 Filtration" color="#22cfff" locKey="filtration" />
 
-      {/* Procedural zones */}
       <PowerSupplyZone />
       <FoodProduction />
       <WasteManagement />
       <FiltrationSystem />
 
-      {/* Residential houses */}
       <House pos={[-50, 0, -50]} h={6} color="#c9a66b" name="Smart Home A" turbine />
       <House pos={[50, 0, -50]} h={7} color="#b08d5a" name="Smart Home B" />
       <House pos={[-50, 0, 50]} h={6} color="#d4b07a" name="Smart Home C" turbine />
@@ -1722,7 +1949,6 @@ function CityBuildings() {
       <House pos={[-30, 0, 0]} h={5} color="#c9a66b" name="Smart Home E" />
       <House pos={[30, 0, 0]} h={6} color="#b08d5a" name="Smart Home F" turbine />
 
-      {/* Parks */}
       <Park pos={[-70, 0, 0]} size={24} />
       <Park pos={[70, 0, 0]} size={24} />
       <Park pos={[0, 0, 70]} size={28} />
@@ -1732,12 +1958,11 @@ function CityBuildings() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CAMERA CONTROLLER — handles focus animations
+   CAMERA CONTROLLER
    ═══════════════════════════════════════════════════════════ */
 function CameraController() {
   const { camera } = useThree()
   const focus = useS(s => s.focus)
-  const targetRef = useRef(null)
   const lookAtRef = useRef(new THREE.Vector3(0, 0, 0))
 
   useFrame(() => {
@@ -1834,13 +2059,12 @@ function Scene() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   APP — main component
+   APP
    ═══════════════════════════════════════════════════════════ */
 export default function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Initialize AI log
     addLog('🧠 AI Traffic Controller initialized', 'success')
     addLog('📡 24 sensors online — all systems operational', 'info')
     addLog('🚦 Adaptive signal timing active', 'phase')
@@ -1899,26 +2123,25 @@ export default function App() {
         />
       </Canvas>
 
-      {/* UI Overlays */}
+      <Menu />
       <ControlPanel />
       <AILogPanel />
       <InfoPopup />
 
-      {/* Title */}
       <div style={{
         position: 'fixed',
         top: 16,
-        left: 16,
+        left: 72,
         zIndex: 500,
         fontFamily: 'system-ui, sans-serif',
         color: '#fff',
         textShadow: '0 0 20px rgba(34,207,255,0.5)',
+        pointerEvents: 'none',
       }}>
         <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 2, color: '#22cfff' }}>SMART CITY</div>
         <div style={{ fontSize: 11, color: '#88aacc', letterSpacing: 1, marginTop: 2 }}>AI-POWERED URBAN SIMULATION</div>
       </div>
 
-      {/* Hint */}
       <div style={{
         position: 'fixed',
         bottom: 16,
@@ -1935,283 +2158,5 @@ export default function App() {
         🖱️ Drag to orbit · Scroll to zoom · Click buildings for info
       </div>
     </div>
-     /* ═══════════════════════════════════════════════════════════
-   MENU SYSTEM — slide-out navigation panel
-   ═══════════════════════════════════════════════════════════ */
-function Menu() {
-  const menuOpen = useS(s => s.menuOpen)
-  const timeOfDay = useS(s => s.timeOfDay)
-  const trafficDensity = useS(s => s.trafficDensity)
-  const streetLightsOn = useS(s => s.streetLightsOn)
-
-  // Close menu handler
-  const close = () => setS({ menuOpen: false })
-
-  // Navigate to a location — sets focus + opens info popup
-  const gotoLocation = (key) => {
-    const loc = LOCATIONS[key]
-    if (!loc) return
-    setS({
-      focus: {
-        x: loc.pos[0] + 40,
-        y: loc.pos[1] + 35,
-        z: loc.pos[2] + 40,
-        lookAt: { x: loc.pos[0], y: loc.pos[1] + 8, z: loc.pos[2] },
-      },
-      infoPopup: { key, ...loc.info },
-      menuOpen: false,
-    })
-    addLog(`🧭 Navigated to ${loc.label}`, 'info')
-  }
-
-  // Reset camera to overview
-  const resetView = () => {
-    setS({
-      focus: { x: 120, y: 100, z: 120, lookAt: { x: 0, y: 0, z: 0 } },
-      infoPopup: null,
-      menuOpen: false,
-    })
-    addLog('🎥 Camera reset to city overview', 'info')
-  }
-
-  // Group locations by category for nicer menu
-  const categories = {
-    '🏛 Landmarks': ['tower', 'culture', 'event', 'scifi9', 'scifi10'],
-    '🏥 Services': ['school', 'hospital', 'bank', 'gas', 'office'],
-    '🌱 Eco Systems': ['farm', 'powerCo', 'power', 'filtration', 'food', 'waste'],
-    '🚦 Traffic': ['traffic'],
-  }
-
-  return (
-    <>
-      {/* Hamburger button — always visible */}
-      <button
-        onClick={() => setS({ menuOpen: !menuOpen })}
-        style={{
-          position: 'fixed',
-          top: 16,
-          left: 16,
-          zIndex: 900,
-          width: 44,
-          height: 44,
-          borderRadius: 10,
-          background: menuOpen ? 'rgba(34,207,255,0.3)' : 'rgba(5,15,30,0.92)',
-          border: '1px solid rgba(34,207,255,0.5)',
-          color: '#22cfff',
-          cursor: 'pointer',
-          fontSize: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 0 20px rgba(34,207,255,0.25)',
-          transition: 'all 0.2s ease',
-        }}
-        title="Menu"
-      >
-        {menuOpen ? '✕' : '☰'}
-      </button>
-
-      {/* Backdrop */}
-      {menuOpen && (
-        <div
-          onClick={close}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(2px)',
-            zIndex: 800,
-            transition: 'opacity 0.3s ease',
-          }}
-        />
-      )}
-
-      {/* Slide-out panel */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: 320,
-        maxWidth: '85vw',
-        background: 'linear-gradient(160deg, #071322 0%, #0f2038 100%)',
-        borderRight: '1px solid rgba(34,207,255,0.35)',
-        boxShadow: menuOpen ? '4px 0 40px rgba(34,207,255,0.25)' : 'none',
-        zIndex: 850,
-        transform: menuOpen ? 'translateX(0)' : 'translateX(-105%)',
-        transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        color: '#ccddee',
-        overflowY: 'auto',
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '20px 20px 16px',
-          borderBottom: '1px solid rgba(34,207,255,0.2)',
-          flexShrink: 0,
-        }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#22cfff', letterSpacing: 2 }}>
-            SMART CITY
-          </div>
-          <div style={{ fontSize: 10, color: '#88aacc', letterSpacing: 1, marginTop: 3 }}>
-            NAVIGATION MENU
-          </div>
-        </div>
-
-        {/* Scroll content */}
-        <div style={{ flex: 1, padding: '16px 0' }}>
-
-          {/* Quick Actions */}
-          <div style={{ padding: '0 16px 12px' }}>
-            <div style={{
-              fontSize: 10, color: '#88aacc', letterSpacing: 1,
-              textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
-            }}>Quick Actions</div>
-            <button
-              onClick={resetView}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 8,
-                border: '1px solid rgba(34,207,255,0.3)',
-                background: 'rgba(34,207,255,0.08)',
-                color: '#22cfff',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 600,
-                textAlign: 'left',
-                marginBottom: 6,
-              }}
-            >🎥 Reset Camera View</button>
-          </div>
-
-          {/* View Controls */}
-          <div style={{ padding: '0 16px 12px' }}>
-            <div style={{
-              fontSize: 10, color: '#88aacc', letterSpacing: 1,
-              textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
-            }}>View Settings</div>
-
-            {/* Time of day */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-              {['day', 'night'].map(t => (
-                <button
-                  key={t}
-                  onClick={() => { setS({ timeOfDay: t }); addLog(`🌓 Switched to ${t} mode`, 'info') }}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    borderRadius: 6,
-                    border: timeOfDay === t ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
-                    background: timeOfDay === t ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.04)',
-                    color: timeOfDay === t ? '#22cfff' : '#8899aa',
-                    cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                  }}
-                >{t === 'day' ? '☀️ Day' : '🌙 Night'}</button>
-              ))}
-            </div>
-
-            {/* Traffic density */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-              {['low', 'medium', 'high'].map(d => (
-                <button
-                  key={d}
-                  onClick={() => { setS({ trafficDensity: d }); addLog(`🚗 Traffic density: ${d}`, 'info') }}
-                  style={{
-                    flex: 1,
-                    padding: '8px 4px',
-                    borderRadius: 6,
-                    border: trafficDensity === d ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
-                    background: trafficDensity === d ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.04)',
-                    color: trafficDensity === d ? '#22cfff' : '#8899aa',
-                    cursor: 'pointer', fontSize: 10, fontWeight: 600, textTransform: 'capitalize',
-                  }}
-                >{d}</button>
-              ))}
-            </div>
-
-            {/* Street lights */}
-            <button
-              onClick={() => { setS({ streetLightsOn: !streetLightsOn }); addLog(`💡 Street lights ${!streetLightsOn ? 'ON' : 'OFF'}`, 'info') }}
-              style={{
-                width: '100%',
-                padding: '9px',
-                borderRadius: 6,
-                border: streetLightsOn ? '1px solid #ffcc22' : '1px solid rgba(255,255,255,0.1)',
-                background: streetLightsOn ? 'rgba(255,204,34,0.18)' : 'rgba(255,255,255,0.04)',
-                color: streetLightsOn ? '#ffcc22' : '#8899aa',
-                cursor: 'pointer', fontSize: 11, fontWeight: 600,
-              }}
-            >{streetLightsOn ? '💡 Street Lights: ON' : '💡 Street Lights: OFF'}</button>
-          </div>
-
-          {/* Location categories */}
-          {Object.entries(categories).map(([cat, keys]) => (
-            <div key={cat} style={{ padding: '0 16px 12px' }}>
-              <div style={{
-                fontSize: 10, color: '#88aacc', letterSpacing: 1,
-                textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
-              }}>{cat}</div>
-              {keys.map(key => {
-                const loc = LOCATIONS[key]
-                if (!loc) return null
-                return (
-                  <button
-                    key={key}
-                    onClick={() => gotoLocation(key)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '9px 12px',
-                      marginBottom: 4,
-                      borderRadius: 8,
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      background: 'rgba(255,255,255,0.03)',
-                      color: '#ccddee',
-                      cursor: 'pointer',
-                      fontSize: 12,
-                      textAlign: 'left',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(34,207,255,0.15)'
-                      e.currentTarget.style.borderColor = 'rgba(34,207,255,0.5)'
-                      e.currentTarget.style.color = '#22cfff'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
-                      e.currentTarget.style.color = '#ccddee'
-                    }}
-                  >
-                    <span style={{ fontSize: 16, width: 22, textAlign: 'center' }}>{loc.icon}</span>
-                    <span style={{ flex: 1, fontWeight: 500 }}>{loc.label}</span>
-                    <span style={{ fontSize: 10, color: '#556677' }}>➜</span>
-                  </button>
-                )
-              })}
-            </div>
-          ))}
-
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: '12px 20px',
-          borderTop: '1px solid rgba(34,207,255,0.15)',
-          fontSize: 10,
-          color: '#556677',
-          flexShrink: 0,
-        }}>
-          Smart City · AI Urban Simulation · v1.0
-        </div>
-      </div>
-    </>
-  )
-}
   )
 }
