@@ -1935,5 +1935,283 @@ export default function App() {
         🖱️ Drag to orbit · Scroll to zoom · Click buildings for info
       </div>
     </div>
+     /* ═══════════════════════════════════════════════════════════
+   MENU SYSTEM — slide-out navigation panel
+   ═══════════════════════════════════════════════════════════ */
+function Menu() {
+  const menuOpen = useS(s => s.menuOpen)
+  const timeOfDay = useS(s => s.timeOfDay)
+  const trafficDensity = useS(s => s.trafficDensity)
+  const streetLightsOn = useS(s => s.streetLightsOn)
+
+  // Close menu handler
+  const close = () => setS({ menuOpen: false })
+
+  // Navigate to a location — sets focus + opens info popup
+  const gotoLocation = (key) => {
+    const loc = LOCATIONS[key]
+    if (!loc) return
+    setS({
+      focus: {
+        x: loc.pos[0] + 40,
+        y: loc.pos[1] + 35,
+        z: loc.pos[2] + 40,
+        lookAt: { x: loc.pos[0], y: loc.pos[1] + 8, z: loc.pos[2] },
+      },
+      infoPopup: { key, ...loc.info },
+      menuOpen: false,
+    })
+    addLog(`🧭 Navigated to ${loc.label}`, 'info')
+  }
+
+  // Reset camera to overview
+  const resetView = () => {
+    setS({
+      focus: { x: 120, y: 100, z: 120, lookAt: { x: 0, y: 0, z: 0 } },
+      infoPopup: null,
+      menuOpen: false,
+    })
+    addLog('🎥 Camera reset to city overview', 'info')
+  }
+
+  // Group locations by category for nicer menu
+  const categories = {
+    '🏛 Landmarks': ['tower', 'culture', 'event', 'scifi9', 'scifi10'],
+    '🏥 Services': ['school', 'hospital', 'bank', 'gas', 'office'],
+    '🌱 Eco Systems': ['farm', 'powerCo', 'power', 'filtration', 'food', 'waste'],
+    '🚦 Traffic': ['traffic'],
+  }
+
+  return (
+    <>
+      {/* Hamburger button — always visible */}
+      <button
+        onClick={() => setS({ menuOpen: !menuOpen })}
+        style={{
+          position: 'fixed',
+          top: 16,
+          left: 16,
+          zIndex: 900,
+          width: 44,
+          height: 44,
+          borderRadius: 10,
+          background: menuOpen ? 'rgba(34,207,255,0.3)' : 'rgba(5,15,30,0.92)',
+          border: '1px solid rgba(34,207,255,0.5)',
+          color: '#22cfff',
+          cursor: 'pointer',
+          fontSize: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 20px rgba(34,207,255,0.25)',
+          transition: 'all 0.2s ease',
+        }}
+        title="Menu"
+      >
+        {menuOpen ? '✕' : '☰'}
+      </button>
+
+      {/* Backdrop */}
+      {menuOpen && (
+        <div
+          onClick={close}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 800,
+            transition: 'opacity 0.3s ease',
+          }}
+        />
+      )}
+
+      {/* Slide-out panel */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        width: 320,
+        maxWidth: '85vw',
+        background: 'linear-gradient(160deg, #071322 0%, #0f2038 100%)',
+        borderRight: '1px solid rgba(34,207,255,0.35)',
+        boxShadow: menuOpen ? '4px 0 40px rgba(34,207,255,0.25)' : 'none',
+        zIndex: 850,
+        transform: menuOpen ? 'translateX(0)' : 'translateX(-105%)',
+        transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        color: '#ccddee',
+        overflowY: 'auto',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '20px 20px 16px',
+          borderBottom: '1px solid rgba(34,207,255,0.2)',
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#22cfff', letterSpacing: 2 }}>
+            SMART CITY
+          </div>
+          <div style={{ fontSize: 10, color: '#88aacc', letterSpacing: 1, marginTop: 3 }}>
+            NAVIGATION MENU
+          </div>
+        </div>
+
+        {/* Scroll content */}
+        <div style={{ flex: 1, padding: '16px 0' }}>
+
+          {/* Quick Actions */}
+          <div style={{ padding: '0 16px 12px' }}>
+            <div style={{
+              fontSize: 10, color: '#88aacc', letterSpacing: 1,
+              textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
+            }}>Quick Actions</div>
+            <button
+              onClick={resetView}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 8,
+                border: '1px solid rgba(34,207,255,0.3)',
+                background: 'rgba(34,207,255,0.08)',
+                color: '#22cfff',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                textAlign: 'left',
+                marginBottom: 6,
+              }}
+            >🎥 Reset Camera View</button>
+          </div>
+
+          {/* View Controls */}
+          <div style={{ padding: '0 16px 12px' }}>
+            <div style={{
+              fontSize: 10, color: '#88aacc', letterSpacing: 1,
+              textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
+            }}>View Settings</div>
+
+            {/* Time of day */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['day', 'night'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => { setS({ timeOfDay: t }); addLog(`🌓 Switched to ${t} mode`, 'info') }}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: 6,
+                    border: timeOfDay === t ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
+                    background: timeOfDay === t ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.04)',
+                    color: timeOfDay === t ? '#22cfff' : '#8899aa',
+                    cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  }}
+                >{t === 'day' ? '☀️ Day' : '🌙 Night'}</button>
+              ))}
+            </div>
+
+            {/* Traffic density */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['low', 'medium', 'high'].map(d => (
+                <button
+                  key={d}
+                  onClick={() => { setS({ trafficDensity: d }); addLog(`🚗 Traffic density: ${d}`, 'info') }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 4px',
+                    borderRadius: 6,
+                    border: trafficDensity === d ? '1px solid #22cfff' : '1px solid rgba(255,255,255,0.1)',
+                    background: trafficDensity === d ? 'rgba(34,207,255,0.2)' : 'rgba(255,255,255,0.04)',
+                    color: trafficDensity === d ? '#22cfff' : '#8899aa',
+                    cursor: 'pointer', fontSize: 10, fontWeight: 600, textTransform: 'capitalize',
+                  }}
+                >{d}</button>
+              ))}
+            </div>
+
+            {/* Street lights */}
+            <button
+              onClick={() => { setS({ streetLightsOn: !streetLightsOn }); addLog(`💡 Street lights ${!streetLightsOn ? 'ON' : 'OFF'}`, 'info') }}
+              style={{
+                width: '100%',
+                padding: '9px',
+                borderRadius: 6,
+                border: streetLightsOn ? '1px solid #ffcc22' : '1px solid rgba(255,255,255,0.1)',
+                background: streetLightsOn ? 'rgba(255,204,34,0.18)' : 'rgba(255,255,255,0.04)',
+                color: streetLightsOn ? '#ffcc22' : '#8899aa',
+                cursor: 'pointer', fontSize: 11, fontWeight: 600,
+              }}
+            >{streetLightsOn ? '💡 Street Lights: ON' : '💡 Street Lights: OFF'}</button>
+          </div>
+
+          {/* Location categories */}
+          {Object.entries(categories).map(([cat, keys]) => (
+            <div key={cat} style={{ padding: '0 16px 12px' }}>
+              <div style={{
+                fontSize: 10, color: '#88aacc', letterSpacing: 1,
+                textTransform: 'uppercase', marginBottom: 8, fontWeight: 700,
+              }}>{cat}</div>
+              {keys.map(key => {
+                const loc = LOCATIONS[key]
+                if (!loc) return null
+                return (
+                  <button
+                    key={key}
+                    onClick={() => gotoLocation(key)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '9px 12px',
+                      marginBottom: 4,
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: '#ccddee',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(34,207,255,0.15)'
+                      e.currentTarget.style.borderColor = 'rgba(34,207,255,0.5)'
+                      e.currentTarget.style.color = '#22cfff'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+                      e.currentTarget.style.color = '#ccddee'
+                    }}
+                  >
+                    <span style={{ fontSize: 16, width: 22, textAlign: 'center' }}>{loc.icon}</span>
+                    <span style={{ flex: 1, fontWeight: 500 }}>{loc.label}</span>
+                    <span style={{ fontSize: 10, color: '#556677' }}>➜</span>
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '12px 20px',
+          borderTop: '1px solid rgba(34,207,255,0.15)',
+          fontSize: 10,
+          color: '#556677',
+          flexShrink: 0,
+        }}>
+          Smart City · AI Urban Simulation · v1.0
+        </div>
+      </div>
+    </>
+  )
+}
   )
 }
