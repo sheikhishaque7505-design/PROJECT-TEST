@@ -4,6 +4,37 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+// ============================================================
+// GLB IMPORTS — Vite inhe automatically bundle karega.
+// Agar aapki koi file src/assets/ mein hai to path badal dena:
+//   "./xxx.glb"  →  "./assets/xxx.glb"
+// ============================================================
+import schoolGLB from "./american_high_school.glb";
+import hospitalGLB from "./low_poly_hospital.glb";
+import bankGLB from "./us_bank_tower.glb";
+import farmGLB from "./simple_farm_free.glb";
+import newHallGLB from "./liverpool_street_station_south_entrance.glb";
+import gasStationGLB from "./gas_station.glb";
+import officeGLB from "./office.glb";
+import brutalistGLB from "./brutalist_building.glb";
+import cultureGLB from "./national_archives_research_center.glb";
+import powerCompanyGLB from "./power-suply-companey.glb";
+import scifi9GLB from "./sci-fi_building_9.glb";
+import beautifulTowerGLB from "./beautifultowerbuilding.glb";
+import scifi10GLB from "./sci-fi_building_10.glb";
+import modernBuildingsGLB from "./modernbuildings.glb";
+import skylineGLB from "./low_poly_night_city_building_skyline.glb";
+import greatHallGLB from "./great_hall.glb";
+import nearbankGLB from "./nearbank.glb";
+import twoBuildingsGLB from "./twobuildingsneedspace.glb";
+import trashPackGLB from "./trash_pack.glb";
+import commercialGLB from "./commercial_building_concept.glb";
+import shopGLB from "./dagashiya_shop_japanese_old_snack_shop.glb";
+import skidFiltrationGLB from "./skid_filtration_system.glb";
+import batteryGLB from "./battery.glb";
+import antenaGLB from "./antena.glb";
+import oldAntennaGLB from "./old_antenna.glb";
+
 const CITY_HALF = 3900;
 const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
@@ -933,18 +964,18 @@ const SmartCity3D = forwardRef((props, ref) => {
       const c = new THREE.Vector3(); b2.getCenter(c);
       obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b2.min.y;
     }
-    function bld(file, size, pos, type, name, borderColor) {
-      const url = "/" + file.replace(/^\/+/, "");
-      loader.load(url, (g) => {
+    // bld now takes the imported URL directly
+    function bld(fileUrl, size, pos, type, name, borderColor) {
+      loader.load(fileUrl, (g) => {
         const b = g.scene;
         prep(b, size);
         b.position.set(pos[0], 5, pos[1]); scene.add(b);
         clickable.push({ object: b, type, name: name || type });
         if (borderColor !== null) buildingBorder(pos[0], pos[1], size * 1.4, size * 1.4, borderColor || 0x22cfff);
-        pushLog("Loaded: " + file);
+        pushLog("Loaded: " + (name || type));
       }, undefined, (err) => {
-        console.warn("GLB FAILED:", url, err);
-        pushLog("FAIL: " + file);
+        console.warn("GLB FAILED:", fileUrl, err);
+        pushLog("FAIL: " + (name || type));
       });
     }
 
@@ -1074,27 +1105,30 @@ const SmartCity3D = forwardRef((props, ref) => {
     const societyGroup = new THREE.Group(); societyGroup.position.set(SOCIETY_X, 0, SOCIETY_Z);
     clickable.push({ object: societyGroup, type: "society", name: "BSS Smart Society" });
 
-    bld("american_high_school.glb", 300, [-600, -600], "school", "American High School", 0x1a5490);
-    bld("low_poly_hospital.glb", 280, [600, -600], "hospital", "Smart Hospital", 0xc0392b);
-    bld("us_bank_tower.glb", 360, [600, 600], "bank", "State Bank", 0x8e44ad);
-    bld("simple_farm_free.glb", 520, [1800, -600], "farm", "Smart Eco Farm", 0x27ae60);
-    bld("liverpool_street_station_south_entrance.glb", 420, [600, 1800], "newHall", "Liverpool Event Hall", 0xd4a017);
-    bld("gas_station.glb", 380, [1800, 1750], "carWash", "Gas Station", 0xc0392b);
-    bld("office.glb", 380, [1800, 600], "sewageCompany", "Sewage and Gas Co.", 0x2ecc71);
-    bld("brutalist_building.glb", 300, [2200, 600], "sewageCompany", "Old Office", 0x34495e);
-    bld("national_archives_research_center.glb", 480, [-1800, 1800], "cultureCenter", "Culture Center", 0xf39c12);
-    bld("power-suply-companey.glb", 380, [-1600, 800], "powerCompany", "City Power Supply", 0xf1c40f);
-    bld("sci-fi_building_9.glb", 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
-    bld("beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
-    bld("sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-    bld("modernbuildings.glb", 480, [2900, 1200], "modernBuilding", "Modern Building Complex", 0x22cfff);
-    bld("low_poly_night_city_building_skyline.glb", 700, [2900, 2400], "skyline", "Downtown Skyline", 0xff66dd);
-    bld("great_hall.glb", 420, [-2900, 1600], "greatHall", "Great Hall", 0xffd15a);
-    bld("nearbank.glb", 240, [1000, -1200], "bank", "ATM Branch", 0xf1c40f);
-    bld("twobuildingsneedspace.glb", 300, [-2400, 2200], "modernBuilding", "Residential Pair", 0x6cd4a0);
-    bld("trash_pack.glb", 120, [1100, 1400], "wasteBin", "Trash Props", null);
-    bld("modernbuildings.glb", 420, [-2900, 2400], "modernBuilding", "Modern West Block", 0x22cfff);
-    bld("commercial_building_concept.glb", 380, [2400, -1800], "commercial", "Commercial Hub", 0xf39c12);
+    // ============================================================
+    // GLB BUILDS — ab imported URL use ho rahi hai
+    // ============================================================
+    bld(schoolGLB, 300, [-600, -600], "school", "American High School", 0x1a5490);
+    bld(hospitalGLB, 280, [600, -600], "hospital", "Smart Hospital", 0xc0392b);
+    bld(bankGLB, 360, [600, 600], "bank", "State Bank", 0x8e44ad);
+    bld(farmGLB, 520, [1800, -600], "farm", "Smart Eco Farm", 0x27ae60);
+    bld(newHallGLB, 420, [600, 1800], "newHall", "Liverpool Event Hall", 0xd4a017);
+    bld(gasStationGLB, 380, [1800, 1750], "carWash", "Gas Station", 0xc0392b);
+    bld(officeGLB, 380, [1800, 600], "sewageCompany", "Sewage and Gas Co.", 0x2ecc71);
+    bld(brutalistGLB, 300, [2200, 600], "sewageCompany", "Old Office", 0x34495e);
+    bld(cultureGLB, 480, [-1800, 1800], "cultureCenter", "Culture Center", 0xf39c12);
+    bld(powerCompanyGLB, 380, [-1600, 800], "powerCompany", "City Power Supply", 0xf1c40f);
+    bld(scifi9GLB, 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
+    bld(beautifulTowerGLB, 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
+    bld(scifi10GLB, 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
+    bld(modernBuildingsGLB, 480, [2900, 1200], "modernBuilding", "Modern Building Complex", 0x22cfff);
+    bld(skylineGLB, 700, [2900, 2400], "skyline", "Downtown Skyline", 0xff66dd);
+    bld(greatHallGLB, 420, [-2900, 1600], "greatHall", "Great Hall", 0xffd15a);
+    bld(nearbankGLB, 240, [1000, -1200], "bank", "ATM Branch", 0xf1c40f);
+    bld(twoBuildingsGLB, 300, [-2400, 2200], "modernBuilding", "Residential Pair", 0x6cd4a0);
+    bld(trashPackGLB, 120, [1100, 1400], "wasteBin", "Trash Props", null);
+    bld(modernBuildingsGLB, 420, [-2900, 2400], "modernBuilding", "Modern West Block", 0x22cfff);
+    bld(commercialGLB, 380, [2400, -1800], "commercial", "Commercial Hub", 0xf39c12);
 
     function resourceBorder(x, z, w, d, color = 0x00e0ff) {
       const bMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
@@ -1254,12 +1288,11 @@ const SmartCity3D = forwardRef((props, ref) => {
     board("VERTICAL FARM TOWERS", 2900, 5, -2080, 320, 18, 0x2a8a4a);
 
     function shop(x, z, scale = 1.4, name) {
-      const url = "/dagashiya_shop_japanese_old_snack_shop.glb";
-      loader.load(url, (g) => {
+      loader.load(shopGLB, (g) => {
         const sm = g.scene; prep(sm, 50 * scale); sm.position.set(x, 5, z); scene.add(sm);
         clickable.push({ object: sm, type: "shop", name: name || "Dagashiya Snack Shop" });
-        pushLog("Loaded: dagashiya_shop.glb");
-      }, undefined, () => { pushLog("FAIL: dagashiya_shop.glb"); });
+        pushLog("Loaded: " + (name || "shop"));
+      }, undefined, () => { pushLog("FAIL: shop"); });
     }
     shop(-1000, -600, 1.4, "School Canteen");
     shop(1000, -600, 1.4, "Hospital Canteen");
@@ -1281,9 +1314,9 @@ const SmartCity3D = forwardRef((props, ref) => {
       const p = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5.5, 32, 10), powerBorderMat); p.position.set(cx, 20, cz); powerZone.add(p);
       const cap = new THREE.Mesh(new THREE.SphereGeometry(3.6, 10, 10), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 3 })); cap.position.set(cx, 38, cz); powerZone.add(cap);
     }
-    loader.load("/old_antenna.glb", (g) => { const a = g.scene; prep(a, 360); a.position.set(-550, 5, 0); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Old Antenna" }); pushLog("Loaded: old_antenna.glb"); }, undefined, () => pushLog("FAIL: old_antenna.glb"));
-    loader.load("/antena.glb", (g) => { const a = g.scene; prep(a, 270); a.position.set(-280, 5, -100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 1" }); pushLog("Loaded: antena.glb"); }, undefined, () => pushLog("FAIL: antena.glb"));
-    loader.load("/antena.glb", (g) => { const a = g.scene; prep(a, 230); a.position.set(-720, 5, 100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 2" }); }, undefined, () => {});
+    loader.load(oldAntennaGLB, (g) => { const a = g.scene; prep(a, 360); a.position.set(-550, 5, 0); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Old Antenna" }); pushLog("Loaded: old antenna"); }, undefined, () => pushLog("FAIL: old antenna"));
+    loader.load(antenaGLB, (g) => { const a = g.scene; prep(a, 270); a.position.set(-280, 5, -100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 1" }); pushLog("Loaded: antenna"); }, undefined, () => pushLog("FAIL: antenna"));
+    loader.load(antenaGLB, (g) => { const a = g.scene; prep(a, 230); a.position.set(-720, 5, 100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 2" }); }, undefined, () => {});
 
     const turbines = []; s.turbines = turbines;
     const turbTowerMat = mat(0xeeeeee, 0.4, 0.3);
@@ -1318,14 +1351,14 @@ const SmartCity3D = forwardRef((props, ref) => {
     const batteryRings = []; s.batteryRings = batteryRings;
     const batteryPositions = [[-500, 850], [-370, 850], [-240, 850], [-110, 850], [20, 850], [-500, 980], [-370, 980], [-240, 980], [-110, 980], [20, 980]];
     batteryPositions.forEach((pos, i) => {
-      loader.load("/battery.glb", (g) => {
+      loader.load(batteryGLB, (g) => {
         const b = g.scene; prep(b, 60); b.position.set(pos[0], 6, pos[1]); b.rotation.y = Math.PI / 2;
         powerZone.add(b);
         const rMat = new THREE.MeshStandardMaterial({ color: 0x22ff9d, emissive: 0x22ff9d, emissiveIntensity: 2.0 });
         const r = new THREE.Mesh(new THREE.TorusGeometry(28, 0.8, 6, 16), rMat); r.rotation.x = Math.PI / 2; r.position.set(pos[0], 7, pos[1]); powerZone.add(r);
         batteryRings.push(rMat); clickable.push({ object: b, type: "battery", name: "Battery " + (i + 1) });
-        pushLog("Loaded: battery.glb");
-      }, undefined, () => pushLog("FAIL: battery.glb"));
+        if (i === 0) pushLog("Loaded: battery");
+      }, undefined, () => { if (i === 0) pushLog("FAIL: battery"); });
     });
 
     const filtZone = new THREE.Group(); filtZone.position.set(3600, 0, -3600); scene.add(filtZone);
@@ -1347,7 +1380,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const wallRight = wallLeft.clone(); wallRight.position.x = 130; filtBoxGroup.add(wallRight);
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, emissive: 0x22cfff, emissiveIntensity: 0.3, metalness: 0.6, roughness: 0.25, transparent: true, opacity: 0.6 });
     const roof = new THREE.Mesh(new THREE.BoxGeometry(270, 3, 270), roofMat); roof.position.y = 124; filtBoxGroup.add(roof);
-    loader.load("/skid_filtration_system.glb", (g) => { const m = g.scene; prep(m, 170); m.position.set(0, 6, 0); filtBoxGroup.add(m); clickable.push({ object: m, type: "filtrationMachine", name: "Filtration Machine" }); pushLog("Loaded: skid_filtration_system.glb"); }, undefined, () => pushLog("FAIL: skid_filtration_system.glb"));
+    loader.load(skidFiltrationGLB, (g) => { const m = g.scene; prep(m, 170); m.position.set(0, 6, 0); filtBoxGroup.add(m); clickable.push({ object: m, type: "filtrationMachine", name: "Filtration Machine" }); pushLog("Loaded: filtration"); }, undefined, () => pushLog("FAIL: filtration"));
 
     const tankGroup = new THREE.Group(); tankGroup.position.set(0, 5, 0); filtZone.add(tankGroup);
     s.filtrationStageMeshes = [];
