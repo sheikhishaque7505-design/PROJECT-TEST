@@ -1,39 +1,37 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import fs from 'fs';
-import path from 'path';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-function serveRootGLB() {
-  return {
-    name: 'serve-root-glb',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (req.url && req.url.match(/\.(glb|gltf|bin|png|jpg|jpeg|hdr|mp3)$/i)) {
-          const filePath = path.join(process.cwd(), req.url.split('?')[0]);
-          if (fs.existsSync(filePath)) {
-            const ext = path.extname(filePath).toLowerCase();
-            const types = {
-              '.glb': 'model/gltf-binary',
-              '.gltf': 'model/gltf+json',
-              '.bin': 'application/octet-stream',
-              '.png': 'image/png',
-              '.jpg': 'image/jpeg',
-              '.jpeg': 'image/jpeg',
-              '.hdr': 'application/octet-stream',
-              '.mp3': 'audio/mpeg',
-            };
-            res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
-            fs.createReadStream(filePath).pipe(res);
-            return;
-          }
-        }
-        next();
-      });
-    }
-  };
-}
-
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), serveRootGLB()],
-  server: { port: 5173, open: true }
-});
+  plugins: [react()],
+  server: {
+    port: 3000,
+    open: true,
+    host: true,
+    strictPort: false,
+    cors: true,
+    // GLB files ko serve karne ke liye
+    fs: {
+      strict: false,
+      allow: ['..']
+    }
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'three': ['three'],
+          'react-vendor': ['react', 'react-dom']
+        }
+      }
+    }
+  },
+  // .glb files ko asset ke tarah treat karein
+  assetsInclude: ['**/*.glb', '**/*.gltf', '**/*.hdr', '**/*.mp3'],
+  optimizeDeps: {
+    include: ['three', 'react', 'react-dom']
+  }
+})
