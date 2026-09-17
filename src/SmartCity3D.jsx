@@ -8,15 +8,33 @@ const ROAD_HALF_LEN = 3800;
 const GROUND_SIZE = 8200;
 
 /* ============================================================
-   VEHICLE CONSTANTS — all cars locked to ground, slow speed
+   VEHICLE CONSTANTS
    ============================================================ */
 const CAR_Y = 5.2;
-const CITY_CAR_SPEED = 0.006;      // slower, consistent
-const INNER_CAR_SPEED = 0.008;     // still slow
-const INTERSECTION_BASE_SPEED = 0.08;  // very slow — cars don't freeze
+const CITY_CAR_SPEED = 0.006;
+const INNER_CAR_SPEED = 0.008;
+const INTERSECTION_BASE_SPEED = 0.08;
 
 /* ============================================================
-   BUILDING INFO DATABASE — for popup
+   SMART SECURITY BARRIER SYSTEM — constants
+   ============================================================ */
+const BARRIER_ARM_LENGTH = 90;
+const BARRIER_ARM_THICKNESS = 5;
+const BARRIER_POLE_HEIGHT = 42;
+const BARRIER_HINGE_Y = 30;
+const BARRIER_OPEN_ANGLE = -Math.PI / 2.15;
+const BARRIER_CLOSED_ANGLE = 0;
+const BARRIER_ANIM_SPEED = 1.6;
+
+const SECURITY_GATES_DEF = [
+  { id: "SG-01", label: "North Entry Gate", axis: "z", sign: -1, offset: -30, stop:  150, hinge:  1 },
+  { id: "SG-02", label: "South Entry Gate", axis: "z", sign:  1, offset:  30, stop: -150, hinge:  1 },
+  { id: "SG-03", label: "East Entry Gate",  axis: "x", sign:  1, offset:  30, stop: -150, hinge: -1 },
+  { id: "SG-04", label: "West Entry Gate",  axis: "x", sign: -1, offset: -30, stop:  150, hinge: -1 },
+];
+
+/* ============================================================
+   BUILDING INFO DATABASE
    ============================================================ */
 const BUILDING_INFO = {
   school: { title: "American High School", type: "EDUCATION", icon: "🏫", desc: "AI-powered classrooms, robotics lab, smart boards and digital attendance.", stats: [["👨‍🎓 Students", "450"], ["👩‍🏫 Teachers", "32"], ["📚 Classes", "18"], ["🤖 Robotics Lab", "Active"]] },
@@ -52,8 +70,11 @@ const BUILDING_INFO = {
   battery: { title: "Battery Storage", type: "ENERGY", icon: "🔋", desc: "Grid-scale battery bank for peak shaving and backup.", stats: [["⚡ Capacity", "20 MWh"], ["🔋 Charge", "78%"], ["📊 Cycles", "1,240"], ["🌡️ Temp", "Stable"]] },
   antenna: { title: "Smart Antenna", type: "TELECOM", icon: "📡", desc: "Multi-band antenna for city-wide network coverage.", stats: [["📶 Bands", "4"], ["📡 Range", "30 km"], ["🔋 Power", "Solar"], ["📊 Uptime", "99%"]] },
   shop: { title: "Smart Shop", type: "COMMERCE", icon: "🛒", desc: "AI-powered retail shop with cashless payment.", stats: [["🛒 Items", "1,200"], ["💳 Digital", "100%"], ["👥 Today", "86"], ["📦 Delivery", "Yes"]] },
+  securityGate: { title: "Smart Security Gate", type: "SECURITY", icon: "🛡️", desc: "AI-controlled automatic barrier with vehicle detection, CCTV and emergency priority.", stats: [["🛡️ AI Control", "ACTIVE"], ["🚗 Detection", "Laser + Radar"], ["📹 CCTV", "Online"], ["⚡ Priority", "Emergency"]] },
 };
-
+/* ============================================================
+   LOCATIONS
+   ============================================================ */
 export const LOCATIONS = {
   school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   hospital: { key: "hospital", label: "Smart Hospital", icon: "🏥", type: "HEALTHCARE", position: [600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
@@ -74,6 +95,10 @@ export const LOCATIONS = {
   scifi10: { key: "scifi10", label: "Sci-Fi Building 10", icon: "🚀", type: "SCI-FI", position: [-3600, 5, 800], camHeight: 520, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   wasteCollector: { key: "wasteCollector", label: "Waste Collector Point", icon: "🗑", type: "MUNICIPAL", position: [900, 5, 1400], camHeight: 300, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   trafficController: { key: "trafficController", label: "AI Traffic Controller", icon: "🤖", type: "TRANSPORTATION", position: [0, 5, 0], camHeight: 320, camDistance: 280, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  securitySG01: { key: "securitySG01", label: "Security Gate SG-01", icon: "🛡️", type: "SECURITY", position: [-30, 5, 150], camHeight: 260, camDistance: 260, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  securitySG02: { key: "securitySG02", label: "Security Gate SG-02", icon: "🛡️", type: "SECURITY", position: [30, 5, -150], camHeight: 260, camDistance: 260, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  securitySG03: { key: "securitySG03", label: "Security Gate SG-03", icon: "🛡️", type: "SECURITY", position: [-150, 5, 30], camHeight: 260, camDistance: 260, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
+  securitySG04: { key: "securitySG04", label: "Security Gate SG-04", icon: "🛡️", type: "SECURITY", position: [150, 5, -30], camHeight: 260, camDistance: 260, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
 };
 
 export const LOCATION_LIVE_DATA = {
@@ -96,6 +121,10 @@ export const LOCATION_LIVE_DATA = {
   scifi10: { desc: "Space tech, satellite control, AI mission planning", stats: [["🛰️ Satellites", "6 linked"], ["🚀 Missions", "2 active"], ["📡 Signal", "Strong"], ["🤖 AI", "Online"]] },
   wasteCollector: { desc: "Smart bins, AI route optimization, odor control", stats: [["🗑️ Bins", "24"], ["📊 Fill Level", "42%"], ["🚛 Next pickup", "18 min"], ["♻️ Sorted", "78%"]] },
   trafficController: { desc: "AI controls 4 roads, adaptive signals, jam detection", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24 online"]] },
+  securitySG01: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-01"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
+  securitySG02: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-02"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
+  securitySG03: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-03"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
+  securitySG04: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-04"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
 };
 
 const FILTRATION_STAGES = [
@@ -110,6 +139,9 @@ const FILTRATION_STAGES = [
   { id: "recycling", label: "WATER RECYCLING", color: 0x2ecc71, duration: 4 },
 ];
 
+/* ============================================================
+   AI TRAFFIC SYSTEM
+   ============================================================ */
 function createAITrafficSystem(callbacks) {
   const PHASE_DURATION = 8;
   const YELLOW_DURATION = 2.5;
@@ -156,6 +188,100 @@ function createAITrafficSystem(callbacks) {
   return { tick, isGreen, isRed, isYellowRoad, getPhase: () => phase, getStats: () => ({ ...stats }) };
 }
 
+/* ============================================================
+   AI SECURITY SYSTEM — autonomous gate open/close controller
+   ============================================================ */
+function createAISecuritySystem(callbacks) {
+  const CYCLE = 70;
+  const NORMAL_T = 30;
+  const ALERT_T  = 10;
+  const CLOSED_T = 18;
+  const OPEN_T   = 12;
+
+  let elapsed = 0;
+  let phase = "NORMAL";
+  let activeGateIdx = 0;
+
+  const gates = SECURITY_GATES_DEF.map((g) => ({
+    ...g,
+    status: "OPEN",
+    aiState: "NORMAL",
+    armAngle: BARRIER_OPEN_ANGLE,
+    targetAngle: BARRIER_OPEN_ANGLE,
+    vehiclesDetected: 0,
+    vehiclesWaiting: 0,
+    density: "LOW",
+  }));
+
+  function tick(delta, vehicleSnapshot) {
+    elapsed += delta;
+
+    if (elapsed > CYCLE) {
+      elapsed = 0;
+      activeGateIdx = (activeGateIdx + 1) % gates.length;
+      phase = "NORMAL";
+    }
+
+    if (elapsed < NORMAL_T) phase = "NORMAL";
+    else if (elapsed < NORMAL_T + ALERT_T) phase = "ALERT";
+    else if (elapsed < NORMAL_T + ALERT_T + CLOSED_T) phase = "CLOSED";
+    else if (elapsed < NORMAL_T + ALERT_T + CLOSED_T + OPEN_T) phase = "OPENING";
+    else phase = "NORMAL";
+
+    const activeGate = gates[activeGateIdx];
+
+    for (const g of gates) {
+      const isActive = g === activeGate;
+      if (isActive) {
+        if (phase === "NORMAL")        { g.status = "OPEN";   g.aiState = "NORMAL";     g.targetAngle = BARRIER_OPEN_ANGLE; }
+        else if (phase === "ALERT")    { g.status = "OPEN";   g.aiState = "RESTRICTED"; g.targetAngle = BARRIER_OPEN_ANGLE; }
+        else if (phase === "CLOSED")   { g.status = "CLOSED"; g.aiState = "RESTRICTED"; g.targetAngle = BARRIER_CLOSED_ANGLE; }
+        else if (phase === "OPENING")  { g.status = "OPEN";   g.aiState = "NORMAL";     g.targetAngle = BARRIER_OPEN_ANGLE; }
+      } else {
+        g.status = "OPEN"; g.aiState = "NORMAL"; g.targetAngle = BARRIER_OPEN_ANGLE;
+      }
+      const diff = g.targetAngle - g.armAngle;
+      const step = Math.sign(diff) * Math.min(Math.abs(diff), BARRIER_ANIM_SPEED * delta);
+      g.armAngle += step;
+    }
+
+    if (vehicleSnapshot) {
+      for (const g of gates) {
+        let detected = 0, waiting = 0;
+        for (const v of vehicleSnapshot) {
+          const d = g.axis === "z" ? Math.abs(v.z - g.stop) : Math.abs(v.x - g.stop);
+          if (d < 350) detected++;
+          if (d < 200 && v.speed < 0.02) waiting++;
+        }
+        g.vehiclesDetected = detected;
+        g.vehiclesWaiting = waiting;
+        g.density = waiting > 8 ? "HIGH" : waiting > 3 ? "MEDIUM" : "LOW";
+      }
+    }
+
+    callbacks.onSecurityUpdate?.({
+      phase,
+      activeGateId: activeGate.id,
+      gates: gates.map((g) => ({
+        id: g.id, label: g.label, status: g.status, aiState: g.aiState,
+        vehiclesDetected: g.vehiclesDetected, vehiclesWaiting: g.vehiclesWaiting,
+        density: g.density, armAngle: g.armAngle,
+        axis: g.axis, sign: g.sign, offset: g.offset, stop: g.stop,
+      })),
+    });
+  }
+
+  function isGateClosed(id) {
+    const g = gates.find((x) => x.id === id);
+    return g ? g.status === "CLOSED" : false;
+  }
+  function getGate(id) { return gates.find((x) => x.id === id); }
+  return { tick, isGateClosed, getGate, getGates: () => gates };
+}
+
+/* ============================================================
+   CITY SIMULATION (traffic event cycle)
+   ============================================================ */
 function createCitySimulation(callbacks) {
   const CYCLE_TIME = 60, NORMAL_DURATION = 25, JAM_DURATION = 20, REROUTE_DURATION = 15;
   let simSec = 0, tState = 0, cycleStart = 0, jamStart = 0, rerouteStart = 0;
@@ -213,15 +339,17 @@ function createCitySimulation(callbacks) {
   }
   return { tick, getState: () => tState };
 }
-
 const SmartCity3D = forwardRef((props, ref) => {
   const {
     onPanel, onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage,
     onAiReason, onTouristMessage, onAITrafficUpdate, onFiltrationUpdate,
+    onSecurityUpdate,
   } = props;
   const mountRef = useRef(null);
   const [locationPopup, setLocationPopup] = useState(null);
   const [buildingPopup, setBuildingPopup] = useState(null);
+  const [securityPopup, setSecurityPopup] = useState(null);
+  const [securityHUD, setSecurityHUD] = useState(null);
 
   const s = useRef({
     camera: null, controls: null, renderer: null, scene: null,
@@ -237,6 +365,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     grassMaterial: null, roadMaterial: null, roadLaneMaterial: null,
     curbMaterial: null, sidewalkMat: null, ambient: null, sun: null,
     sim: null, roadZs: null, roadXs: null, aiSystem: null,
+    securitySystem: null, securityGates: [],
     filtrationStageIndex: 0, filtrationStageElapsed: 0,
     filtrationStageMeshes: [], filtrationFlowMeshes: [],
     filtrationUVLight: null, filtrationCleanReservoir: null, filtrationPumpRings: [],
@@ -316,6 +445,22 @@ const SmartCity3D = forwardRef((props, ref) => {
     smoothCameraTo(new THREE.Vector3(0, 420, 520), new THREE.Vector3(0, 5, 0), 2000);
     s.controls.enableRotate = true;
   }
+  function focusSecurityGate(gateId) {
+    if (!s.camera) return;
+    const gate = s.securityGates.find((g) => g.id === gateId);
+    if (!gate) return;
+    s.isLocked = false; s.lockedLocation = null; s.followTarget = null;
+    setLocationPopup(null);
+    const p = new THREE.Vector3();
+    if (gate.axis === "z") p.set(gate.offset, 5, gate.stop);
+    else p.set(gate.stop, 5, gate.offset);
+    smoothCameraTo(
+      p.clone().add(new THREE.Vector3(180, 200, 180)),
+      p.clone(),
+      1500
+    );
+    s.controls.enableRotate = true;
+  }
   function setDayNight(night) {
     if (!s.scene) return;
     const DAY_BG = new THREE.Color(0x8fbcd4);
@@ -339,6 +484,12 @@ const SmartCity3D = forwardRef((props, ref) => {
 
   useEffect(() => {
     const container = mountRef.current; if (!container) return;
+
+    /* ---- shared refs — must exist before ANY builder uses them ---- */
+    const clickable = [];
+    s.clickable = clickable;
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
 
     const scene = new THREE.Scene();
     s.scene = scene;
@@ -677,7 +828,190 @@ const SmartCity3D = forwardRef((props, ref) => {
     scene.add(controller);
     clickable.push({ object: controller, type: "trafficController", name: "AI Traffic Controller" });
 
-    const loader = new GLTFLoader(); const clickable = []; s.clickable = clickable;
+    /* ============================================================
+       SMART SECURITY BARRIER SYSTEM — gate meshes
+       ============================================================ */
+    const securityGates = [];
+    s.securityGates = securityGates;
+
+    const gateBodyMat   = new THREE.MeshStandardMaterial({ color: 0x2a3640, roughness: 0.45, metalness: 0.55 });
+    const gateStripeMat = new THREE.MeshStandardMaterial({ color: 0xff8a1f, emissive: 0xff8a1f, emissiveIntensity: 1.6, roughness: 0.4 });
+    const gateHazardMat = new THREE.MeshStandardMaterial({ color: 0x111417, roughness: 0.7 });
+    const gateGlassMat  = new THREE.MeshStandardMaterial({ color: 0x0a2230, emissive: 0x22cfff, emissiveIntensity: 1.2, metalness: 0.7, roughness: 0.15, transparent: true, opacity: 0.75 });
+    const gateLampRedMat   = new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 2.5 });
+    const gateLampAmberMat = new THREE.MeshStandardMaterial({ color: 0xffaa22, emissive: 0xffaa22, emissiveIntensity: 2.5 });
+    const gateLampGreenMat = new THREE.MeshStandardMaterial({ color: 0x22ff66, emissive: 0x22ff66, emissiveIntensity: 2.5 });
+
+    function buildSecurityGate(def) {
+      const g = new THREE.Group();
+
+      // Position group so hinge/arm is at the correct place
+      let worldX, worldZ, armAxis;
+      if (def.axis === "z") { worldX = def.offset; worldZ = def.stop; armAxis = "x"; }
+      else { worldX = def.stop; worldZ = def.offset; armAxis = "z"; }
+      g.position.set(worldX, 5, worldZ);
+      scene.add(g);
+
+      // Control Box (support)
+      const box = new THREE.Mesh(new THREE.BoxGeometry(18, BARRIER_POLE_HEIGHT, 14), gateBodyMat);
+      box.position.y = BARRIER_POLE_HEIGHT / 2; g.add(box);
+      const boxCap = new THREE.Mesh(new THREE.BoxGeometry(20, 3, 16), gateHazardMat);
+      boxCap.position.y = BARRIER_POLE_HEIGHT + 1.5; g.add(boxCap);
+      const stripeBand = new THREE.Mesh(new THREE.BoxGeometry(19, 2, 15), gateStripeMat);
+      stripeBand.position.y = BARRIER_POLE_HEIGHT * 0.65; g.add(stripeBand);
+
+      // Warning lamps on top (red + amber)
+      const lampRed = new THREE.Mesh(new THREE.SphereGeometry(2.2, 12, 12), gateLampRedMat.clone());
+      lampRed.position.set(0, BARRIER_POLE_HEIGHT + 6, 0); g.add(lampRed);
+      const lampAmber = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 12), gateLampAmberMat.clone());
+      lampAmber.position.set(6, BARRIER_POLE_HEIGHT + 4, 0); g.add(lampAmber);
+      const lampGreen = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 12), gateLampGreenMat.clone());
+      lampGreen.position.set(-6, BARRIER_POLE_HEIGHT + 4, 0); g.add(lampGreen);
+
+      // Hinge pivot (arm rotates around this)
+      const hinge = new THREE.Group();
+      hinge.position.set(0, BARRIER_HINGE_Y, 0);
+      g.add(hinge);
+
+      // Barrier arm — oriented so that when closed, it lies across the road
+      const armGroup = new THREE.Group();
+      hinge.add(armGroup);
+
+      // Build arm lying along local X (extends from hinge)
+      const armLen = BARRIER_ARM_LENGTH;
+      const armBar = new THREE.Mesh(
+        new THREE.BoxGeometry(armLen, BARRIER_ARM_THICKNESS, BARRIER_ARM_THICKNESS),
+        gateBodyMat
+      );
+      armBar.position.set(armLen / 2, 0, 0);
+      armGroup.add(armBar);
+
+      // Red/white hazard stripes along arm
+      const stripeCount = 5;
+      for (let i = 0; i < stripeCount; i++) {
+        const st = new THREE.Mesh(
+          new THREE.BoxGeometry(armLen / stripeCount - 2, BARRIER_ARM_THICKNESS + 0.4, BARRIER_ARM_THICKNESS + 0.4),
+          i % 2 === 0 ? gateStripeMat : gateHazardMat
+        );
+        st.position.set((i + 0.5) * (armLen / stripeCount), 0, 0);
+        armGroup.add(st);
+      }
+
+      // Arm tip lamp
+      const tipLamp = new THREE.Mesh(new THREE.SphereGeometry(1.4, 10, 10), gateLampRedMat.clone());
+      tipLamp.position.set(armLen + 1.5, 0, 0);
+      armGroup.add(tipLamp);
+
+      // Orient the hinge so the arm lies across the road when closed.
+      // For "z"-axis gates (vertical roads), arm should span along X — already correct.
+      // For "x"-axis gates (horizontal roads), arm should span along Z.
+      if (armAxis === "z") {
+        hinge.rotation.y = Math.PI / 2;
+      }
+
+      // Ground stop-line marking (white stripe across lane)
+      const stopLine = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, ROAD_W * 0.45), whiteLineMaterial);
+      if (def.axis === "z") {
+        stopLine.rotation.y = Math.PI / 2;
+        stopLine.position.set(def.offset, 0.15, def.sign < 0 ? 6 : -6);
+      } else {
+        stopLine.position.set(def.sign < 0 ? -6 : 6, 0.15, def.offset);
+      }
+      g.add(stopLine);
+
+      // Hazard chevrons
+      const chevMat = new THREE.MeshStandardMaterial({ color: 0xffaa22, emissive: 0xffaa22, emissiveIntensity: 1.4 });
+      for (let i = 0; i < 4; i++) {
+        const chev = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 6), chevMat);
+        if (def.axis === "z") {
+          chev.rotation.y = Math.PI / 2;
+          chev.position.set(def.offset + (def.sign < 0 ? -8 : 8) - i * 6 * def.sign, 0.16, 0);
+        } else {
+          chev.position.set(0, 0.16, def.offset + (def.sign < 0 ? -8 : 8) - i * 6 * def.sign);
+        }
+        g.add(chev);
+      }
+
+      // CCTV camera pole + housing
+      const cctvPole = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 30, 6), darkMaterial);
+      cctvPole.position.set(18, 15, 0); g.add(cctvPole);
+      const cctvArm = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 1), darkMaterial);
+      cctvArm.position.set(22, 30, 0); g.add(cctvArm);
+      const cctvBody = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 3), gateBodyMat);
+      cctvBody.position.set(26, 29.5, 0); g.add(cctvBody);
+      const cctvLens = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 10), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5 }));
+      cctvLens.position.set(30, 29.5, 0); g.add(cctvLens);
+
+      // Floating AI status sign (billboard plane with canvas texture)
+      const signCanvas = document.createElement("canvas");
+      signCanvas.width = 1024; signCanvas.height = 256;
+      const signCtx = signCanvas.getContext("2d");
+      const signTex = new THREE.CanvasTexture(signCanvas);
+      signTex.colorSpace = THREE.SRGBColorSpace;
+      const signMat = new THREE.MeshBasicMaterial({ map: signTex, transparent: true, side: THREE.DoubleSide });
+      const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(70, 18), signMat);
+      signMesh.position.set(0, BARRIER_POLE_HEIGHT + 20, 0);
+      g.add(signMesh);
+
+      // Clickable hitbox (larger invisible box over the gate)
+      const hitBox = new THREE.Mesh(new THREE.BoxGeometry(90, 70, 90), new THREE.MeshBasicMaterial({ visible: false }));
+      hitBox.position.set(0, 35, 0);
+      g.add(hitBox);
+
+      const gateObj = {
+        ...def,
+        group: g,
+        hinge,
+        armGroup,
+        lampRed,
+        lampAmber,
+        lampGreen,
+        tipLamp,
+        signCanvas,
+        signCtx,
+        signTex,
+        signMesh,
+        hitBox,
+        status: "OPEN",
+        aiState: "NORMAL",
+        vehiclesDetected: 0,
+        vehiclesWaiting: 0,
+        density: "LOW",
+        phase: "NORMAL",
+      };
+      securityGates.push(gateObj);
+      clickable.push({ object: hitBox, type: "securityGate", name: gateObj.id + " · " + gateObj.label, gateRef: gateObj });
+      return gateObj;
+    }
+
+    SECURITY_GATES_DEF.forEach((def) => buildSecurityGate(def));
+
+    function redrawGateSign(gate, phaseText, statusText) {
+      const ctx = gate.signCtx;
+      const W = gate.signCanvas.width, H = gate.signCanvas.height;
+      ctx.clearRect(0, 0, W, H);
+      // glassy panel
+      ctx.fillStyle = "rgba(6,20,35,0.85)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = statusText === "RESTRICTED" ? "#ff8a1f" : "#22cfff";
+      ctx.lineWidth = 8;
+      ctx.strokeRect(6, 6, W - 12, H - 12);
+      ctx.fillStyle = "#22cfff";
+      ctx.font = "bold 44px system-ui, Arial";
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(gate.id + " · " + gate.label, 30, 60);
+      ctx.fillStyle = statusText === "RESTRICTED" ? "#ff8a1f" : "#6aff9d";
+      ctx.font = "bold 56px system-ui, Arial";
+      ctx.fillText("STATUS: " + statusText, 30, 150);
+      ctx.fillStyle = "#7fe3ff";
+      ctx.font = "500 30px system-ui, Arial";
+      ctx.fillText("AI CONTROL: ACTIVE · " + phaseText, 30, 210);
+      gate.signTex.needsUpdate = true;
+    }
+    securityGates.forEach((g) => redrawGateSign(g, "NORMAL", "OPEN"));
+
+    /* ===== GLB loader ===== */
+    const loader = new GLTFLoader();
 
     function removeGroundFromGLB(model) {
       const toRemove = [];
@@ -1255,9 +1589,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       }, undefined, () => {});
     });
 
-    /* =====================================================================
-       FILTRATION SYSTEM
-       ===================================================================== */
+    /* ===== FILTRATION SYSTEM ===== */
     const filtZone = new THREE.Group();
     filtZone.position.set(3600, 0, -3600); scene.add(filtZone);
     board("FILTRATION SYSTEM", 3600, 5, -2700, 380, 18, 0x22cfff);
@@ -1467,7 +1799,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const fertTruck2 = g3.truck; scene.add(fertTruck2); s.trucks.fert2 = fertTruck2; s.fertWarn2 = g3.warn;
 
     /* ============================================================
-       CITY CARS — SLOW & CONSISTENT (no flying, no freezing)
+       CITY CARS — SLOW & CONSISTENT
        ============================================================ */
     const cityCars = []; s.cityCars = cityCars;
     const carColors = [
@@ -1520,10 +1852,14 @@ const SmartCity3D = forwardRef((props, ref) => {
         const w = new THREE.Mesh(carWheelGeo, wheelMat); w.rotation.x = Math.PI / 2; w.position.set(wp[0], 2.8, wp[1]); g.add(w);
         const h = new THREE.Mesh(carWheelHubGeo, hubMat); h.rotation.x = Math.PI / 2; h.position.set(wp[0], 2.8, wp[1]); g.add(h);
       }
+      const tailLightL = new THREE.Mesh(carLightGeo, tailMat.clone());
+      tailLightL.position.set(-V_LEN * 0.49, 4.5, 3.2); g.add(tailLightL);
+      const tailLightR = new THREE.Mesh(carLightGeo, tailMat.clone());
+      tailLightR.position.set(-V_LEN * 0.49, 4.5, -3.2); g.add(tailLightR);
       for (const z of [-3.2, 3.2]) {
         const l = new THREE.Mesh(carLightGeo, headMat); l.position.set(V_LEN * 0.49, 4.5, z); g.add(l);
-        const t = new THREE.Mesh(carLightGeo, tailMat); t.position.set(-V_LEN * 0.49, 4.5, z); g.add(t);
       }
+      g.userData.tailLights = [tailLightL.material, tailLightR.material];
       return g;
     }
 
@@ -1534,7 +1870,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const midRoutePoints = [
       { x: -1200, z: -1200 }, { x: 1200, z: -1200 }, { x: 1200, z: 1200 }, { x: -1200, z: 1200 }
     ];
-    // Inner route away from traffic controller — min distance from center = 900
     const innerRoutePoints = [
       { x: -900, z: -900 }, { x: 900, z: -900 }, { x: 900, z: 900 }, { x: -900, z: 900 }
     ];
@@ -1621,14 +1956,14 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
 
     /* ============================================================
-       INTERSECTION CARS — smooth movement, no permanent freeze
+       INTERSECTION CARS — now with barrier stop logic
        ============================================================ */
     const intersectionCars = []; s.intersectionCars = intersectionCars;
     const ROAD_LANES = [
-      { id: 1, dir: "north", axis: "z", sign: -1, xOffset: -30, startPos: -1000, endPos: 400 },
-      { id: 2, dir: "south", axis: "z", sign: 1, xOffset: 30, startPos: 1000, endPos: -400 },
-      { id: 3, dir: "east", axis: "x", sign: 1, zOffset: 30, startPos: 1000, endPos: -400 },
-      { id: 4, dir: "west", axis: "x", sign: -1, zOffset: -30, startPos: -1000, endPos: 400 },
+      { id: 1, dir: "north", axis: "z", sign: -1, xOffset: -30, startPos: -1000, endPos: 400, gateId: "SG-01" },
+      { id: 2, dir: "south", axis: "z", sign:  1, xOffset:  30, startPos:  1000, endPos: -400, gateId: "SG-02" },
+      { id: 3, dir: "east",  axis: "x", sign:  1, zOffset:  30, startPos:  1000, endPos: -400, gateId: "SG-03" },
+      { id: 4, dir: "west",  axis: "x", sign: -1, zOffset: -30, startPos: -1000, endPos: 400, gateId: "SG-04" },
     ];
 
     function spawnIntersectionCar(roadId, startPos, lane) {
@@ -1644,7 +1979,8 @@ const SmartCity3D = forwardRef((props, ref) => {
         speed: INTERSECTION_BASE_SPEED,
         baseSpeed: INTERSECTION_BASE_SPEED,
         waiting: false,
-        waitTimer: 0,               // NEW — prevents permanent freeze
+        waitTimer: 0,
+        gateId: lane.gateId,
       };
       intersectionCars.push(carObj);
       updateIntersectionCarTransform(carObj);
@@ -1667,17 +2003,97 @@ const SmartCity3D = forwardRef((props, ref) => {
       spawnIntersectionCar(roadId, startPos, lane);
     }
 
-    function updateIntersectionCars(delta, aiSystem) {
+    /* vehicle snapshot for AI detection */
+    function buildVehicleSnapshot() {
+      const arr = [];
+      for (const c of intersectionCars) {
+        if (c.axis === "z") arr.push({ x: c.xOffset, z: c.pos, speed: c.speed });
+        else arr.push({ x: c.pos, z: c.zOffset, speed: c.speed });
+      }
+      return arr;
+    }
+
+    function setBrakeLights(car, on) {
+      const tl = car.userData.tailLights;
+      if (!tl) return;
+      for (const m of tl) m.emissiveIntensity = on ? 6 : 3;
+    }
+
+    function updateIntersectionCars(delta, aiSystem, securitySystem) {
+      // sort each lane's cars so we can compute queue spacing
+      const laneGroups = {};
+      for (const c of intersectionCars) {
+        (laneGroups[c.roadId] = laneGroups[c.roadId] || []).push(c);
+      }
+
+      for (const rid of Object.keys(laneGroups)) {
+        const list = laneGroups[rid];
+        // For sign<0 movement is decreasing position; sort by distance from barrier (closest first)
+        // Determine barrier coordinate:
+        const gate = securitySystem ? securitySystem.getGate(list[0].gateId) : null;
+        const gateStop = gate ? gate.stop : null;
+        const gateClosed = gate ? securitySystem.isGateClosed(gate.id) : false;
+
+        // Sort: "closest to gate" first
+        list.sort((a, b) => {
+          if (!gateStop) return 0;
+          const da = Math.abs(a.pos - gateStop);
+          const db = Math.abs(b.pos - gateStop);
+          return da - db;
+        });
+
+        // Queue spacing enforcement
+        const MIN_GAP = 40;
+        for (let i = 1; i < list.length; i++) {
+          const leader = list[i - 1];
+          const follower = list[i];
+          const leaderAhead = leader.pos;
+          const followerPos = follower.pos;
+          // If they'd overlap, clamp follower behind leader
+          const sign = follower.sign;
+          if (sign < 0) {
+            // moving in -pos direction; follower must be at greater pos than leader
+            if (followerPos < leaderAhead + MIN_GAP) follower.pos = leaderAhead + MIN_GAP;
+          } else {
+            if (followerPos > leaderAhead - MIN_GAP) follower.pos = leaderAhead - MIN_GAP;
+          }
+        }
+      }
+
       for (const c of intersectionCars) {
         const isGreen = aiSystem.isGreen(c.roadId);
         const isYellow = aiSystem.isYellowRoad(c.roadId);
+
+        // gate stop target
+        const gate = securitySystem ? securitySystem.getGate(c.gateId) : null;
+        const gateStopPos = gate ? gate.stop : null;
+        const gateClosed = gate ? securitySystem.isGateClosed(gate.id) : false;
+
         const stopLinePos = c.axis === "z" ? (c.sign < 0 ? 180 : -180) : (c.sign < 0 ? -180 : 180);
         const distToStop = Math.abs(c.pos - stopLinePos);
 
-        let targetSpeed = c.baseSpeed;
+        // How far until the gate stop?
+        let distToGate = Infinity;
+        let approachingGate = false;
+        if (gateStopPos !== null) {
+          const along = (c.sign < 0)
+            ? (c.pos - gateStopPos)   // >0 means still before gate
+            : (gateStopPos - c.pos);
+          if (along > -40) { distToGate = along; approachingGate = true; }
+        }
 
-        if (isGreen) {
-          // Always move — no blocking
+        let targetSpeed = c.baseSpeed;
+        let braking = false;
+
+        // 1) Barrier takes priority over traffic light
+        if (gateClosed && approachingGate && distToGate < 90 && distToGate > 0) {
+          targetSpeed = 0;
+          braking = true;
+          c.waiting = true;
+        } else if (gateClosed && approachingGate && distToGate < 260) {
+          targetSpeed = c.baseSpeed * 0.25;
+          c.waiting = false;
+        } else if (isGreen) {
           targetSpeed = c.baseSpeed;
           c.waiting = false;
           c.waitTimer = 0;
@@ -1686,11 +2102,11 @@ const SmartCity3D = forwardRef((props, ref) => {
           c.waiting = false;
           c.waitTimer = 0;
         } else {
-          // RED — wait, but not forever (waitTimer forces resume)
           if (distToStop < 60 && c.waitTimer < 6) {
             targetSpeed = 0;
             c.waiting = true;
             c.waitTimer += delta;
+            braking = true;
           } else if (distToStop < 180) {
             targetSpeed = c.baseSpeed * 0.25;
             c.waiting = false;
@@ -1702,20 +2118,19 @@ const SmartCity3D = forwardRef((props, ref) => {
           }
         }
 
-        // Smooth lerp
         c.speed = c.speed + (targetSpeed - c.speed) * Math.min(1, delta * 2.5);
         c.pos += c.sign * c.speed * delta * 20;
 
-        // Wrap
         const range = 1200;
         if (c.sign < 0 && c.pos < -range) { c.pos = range; c.waitTimer = 0; }
         else if (c.sign > 0 && c.pos > range) { c.pos = -range; c.waitTimer = 0; }
 
+        setBrakeLights(c.car, braking);
         updateIntersectionCarTransform(c);
       }
     }
 
-    /* ===== DUBAI LUXURY CARS (static decorative) ===== */
+    /* ===== DUBAI LUXURY CARS ===== */
     function makeDubaiLuxuryCar(colorHex) {
       const g = new THREE.Group();
       const bMat = mat(colorHex, 0.15, 0.9);
@@ -1880,10 +2295,29 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     addLandscaping();
 
+    /* ===== SIMULATIONS ===== */
     const sim = createCitySimulation({ onTrafficUpdate, onSimTime, onCycleUpdate, onAiMessage, onAiReason });
     s.sim = sim;
     const aiSystem = createAITrafficSystem({ onTrafficUpdate: (data) => onAITrafficUpdate?.(data) });
     s.aiSystem = aiSystem;
+    const securitySystem = createAISecuritySystem({
+      onSecurityUpdate: (data) => {
+        // redraw gate signs + push to parent UI
+        for (const g of securityGates) {
+          const snap = data.gates.find((x) => x.id === g.id);
+          if (!snap) continue;
+          g.status = snap.status;
+          g.aiState = snap.aiState;
+          g.vehiclesDetected = snap.vehiclesDetected;
+          g.vehiclesWaiting = snap.vehiclesWaiting;
+          g.density = snap.density;
+          redrawGateSign(g, data.phase, snap.status);
+        }
+        onSecurityUpdate?.(data);
+        setSecurityHUD(data);
+      },
+    });
+    s.securitySystem = securitySystem;
 
     const garbageRoute = [
       [-1200, -1200], [0, -1200], [1200, -1200], [1200, 0], [1200, 1200],
@@ -1922,9 +2356,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       if (Math.abs(dx) + Math.abs(dz) > 0.1) truck.rotation.y = -Math.atan2(dz, dx);
     }
 
-    /* ===== CLICK HANDLER — OPENS POPUP ===== */
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
+    /* ===== CLICK HANDLER ===== */
     const onClick = (e) => {
       if (s.isLocked) return;
       if (e.target !== renderer.domElement) return;
@@ -1934,13 +2366,21 @@ const SmartCity3D = forwardRef((props, ref) => {
       for (const item of clickable) {
         const hit = raycaster.intersectObject(item.object, true);
         if (hit.length) {
-          const info = BUILDING_INFO[item.type];
-          if (info) {
-            setBuildingPopup(info);
-          } else {
-            setBuildingPopup({ title: item.name || "Location", type: "INFO", icon: "📍", desc: "Smart city location.", stats: [] });
+          if (item.type === "securityGate" && item.gateRef) {
+            const g = item.gateRef;
+            setSecurityPopup({
+              id: g.id, label: g.label,
+              status: g.status, aiState: g.aiState,
+              vehiclesDetected: g.vehiclesDetected,
+              vehiclesWaiting: g.vehiclesWaiting,
+              density: g.density,
+            });
+            onPanel({ title: g.id + " · Smart Security Gate", type: "SECURITY", text: "AI barrier check-point." });
+            return;
           }
-          // Also call onPanel for parent UI
+          const info = BUILDING_INFO[item.type];
+          if (info) setBuildingPopup(info);
+          else setBuildingPopup({ title: item.name || "Location", type: "INFO", icon: "📍", desc: "Smart city location.", stats: [] });
           onPanel({ title: item.name || "Location", type: "INFO", text: "Details available." });
           return;
         }
@@ -1951,6 +2391,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const clock = new THREE.Clock();
     let fc = 0;
     let rafId;
+    let signRedrawCounter = 0;
 
     function animate() {
       rafId = requestAnimationFrame(animate);
@@ -1960,8 +2401,40 @@ const SmartCity3D = forwardRef((props, ref) => {
 
       sim.tick(delta);
       aiSystem.tick(delta);
+
+      // snapshot before running vehicle update so the security AI sees fresh data
+      const snap = buildVehicleSnapshot();
+      securitySystem.tick(delta, snap);
+
       updateCarMovement();
-      updateIntersectionCars(delta, aiSystem);
+      updateIntersectionCars(delta, aiSystem, securitySystem);
+
+      // apply arm angles + lamps
+      for (const g of securityGates) {
+        g.armGroup.parent.rotation.z = g.armAngle; // rotate the arm around the hinge (Z-axis local)
+        // lamps: red pulsing when CLOSED, green when OPEN, amber during transition
+        const target = g.armAngle;
+        const moving = Math.abs(target - g.armAngle) > 0.01;
+        if (moving || g.status === "CLOSED") {
+          const blink = (Math.sin(t * 6) * 0.5 + 0.5);
+          g.lampRed.material.emissiveIntensity = 3 + blink * 2;
+          g.lampAmber.material.emissiveIntensity = 3 + (1 - blink) * 2;
+          g.lampGreen.material.emissiveIntensity = 0.3;
+          g.tipLamp.material.emissiveIntensity = 3 + blink * 3;
+        } else {
+          g.lampRed.material.emissiveIntensity = 0.4;
+          g.lampAmber.material.emissiveIntensity = 0.4;
+          g.lampGreen.material.emissiveIntensity = 3.5;
+          g.tipLamp.material.emissiveIntensity = 0.5;
+        }
+      }
+
+      // periodic sign refresh (every 30 frames) for stability
+      if (fc % 30 === 0) {
+        for (const g of securityGates) {
+          redrawGateSign(g, securitySystem.getGate(g.id)?.aiState || "NORMAL", g.status);
+        }
+      }
 
       for (const l of intersectionLights) {
         l.r.material.emissiveIntensity = 0;
@@ -2171,6 +2644,86 @@ const SmartCity3D = forwardRef((props, ref) => {
         </div>
       )}
 
+      {/* ====== SECURITY GATE POPUP ====== */}
+      {securityPopup && (
+        <div style={{
+          position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+          background: "linear-gradient(135deg, rgba(6,20,35,0.97), rgba(12,35,55,0.95))",
+          border: "2px solid " + (securityPopup.status === "CLOSED" ? "#ff8a1f" : "#22cfff"),
+          borderRadius: 20, padding: "22px 28px",
+          color: "#fff", fontFamily: "system-ui, -apple-system, sans-serif",
+          boxShadow: "0 0 60px rgba(34,207,255,0.6), inset 0 0 30px rgba(34,207,255,0.08)",
+          zIndex: 9999, minWidth: 460, maxWidth: 560, backdropFilter: "blur(16px)",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <span style={{ fontSize: 44 }}>🛡️</span>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#22cfff", letterSpacing: 0.5 }}>SMART SECURITY GATE</div>
+                <div style={{ fontSize: 11, color: "#7fe3ff", letterSpacing: 2, textTransform: "uppercase", marginTop: 3 }}>
+                  {securityPopup.id} · {securityPopup.label}
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setSecurityPopup(null)} style={{ background: "transparent", border: "none", color: "#7fe3ff", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>Gate ID</span>
+              <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.id}</span>
+            </div>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>Status</span>
+              <span style={{ color: securityPopup.status === "CLOSED" ? "#ff8a1f" : "#6aff9d", fontWeight: 700 }}>{securityPopup.status}</span>
+            </div>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>AI Control</span>
+              <span style={{ color: "#6aff9d", fontWeight: 700 }}>ACTIVE</span>
+            </div>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>Security Level</span>
+              <span style={{ color: securityPopup.aiState === "RESTRICTED" ? "#ff8a1f" : "#6aff9d", fontWeight: 700 }}>{securityPopup.aiState}</span>
+            </div>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>Vehicles Detected</span>
+              <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.vehiclesDetected}</span>
+            </div>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>Vehicles Waiting</span>
+              <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.vehiclesWaiting}</span>
+            </div>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>Traffic Density</span>
+              <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.density}</span>
+            </div>
+            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "#8fd8f0" }}>Reason</span>
+              <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.aiState === "RESTRICTED" ? "Security Restriction" : "Normal Flow"}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={() => { focusSecurityGate(securityPopup.id); setSecurityPopup(null); }}
+              style={{
+                flex: 1, padding: "12px 18px", borderRadius: 12,
+                background: "linear-gradient(135deg, #22cfff, #0a8fbf)",
+                color: "#031a24", fontWeight: 800, letterSpacing: 1,
+                border: "none", cursor: "pointer", fontSize: 13, textTransform: "uppercase",
+                boxShadow: "0 0 20px rgba(34,207,255,0.5)",
+              }}
+            >🎥 View Checkpoint</button>
+            <button
+              onClick={() => setSecurityPopup(null)}
+              style={{
+                padding: "12px 18px", borderRadius: 12,
+                background: "transparent", border: "1px solid rgba(34,207,255,0.5)",
+                color: "#7fe3ff", fontWeight: 700, cursor: "pointer", fontSize: 13, letterSpacing: 1,
+              }}
+            >Close</button>
+          </div>
+        </div>
+      )}
+
       {/* ====== LOCATION POPUP (bottom) ====== */}
       {locationPopup && (
         <div style={{
@@ -2200,6 +2753,41 @@ const SmartCity3D = forwardRef((props, ref) => {
                 <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ====== AI SECURITY HUD ====== */}
+      {securityHUD && (
+        <div style={{
+          position: "fixed", top: 24, right: 24,
+          background: "linear-gradient(135deg, rgba(6,20,35,0.92), rgba(12,35,55,0.9))",
+          border: "1px solid rgba(34,207,255,0.5)", borderRadius: 14,
+          padding: "14px 18px", color: "#fff",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          boxShadow: "0 0 30px rgba(34,207,255,0.35)",
+          zIndex: 9997, minWidth: 260, backdropFilter: "blur(10px)",
+          fontSize: 12,
+        }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: "#7fe3ff", textTransform: "uppercase", marginBottom: 8, fontWeight: 700 }}>
+            🛡️ AI TRAFFIC &amp; SECURITY
+          </div>
+          {securityHUD.gates.map((g) => (
+            <div key={g.id} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "5px 0", borderBottom: "1px solid rgba(34,207,255,0.12)",
+            }}>
+              <span style={{ color: "#b8e8ff" }}>{g.id}</span>
+              <span style={{
+                color: g.status === "CLOSED" ? "#ff8a1f" : "#6aff9d",
+                fontWeight: 700, letterSpacing: 0.5,
+              }}>
+                {g.status} · {g.vehiclesWaiting}q
+              </span>
+            </div>
+          ))}
+          <div style={{ marginTop: 8, fontSize: 10, color: "#7fe3ff", letterSpacing: 1.2 }}>
+            PHASE: {securityHUD.phase} · AI CONTROL: ACTIVE
           </div>
         </div>
       )}
