@@ -1,39 +1,8 @@
 // src/SmartCity3D.jsx
+// GLB-FREE VERSION — koi GLB import nahi, sab buildings code se bani hain
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-
-// ============================================================
-// GLB IMPORTS — Vite inhe automatically bundle karega.
-// Agar aapki koi file src/assets/ mein hai to path badal dena:
-//   "./xxx.glb"  →  "./assets/xxx.glb"
-// ============================================================
-import schoolGLB from "./american_high_school.glb";
-import hospitalGLB from "./low_poly_hospital.glb";
-import bankGLB from "./us_bank_tower.glb";
-import farmGLB from "./simple_farm_free.glb";
-import newHallGLB from "./liverpool_street_station_south_entrance.glb";
-import gasStationGLB from "./gas_station.glb";
-import officeGLB from "./office.glb";
-import brutalistGLB from "./brutalist_building.glb";
-import cultureGLB from "./national_archives_research_center.glb";
-import powerCompanyGLB from "./power-suply-companey.glb";
-import scifi9GLB from "./sci-fi_building_9.glb";
-import beautifulTowerGLB from "./beautifultowerbuilding.glb";
-import scifi10GLB from "./sci-fi_building_10.glb";
-import modernBuildingsGLB from "./modernbuildings.glb";
-import skylineGLB from "./low_poly_night_city_building_skyline.glb";
-import greatHallGLB from "./great_hall.glb";
-import nearbankGLB from "./nearbank.glb";
-import twoBuildingsGLB from "./twobuildingsneedspace.glb";
-import trashPackGLB from "./trash_pack.glb";
-import commercialGLB from "./commercial_building_concept.glb";
-import shopGLB from "./dagashiya_shop_japanese_old_snack_shop.glb";
-import skidFiltrationGLB from "./skid_filtration_system.glb";
-import batteryGLB from "./battery.glb";
-import antenaGLB from "./antena.glb";
-import oldAntennaGLB from "./old_antenna.glb";
 
 const CITY_HALF = 3900;
 const ROAD_HALF_LEN = 3800;
@@ -112,7 +81,7 @@ export const LOCATIONS = {
   carWash: { key: "carWash", label: "Car Wash Gas Station", icon: "🚗", type: "AUTOMOTIVE", position: [1800, 5, 1750], camHeight: 420, camDistance: 420, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   powerCompany: { key: "powerCompany", label: "City Power Supply Co.", icon: "🔌", type: "UTILITY", position: [-1600, 5, 800], camHeight: 380, camDistance: 380, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   powerSupply: { key: "powerSupply", label: "Power Supply Zone", icon: "⚡", type: "RENEWABLE", position: [-5400, 5, 3600], camHeight: 900, camDistance: 1000, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
-  filtration: { key: "filtration", label: "Filtration System", icon: "💧", type: "WATER TREATMENT", position: [3600, 5, -3600], camHeight: 420, camDistance: 380, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }, { name: "Inside Machine", inside: true }] },
+  filtration: { key: "filtration", label: "Filtration System", icon: "💧", type: "WATER TREATMENT", position: [3600, 5, -3600], camHeight: 420, camDistance: 380, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   fertilizer: { key: "fertilizer", label: "AI Fertilizer System", icon: "🌱", type: "FERTILIZER MANAGEMENT", position: [-3600, 5, -3600], camHeight: 450, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   wasteManagement: { key: "wasteManagement", label: "Waste Management", icon: "♻", type: "MUNICIPAL", position: [3600, 5, 3600], camHeight: 450, camDistance: 480, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   cultureCenter: { key: "cultureCenter", label: "Culture Center", icon: "🏛", type: "CULTURAL", position: [-1800, 5, 1800], camHeight: 450, camDistance: 450, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
@@ -322,7 +291,6 @@ const SmartCity3D = forwardRef((props, ref) => {
   const [buildingPopup, setBuildingPopup] = useState(null);
   const [securityPopup, setSecurityPopup] = useState(null);
   const [securityHUD, setSecurityHUD] = useState(null);
-  const [aiLog, setAiLog] = useState([]);
 
   const s = useRef({
     camera: null, controls: null, renderer: null, scene: null,
@@ -456,12 +424,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const clickable = []; s.clickable = clickable;
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-    const logEntries = [];
-    const pushLog = (msg) => {
-      logEntries.push({ t: new Date().toLocaleTimeString(), msg });
-      if (logEntries.length > 6) logEntries.shift();
-      setAiLog([...logEntries]);
-    };
 
     const scene = new THREE.Scene(); s.scene = scene;
     scene.background = new THREE.Color(0x8fbcd4);
@@ -494,6 +456,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     rimLight.position.set(0, 600, -1200); scene.add(rimLight);
 
     const mat = (c, r = 0.8, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x2ac8ff, emissive: 0x1a7ac8, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.15, transparent: true, opacity: 0.85 });
     const grassMaterial = mat(0x4d8f50, 0.98);
     const roadMaterial = mat(0x2a3238, 0.85, 0.15);
     const roadLaneMaterial = mat(0x1e2428, 0.96);
@@ -675,58 +638,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       scene.add(g);
     }
 
-    function buildInfoBoard(x, z, title, subtitle, panels, accent = 0xc98a3a) {
-      const g = new THREE.Group(); g.position.set(x, 5, z);
-      const frameMat = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.4, metalness: 0.5 });
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(260, 200, 8), frameMat); frame.position.y = 100; g.add(frame);
-      const back = new THREE.Mesh(new THREE.BoxGeometry(252, 192, 2), mat(0x1a0f08, 0.85)); back.position.set(0, 100, 4.5); g.add(back);
-      const c = document.createElement("canvas"); c.width = 1024; c.height = 800;
-      const ctx = c.getContext("2d");
-      const hex = (n) => "#" + n.toString(16).padStart(6, "0");
-      ctx.fillStyle = hex(accent); ctx.fillRect(0, 0, 1024, 800);
-      ctx.fillStyle = "#2a1608"; ctx.fillRect(20, 20, 984, 130);
-      ctx.fillStyle = "#ffd9a0"; ctx.font = "bold 62px Georgia, serif";
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(title, 512, 75);
-      ctx.fillStyle = "#f5c98a"; ctx.font = "500 26px Georgia, serif";
-      ctx.fillText(subtitle, 512, 122);
-      const colors = ["#c94a5a", "#3a9a8a", "#3a7ac9", "#5aa54a", "#c98a3a", "#8a5ac9"];
-      const cols = 3, rows = 2, padX = 24, padY = 24;
-      const startX = 30, startY = 170;
-      const cellW = (1024 - padX * (cols + 1)) / cols;
-      const cellH = (600 - padY * (rows + 1)) / rows;
-      for (let i = 0; i < cols * rows; i++) {
-        const r = Math.floor(i / cols), cc = i % cols;
-        const px = startX + padX + cc * (cellW + padX);
-        const py = startY + padY + r * (cellH + padY);
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.fillRect(px, py, cellW, cellH);
-        ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 2;
-        ctx.strokeRect(px, py, cellW, cellH);
-        const p = panels[i] || { t: "", d: "" };
-        ctx.fillStyle = "#ffffff"; ctx.font = "bold 34px Georgia, serif";
-        ctx.fillText(p.t || "", px + cellW / 2, py + 45);
-        ctx.font = "500 18px Georgia, serif";
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.fillText(p.d || "", px + cellW / 2, py + 85);
-      }
-      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(20, 720, 984, 60);
-      ctx.fillStyle = "#ffe4b8"; ctx.font = "500 20px Georgia, serif";
-      ctx.fillText("Smart City - IoT - AI-Powered Urban Management", 512, 750);
-      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(252, 192), new THREE.MeshBasicMaterial({ map: tex }));
-      face.position.set(0, 100, -4.5); face.rotation.y = Math.PI; g.add(face);
-      const face2 = face.clone(); face2.position.set(0, 100, 4.6); face2.rotation.y = 0; g.add(face2);
-      const legMat = new THREE.MeshStandardMaterial({ color: 0x2a1608, roughness: 0.7 });
-      for (const lx of [-110, 110]) {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(12, 100, 12), legMat);
-        leg.position.set(lx, 50, 0); g.add(leg);
-      }
-      scene.add(g);
-      clickable.push({ object: g, type: "cultureCenter", name: title });
-      return g;
-    }
-
     function buildVerticalFarm(cx, cz, count = 6) {
       for (let i = 0; i < count; i++) {
         const ax = cx + Math.cos((i / count) * Math.PI * 2) * 180;
@@ -761,8 +672,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         clickable.push({ object: g, type: "verticalFarm", name: "Vertical Farm " + (i + 1) });
         s.verticalFarms.push({ g, beacon, topLED });
       }
-      buildInfoBoard(cx, cz + 320, "Vertical Farming Tower", "24-Level Hydroponic Sky Farm",
-        [{ t: "Hydroponics", d: "Nutrient Film" }, { t: "Grow LEDs", d: "Magenta Spectrum" }, { t: "Water Save", d: "92% Less" }, { t: "Yield", d: "+340%" }, { t: "AI Dosing", d: "Realtime" }, { t: "Climate", d: "Auto" }], 0x2a8a4a);
     }
 
     function buildSmartHome(cx, cz, name, color, rot = 0) {
@@ -943,192 +852,58 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     securityGates.forEach((g) => redrawGateSign(g, "NORMAL", "OPEN"));
 
-    const loader = new GLTFLoader();
-    function removeGroundFromGLB(model) {
-      const toRemove = [];
-      model.traverse((child) => {
-        if (child.isMesh) {
-          const name = (child.name || "").toLowerCase();
-          if (name.includes("ground") || name.includes("floor") || name.includes("terrain") || name.includes("grass")) toRemove.push(child);
-        }
-      });
-      toRemove.forEach((m) => m.parent && m.parent.remove(m));
-    }
-    function prep(obj, size) {
-      removeGroundFromGLB(obj);
-      const box = new THREE.Box3().setFromObject(obj);
-      const sz = new THREE.Vector3(); box.getSize(sz);
-      const maxD = Math.max(sz.x, sz.y, sz.z);
-      obj.scale.setScalar(size / Math.max(maxD, 0.001));
-      const b2 = new THREE.Box3().setFromObject(obj);
-      const c = new THREE.Vector3(); b2.getCenter(c);
-      obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= b2.min.y;
-    }
-    // bld now takes the imported URL directly
-    function bld(fileUrl, size, pos, type, name, borderColor) {
-      loader.load(fileUrl, (g) => {
-        const b = g.scene;
-        prep(b, size);
-        b.position.set(pos[0], 5, pos[1]); scene.add(b);
-        clickable.push({ object: b, type, name: name || type });
-        if (borderColor !== null) buildingBorder(pos[0], pos[1], size * 1.4, size * 1.4, borderColor || 0x22cfff);
-        pushLog("Loaded: " + (name || type));
-      }, undefined, (err) => {
-        console.warn("GLB FAILED:", fileUrl, err);
-        pushLog("FAIL: " + (name || type));
-      });
-    }
-
-    const treeTrunkMat = mat(0x5a3d24, 0.95, 0.05);
-    const treeLeafMat = mat(0x2d6e3d, 0.9);
-    const treeLeafMat2 = mat(0x3a8a4c, 0.9);
-    const treeLeafMat3 = mat(0x1f5a2e, 0.9);
-    const treeLeafMat4 = mat(0x4a9d5a, 0.9);
-    const treeTrunkGeo = new THREE.CylinderGeometry(2.2, 3.5, 28, 7);
-    const treeLeafCone = new THREE.ConeGeometry(18, 42, 8);
-    const treeLeafConeSmall = new THREE.ConeGeometry(14, 32, 7);
-    const treeLeafSphereBig = new THREE.SphereGeometry(18, 10, 9);
-    function tree(x, z, sc = 1) {
-      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
-      const t = new THREE.Mesh(treeTrunkGeo, treeTrunkMat); t.position.y = 14; g.add(t);
-      const roll = Math.random();
-      if (roll < 0.5) {
-        const l = new THREE.Mesh(treeLeafCone, treeLeafMat); l.position.y = 38; g.add(l);
-        const l2 = new THREE.Mesh(treeLeafConeSmall, treeLeafMat2); l2.position.y = 52; l2.scale.setScalar(0.75); g.add(l2);
-      } else {
-        const l = new THREE.Mesh(treeLeafSphereBig, treeLeafMat4); l.position.y = 40; l.scale.set(1.2, 1.1, 1.2); g.add(l);
-        const l2 = new THREE.Mesh(treeLeafConeSmall, treeLeafMat3); l2.position.y = 55; l2.scale.setScalar(0.6); g.add(l2);
-      }
-      scene.add(g);
-    }
-    function bush(x, z, sc = 1) {
-      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
-      const colors = [0x2d6e3d, 0x3a8a4c, 0x1f5a2e, 0x4a9d5a];
-      for (let i = 0; i < 3; i++) {
-        const b = new THREE.Mesh(new THREE.SphereGeometry(4 + Math.random() * 3, 6, 5), mat(colors[Math.floor(Math.random() * colors.length)], 0.95));
-        b.position.set((Math.random() - 0.5) * 6, 4 + Math.random() * 2, (Math.random() - 0.5) * 6); g.add(b);
-      }
-      scene.add(g);
-    }
-    function isOnRoad(x, z) {
-      const clear = 130;
-      for (const rz of roadZs) if (Math.abs(z - rz) < clear) return true;
-      for (const rx of roadXs) if (Math.abs(x - rx) < clear) return true;
-      return false;
-    }
-    function isInsideCity(x, z) { return Math.abs(x) < CITY_HALF - 200 && Math.abs(z) < CITY_HALF - 200; }
-    const occupiedSpots = [
-      { x: -600, z: -600, r: 260 }, { x: 600, z: -600, r: 250 }, { x: 600, z: 600, r: 300 },
-      { x: 1800, z: -600, r: 400 }, { x: 600, z: 1800, r: 290 }, { x: 1800, z: 1750, r: 320 }, { x: 1800, z: 600, r: 290 },
-      { x: 0, z: 0, r: 130 }, { x: -5400, z: 3600, r: 1200 }, { x: 3600, z: -3600, r: 600 },
-      { x: -3600, z: -3600, r: 600 }, { x: 3600, z: 3600, r: 600 }, { x: -1800, z: 1800, r: 400 },
-      { x: -600, z: 600, r: 500 }, { x: -1600, z: 800, r: 260 }, { x: -3900, z: -2400, r: 350 },
-      { x: -3600, z: -800, r: 400 }, { x: -3600, z: 800, r: 350 }, { x: 900, z: 1400, r: 250 },
-      { x: 2900, z: -2400, r: 400 }, { x: -900, z: -1500, r: 300 },
-    ];
-    function isOnBuilding(x, z) {
-      for (const o of occupiedSpots) {
-        const dx = x - o.x, dz = z - o.z;
-        if (dx * dx + dz * dz < o.r * o.r) return true;
-      }
-      return false;
-    }
-    function isFree(x, z) { return isInsideCity(x, z) && !isOnRoad(x, z) && !isOnBuilding(x, z); }
-
-    const TOWER_COLORS = [0x5b9bd5, 0x4a90e2, 0x7bb3e0, 0x6ba3d9, 0x82c0e8, 0x5090d0, 0xc0629b, 0xd475a8, 0xb84f8a, 0xe087b6, 0xf5a623, 0xf7b955, 0xe89b3e, 0xffc866, 0x6cd4a0, 0x4ec39a, 0x8adbb8, 0x5bc08a, 0x9b7ad9, 0xaa8ae0, 0x8a66c9, 0xbaa0e8, 0xe8635c, 0xd94f4a, 0xf0776b, 0x4a4a5c, 0x5a5a6e, 0x3d3d4e, 0x6a6a7e, 0xdde0e3, 0xc8ccd0, 0xb0b5bb, 0x22a5b8, 0x2bb8c9, 0x40c9d9];
-
-    function tallTower(x, z, w, h, d, color) {
+    // ---- BUILDINGS (code-generated, no GLB needed) ----
+    function makeBuilding(x, z, w, d, h, bodyColor, roofColor, type, name, hasBorder = true, borderColor = 0x22cfff) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
-      const bMat = mat(color, 0.4, 0.55);
+      const bMat = mat(bodyColor, 0.5, 0.4);
       const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMat); body.position.y = h / 2; g.add(body);
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(w * 0.95, 6, d * 0.95), mat(0x2a2a35, 0.5, 0.6)); cap.position.y = h + 3; g.add(cap);
-      if (Math.random() > 0.4) {
-        const antH = 30 + Math.random() * 40;
-        const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, antH, 6), mat(0x9a9a9a, 0.4, 0.8)); ant.position.y = h + 6 + antH / 2; g.add(ant);
-        const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 4 })); beacon.position.y = h + 6 + antH; g.add(beacon);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 4, 6, d + 4), mat(roofColor || 0x2a2a35, 0.6, 0.5)); roof.position.y = h + 3; g.add(roof);
+      // window strips
+      const winMat = new THREE.MeshStandardMaterial({ color: 0x0a2a3a, emissive: 0x66ccff, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.2 });
+      const stripCount = Math.min(8, Math.max(2, Math.floor(h / 25)));
+      for (let i = 1; i <= stripCount; i++) {
+        const y = (h / (stripCount + 1)) * i;
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 2, d + 0.5), winMat);
+        strip.position.y = y; g.add(strip);
       }
-      const glassMat = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, emissive: 0x66ccff, emissiveIntensity: 0.7, metalness: 0.6, roughness: 0.2 });
-      for (let f = 1; f <= 4; f++) {
-        const fy = (h / 5) * f;
-        const line = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 0.6, d + 0.5), glassMat);
-        line.position.y = fy; g.add(line);
-      }
-      const lightColor = [0xff6666, 0x66ff99, 0x66aaff, 0xffdd66][Math.floor(Math.random() * 4)];
-      const spot = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), new THREE.MeshStandardMaterial({ color: lightColor, emissive: lightColor, emissiveIntensity: 3 }));
-      spot.position.y = h + 8; g.add(spot);
-      scene.add(g);
-    }
-
-    const solarPanelMat = new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.18, metalness: 0.7, emissive: 0x063b62, emissiveIntensity: 0.7 });
-    function solarPanelUnit(x, z, rotY = 0) {
-      const g = new THREE.Group(); g.position.set(x, 5, z); g.rotation.y = rotY;
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 20), mat(0x2a2a35, 0.5, 0.6)); frame.position.y = 3; g.add(frame);
-      const panel = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 18), solarPanelMat); panel.position.y = 4.2; panel.rotation.x = -0.2; g.add(panel);
-      for (const lx of [-10, 10]) for (const lz of [-7, 7]) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 3, 6), mat(0x555a5e, 0.5, 0.7)); leg.position.set(lx, 1.5, lz); g.add(leg);
+      // entrance door
+      const door = new THREE.Mesh(new THREE.BoxGeometry(w * 0.3, 12, 3), mat(0x0a0a0a, 0.4, 0.3));
+      door.position.set(0, 6, d / 2 + 1); g.add(door);
+      // antenna
+      if (h > 60) {
+        const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 25, 6), mat(0x9a9a9a, 0.4, 0.8));
+        ant.position.y = h + 18; g.add(ant);
+        const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 4 }));
+        beacon.position.y = h + 32; g.add(beacon);
       }
       scene.add(g);
+      clickable.push({ object: g, type, name: name || type });
+      if (hasBorder) buildingBorder(x, z, w + 20, d + 20, borderColor);
+      return g;
     }
 
-    function buildSociety(centerX, centerZ) {
-      const SOCIETY_W = 850, SOCIETY_D = 850;
-      const HALF_W = SOCIETY_W / 2, HALF_D = SOCIETY_D / 2;
-      const SOCIETY_GREEN = 0x2ecc71;
-      const societyBorderMat = new THREE.MeshStandardMaterial({ color: SOCIETY_GREEN, emissive: SOCIETY_GREEN, emissiveIntensity: 2.4, metalness: 0.6, roughness: 0.25 });
-      s.borderLights.push(societyBorderMat);
-      const innerGround = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W - 30, 0.6, SOCIETY_D - 30), mat(0xb8bcc0, 0.92)); innerGround.position.set(centerX, 4.85, centerZ); scene.add(innerGround);
-      const grassPad = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 50, 0.4, SOCIETY_D + 50), grassMaterial); grassPad.position.set(centerX, 4.6, centerZ); scene.add(grassPad);
-      const WALL_H = 14, WALL_T = 6;
-      const wallF = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 12, WALL_H, WALL_T), societyBorderMat); wallF.position.set(centerX, 5 + WALL_H / 2, centerZ + HALF_D + 6); scene.add(wallF);
-      const wallB = wallF.clone(); wallB.position.z = centerZ - HALF_D - 6; scene.add(wallB);
-      const wallL = new THREE.Mesh(new THREE.BoxGeometry(WALL_T, WALL_H, SOCIETY_D + 12), societyBorderMat); wallL.position.set(centerX - HALF_W - 6, 5 + WALL_H / 2, centerZ); scene.add(wallL);
-      const wallR = wallL.clone(); wallR.position.x = centerX + HALF_W + 6; scene.add(wallR);
-      for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
-        const cx = centerX + dx * (HALF_W + 6), cz = centerZ + dz * (HALF_D + 6);
-        const p = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 40, 12), societyBorderMat); p.position.set(cx, 25, cz); scene.add(p);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: SOCIETY_GREEN, emissiveIntensity: 3.5 })); cap.position.set(cx, 48, cz); scene.add(cap);
-      }
-      const towerRows = 4, towerCols = 3, innerMargin = 100;
-      const usableW = SOCIETY_W - innerMargin * 2, usableD = SOCIETY_D - innerMargin * 2;
-      for (let r = 0; r < towerRows; r++) for (let c = 0; c < towerCols; c++) {
-        const tx = centerX - usableW / 2 + (c + 0.5) * (usableW / towerCols);
-        const tz = centerZ - usableD / 2 + (r + 0.5) * (usableD / towerRows);
-        const w = 28 + Math.random() * 14, d = 28 + Math.random() * 14, h = 180 + Math.random() * 180;
-        tallTower(tx, tz, w, h, d, TOWER_COLORS[Math.floor(Math.random() * TOWER_COLORS.length)]);
-      }
-      for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ + HALF_D - 60, 0);
-      for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ - HALF_D + 60, Math.PI);
-      board("BSS SMART SOCIETY", centerX, 5, centerZ + HALF_D + 100, 280, 18, SOCIETY_GREEN);
-    }
-    const SOCIETY_X = -600, SOCIETY_Z = 600;
-    buildSociety(SOCIETY_X, SOCIETY_Z);
-    const societyGroup = new THREE.Group(); societyGroup.position.set(SOCIETY_X, 0, SOCIETY_Z);
-    clickable.push({ object: societyGroup, type: "society", name: "BSS Smart Society" });
-
-    // ============================================================
-    // GLB BUILDS — ab imported URL use ho rahi hai
-    // ============================================================
-    bld(schoolGLB, 300, [-600, -600], "school", "American High School", 0x1a5490);
-    bld(hospitalGLB, 280, [600, -600], "hospital", "Smart Hospital", 0xc0392b);
-    bld(bankGLB, 360, [600, 600], "bank", "State Bank", 0x8e44ad);
-    bld(farmGLB, 520, [1800, -600], "farm", "Smart Eco Farm", 0x27ae60);
-    bld(newHallGLB, 420, [600, 1800], "newHall", "Liverpool Event Hall", 0xd4a017);
-    bld(gasStationGLB, 380, [1800, 1750], "carWash", "Gas Station", 0xc0392b);
-    bld(officeGLB, 380, [1800, 600], "sewageCompany", "Sewage and Gas Co.", 0x2ecc71);
-    bld(brutalistGLB, 300, [2200, 600], "sewageCompany", "Old Office", 0x34495e);
-    bld(cultureGLB, 480, [-1800, 1800], "cultureCenter", "Culture Center", 0xf39c12);
-    bld(powerCompanyGLB, 380, [-1600, 800], "powerCompany", "City Power Supply", 0xf1c40f);
-    bld(scifi9GLB, 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
-    bld(beautifulTowerGLB, 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
-    bld(scifi10GLB, 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-    bld(modernBuildingsGLB, 480, [2900, 1200], "modernBuilding", "Modern Building Complex", 0x22cfff);
-    bld(skylineGLB, 700, [2900, 2400], "skyline", "Downtown Skyline", 0xff66dd);
-    bld(greatHallGLB, 420, [-2900, 1600], "greatHall", "Great Hall", 0xffd15a);
-    bld(nearbankGLB, 240, [1000, -1200], "bank", "ATM Branch", 0xf1c40f);
-    bld(twoBuildingsGLB, 300, [-2400, 2200], "modernBuilding", "Residential Pair", 0x6cd4a0);
-    bld(trashPackGLB, 120, [1100, 1400], "wasteBin", "Trash Props", null);
-    bld(modernBuildingsGLB, 420, [-2900, 2400], "modernBuilding", "Modern West Block", 0x22cfff);
-    bld(commercialGLB, 380, [2400, -1800], "commercial", "Commercial Hub", 0xf39c12);
+    // MAJOR BUILDINGS — replacements for missing GLBs
+    makeBuilding(-600, -600, 260, 240, 80, 0x8a3a3a, 0x5a2a2a, "school", "American High School", true, 0x1a5490);
+    makeBuilding(600, -600, 240, 220, 90, 0xe8e8e8, 0xc0392b, "hospital", "Smart Hospital", true, 0xc0392b);
+    makeBuilding(600, 600, 180, 180, 180, 0x6a3a8a, 0x4a2a6a, "bank", "State Bank", true, 0x8e44ad);
+    makeBuilding(1800, -600, 320, 300, 40, 0x8a6a3a, 0x5a4a2a, "farm", "Smart Eco Farm", true, 0x27ae60);
+    makeBuilding(600, 1800, 300, 260, 60, 0xd4a017, 0x8a6a17, "newHall", "Liverpool Event Hall", true, 0xd4a017);
+    makeBuilding(1800, 1750, 260, 200, 35, 0xc0392b, 0x8a2a1a, "carWash", "Gas Station", true, 0xc0392b);
+    makeBuilding(1800, 600, 240, 220, 70, 0x2a6a4a, 0x1a4a2a, "sewageCompany", "Sewage and Gas Co.", true, 0x2ecc71);
+    makeBuilding(2200, 600, 200, 180, 80, 0x4a5a6a, 0x2a3a4a, "sewageCompany", "Old Office", true, 0x34495e);
+    makeBuilding(-1800, 1800, 340, 280, 60, 0xc98a3a, 0x8a5a2a, "cultureCenter", "Culture Center", true, 0xf39c12);
+    makeBuilding(-1600, 800, 280, 240, 90, 0xf1c40f, 0xb8960a, "powerCompany", "City Power Supply", true, 0xf1c40f);
+    makeBuilding(-3900, -2400, 320, 280, 140, 0x3a8a4a, 0x2a5a3a, "scifi9", "Sci-Fi Building 9", true, 0x66ff99);
+    makeBuilding(-3600, -800, 220, 220, 220, 0x22a5b8, 0x15808a, "beautifulTower", "Beautiful Tower", true, 0x22cfff);
+    makeBuilding(-3600, 800, 320, 280, 140, 0xd94ad9, 0x8a2a8a, "scifi10", "Sci-Fi Building 10", true, 0xff66dd);
+    makeBuilding(2900, 1200, 360, 320, 100, 0x22a5b8, 0x15808a, "modernBuilding", "Modern Building Complex", true, 0x22cfff);
+    makeBuilding(2900, 2400, 500, 300, 180, 0x3a3a5a, 0x1a1a2a, "skyline", "Downtown Skyline", true, 0xff66dd);
+    makeBuilding(-2900, 1600, 320, 280, 90, 0xffd15a, 0xa88a2a, "greatHall", "Great Hall", true, 0xffd15a);
+    makeBuilding(1000, -1200, 140, 140, 60, 0xf1c40f, 0xa8900a, "bank", "ATM Branch", true, 0xf1c40f);
+    makeBuilding(-2400, 2200, 200, 200, 70, 0x6cd4a0, 0x3a8a6a, "modernBuilding", "Residential Pair", true, 0x6cd4a0);
+    makeBuilding(2400, -1800, 260, 240, 80, 0xf39c12, 0xa86a0a, "commercial", "Commercial Hub", true, 0xf39c12);
+    makeBuilding(900, 1400, 100, 100, 25, 0x2ecc71, 0x1a8a4a, "wasteBin", "Trash Props", false);
+    makeBuilding(-2900, 2400, 320, 280, 100, 0x22a5b8, 0x15808a, "modernBuilding", "Modern West Block", true, 0x22cfff);
 
     function resourceBorder(x, z, w, d, color = 0x00e0ff) {
       const bMat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 3.0, metalness: 0.7, roughness: 0.2 });
@@ -1252,8 +1027,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     for (let i = 0; i < 6; i++) {
       buildSmartHome(-1400 + i * 200, -1500, homeNames[i], homeColors[i], (i % 2) * Math.PI);
     }
-    buildInfoBoard(-900, -1900, "Smart Homes Community", "IoT - Solar - AI Living",
-      [{ t: "Solar Roof", d: "100% Renewable" }, { t: "Smart Meter", d: "Live Usage" }, { t: "AI Climate", d: "Auto Comfort" }, { t: "Smart Lock", d: "Face + App" }, { t: "Energy Class", d: "A+" }, { t: "IoT Devices", d: "18 per Home" }], 0x3a6a8a);
 
     const wcGroup = new THREE.Group(); wcGroup.position.set(900, 5, 1400); scene.add(wcGroup);
     const wcPad = new THREE.Mesh(new THREE.BoxGeometry(280, 0.8, 280), mat(0x2a3a2e, 0.95)); wcPad.position.y = 0.4; wcGroup.add(wcPad);
@@ -1287,17 +1060,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     board("SCI-FI BUILDING 10", -3600, 5, 1120, 260, 16, 0xff66dd);
     board("VERTICAL FARM TOWERS", 2900, 5, -2080, 320, 18, 0x2a8a4a);
 
-    function shop(x, z, scale = 1.4, name) {
-      loader.load(shopGLB, (g) => {
-        const sm = g.scene; prep(sm, 50 * scale); sm.position.set(x, 5, z); scene.add(sm);
-        clickable.push({ object: sm, type: "shop", name: name || "Dagashiya Snack Shop" });
-        pushLog("Loaded: " + (name || "shop"));
-      }, undefined, () => { pushLog("FAIL: shop"); });
-    }
-    shop(-1000, -600, 1.4, "School Canteen");
-    shop(1000, -600, 1.4, "Hospital Canteen");
-    shop(1000, 600, 1.4, "Bank Shop");
-
     const powerZone = new THREE.Group(); powerZone.position.set(-5400, 0, 3600); scene.add(powerZone);
     board("POWER SUPPLY (OUT-OF-CITY)", -5400, 5, 4600, 460, 22, 0x0a4d5c);
     const powerBasePad = new THREE.Mesh(new THREE.BoxGeometry(2400, 0.8, 1800), mat(0x2a3238, 0.92)); powerBasePad.position.set(0, 4.3, 0); powerZone.add(powerBasePad);
@@ -1314,9 +1076,22 @@ const SmartCity3D = forwardRef((props, ref) => {
       const p = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5.5, 32, 10), powerBorderMat); p.position.set(cx, 20, cz); powerZone.add(p);
       const cap = new THREE.Mesh(new THREE.SphereGeometry(3.6, 10, 10), new THREE.MeshStandardMaterial({ color: 0x66e5ff, emissive: 0x33dfff, emissiveIntensity: 3 })); cap.position.set(cx, 38, cz); powerZone.add(cap);
     }
-    loader.load(oldAntennaGLB, (g) => { const a = g.scene; prep(a, 360); a.position.set(-550, 5, 0); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Old Antenna" }); pushLog("Loaded: old antenna"); }, undefined, () => pushLog("FAIL: old antenna"));
-    loader.load(antenaGLB, (g) => { const a = g.scene; prep(a, 270); a.position.set(-280, 5, -100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 1" }); pushLog("Loaded: antenna"); }, undefined, () => pushLog("FAIL: antenna"));
-    loader.load(antenaGLB, (g) => { const a = g.scene; prep(a, 230); a.position.set(-720, 5, 100); powerZone.add(a); clickable.push({ object: a, type: "antenna", name: "Antenna 2" }); }, undefined, () => {});
+    // antennas (code-generated instead of GLB)
+    function makeAntenna(x, z, h, scale) {
+      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(scale);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2, h, 6), mat(0x9a9a9a, 0.4, 0.7)); pole.position.y = h / 2; g.add(pole);
+      for (let i = 0; i < 4; i++) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(6 - i, 0.4, 6, 12), new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff3333, emissiveIntensity: 3.5 }));
+        ring.rotation.x = Math.PI / 2; ring.position.y = h * (0.3 + i * 0.15); g.add(ring);
+      }
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.8, 10, 10), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 5 }));
+      beacon.position.y = h + 3; g.add(beacon);
+      powerZone.add(g);
+      clickable.push({ object: g, type: "antenna", name: "Antenna" });
+    }
+    makeAntenna(-550, 0, 200, 1.8);
+    makeAntenna(-280, -100, 150, 1.5);
+    makeAntenna(-720, 100, 130, 1.4);
 
     const turbines = []; s.turbines = turbines;
     const turbTowerMat = mat(0xeeeeee, 0.4, 0.3);
@@ -1333,6 +1108,7 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     const solarPark = new THREE.Group(); solarPark.position.set(500, 0, 0); powerZone.add(solarPark);
     const solarGround = new THREE.Mesh(new THREE.BoxGeometry(650, 0.8, 1250), mat(0x2a4536, 0.92)); solarGround.position.y = 5; solarPark.add(solarGround);
+    const solarPanelMat = new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.18, metalness: 0.7, emissive: 0x063b62, emissiveIntensity: 0.7 });
     const solarPanelGeo = new THREE.BoxGeometry(1, 1, 1);
     function solarArray(x, z, w, d, rows, cols) {
       const g = new THREE.Group(); g.position.set(x, 8, z); g.rotation.x = -0.22;
@@ -1350,15 +1126,14 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     const batteryRings = []; s.batteryRings = batteryRings;
     const batteryPositions = [[-500, 850], [-370, 850], [-240, 850], [-110, 850], [20, 850], [-500, 980], [-370, 980], [-240, 980], [-110, 980], [20, 980]];
-    batteryPositions.forEach((pos, i) => {
-      loader.load(batteryGLB, (g) => {
-        const b = g.scene; prep(b, 60); b.position.set(pos[0], 6, pos[1]); b.rotation.y = Math.PI / 2;
-        powerZone.add(b);
-        const rMat = new THREE.MeshStandardMaterial({ color: 0x22ff9d, emissive: 0x22ff9d, emissiveIntensity: 2.0 });
-        const r = new THREE.Mesh(new THREE.TorusGeometry(28, 0.8, 6, 16), rMat); r.rotation.x = Math.PI / 2; r.position.set(pos[0], 7, pos[1]); powerZone.add(r);
-        batteryRings.push(rMat); clickable.push({ object: b, type: "battery", name: "Battery " + (i + 1) });
-        if (i === 0) pushLog("Loaded: battery");
-      }, undefined, () => { if (i === 0) pushLog("FAIL: battery"); });
+    batteryPositions.forEach((pos) => {
+      const g = new THREE.Group(); g.position.set(pos[0], 6, pos[1]); g.rotation.y = Math.PI / 2;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(30, 40, 40), mat(0x2a3a4a, 0.5, 0.6)); body.position.y = 20; g.add(body);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(28, 4, 38), mat(0x22ff9d, 0.4, 0.5)); top.position.y = 42; g.add(top);
+      powerZone.add(g);
+      const rMat = new THREE.MeshStandardMaterial({ color: 0x22ff9d, emissive: 0x22ff9d, emissiveIntensity: 2.0 });
+      const r = new THREE.Mesh(new THREE.TorusGeometry(28, 0.8, 6, 16), rMat); r.rotation.x = Math.PI / 2; r.position.set(pos[0], 7, pos[1]); powerZone.add(r);
+      batteryRings.push(rMat); clickable.push({ object: g, type: "battery", name: "Battery" });
     });
 
     const filtZone = new THREE.Group(); filtZone.position.set(3600, 0, -3600); scene.add(filtZone);
@@ -1373,14 +1148,17 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     const filtBoxGroup = new THREE.Group(); filtBoxGroup.position.set(0, 5, 0); filtZone.add(filtBoxGroup);
     const filtBase = new THREE.Mesh(new THREE.BoxGeometry(260, 4, 260), mat(0x2c3e50, 0.7, 0.3)); filtBase.position.y = 2; filtBoxGroup.add(filtBase);
-    const glassMat = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 0.5, metalness: 0.3, roughness: 0.15, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
-    const wallFront = new THREE.Mesh(new THREE.BoxGeometry(260, 120, 3), glassMat); wallFront.position.set(0, 62, 130); filtBoxGroup.add(wallFront);
+    const glassMat2 = new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 0.5, metalness: 0.3, roughness: 0.15, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
+    const wallFront = new THREE.Mesh(new THREE.BoxGeometry(260, 120, 3), glassMat2); wallFront.position.set(0, 62, 130); filtBoxGroup.add(wallFront);
     const wallBack = wallFront.clone(); wallBack.position.z = -130; filtBoxGroup.add(wallBack);
-    const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(3, 120, 260), glassMat); wallLeft.position.set(-130, 62, 0); filtBoxGroup.add(wallLeft);
+    const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(3, 120, 260), glassMat2); wallLeft.position.set(-130, 62, 0); filtBoxGroup.add(wallLeft);
     const wallRight = wallLeft.clone(); wallRight.position.x = 130; filtBoxGroup.add(wallRight);
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, emissive: 0x22cfff, emissiveIntensity: 0.3, metalness: 0.6, roughness: 0.25, transparent: true, opacity: 0.6 });
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(270, 3, 270), roofMat); roof.position.y = 124; filtBoxGroup.add(roof);
-    loader.load(skidFiltrationGLB, (g) => { const m = g.scene; prep(m, 170); m.position.set(0, 6, 0); filtBoxGroup.add(m); clickable.push({ object: m, type: "filtrationMachine", name: "Filtration Machine" }); pushLog("Loaded: filtration"); }, undefined, () => pushLog("FAIL: filtration"));
+    const roofMat2 = new THREE.MeshStandardMaterial({ color: 0x2c3e50, emissive: 0x22cfff, emissiveIntensity: 0.3, metalness: 0.6, roughness: 0.25, transparent: true, opacity: 0.6 });
+    const roof2 = new THREE.Mesh(new THREE.BoxGeometry(270, 3, 270), roofMat2); roof2.position.y = 124; filtBoxGroup.add(roof2);
+    // machine representation
+    const machineBox = new THREE.Mesh(new THREE.BoxGeometry(150, 80, 150), mat(0x3a5a6a, 0.4, 0.5)); machineBox.position.y = 46; filtBoxGroup.add(machineBox);
+    const machineTop = new THREE.Mesh(new THREE.BoxGeometry(140, 20, 140), new THREE.MeshStandardMaterial({ color: 0x0a4a6a, emissive: 0x22cfff, emissiveIntensity: 0.6 })); machineTop.position.y = 96; filtBoxGroup.add(machineTop);
+    clickable.push({ object: machineBox, type: "filtrationMachine", name: "Filtration Machine" });
 
     const tankGroup = new THREE.Group(); tankGroup.position.set(0, 5, 0); filtZone.add(tankGroup);
     s.filtrationStageMeshes = [];
@@ -1787,6 +1565,132 @@ const SmartCity3D = forwardRef((props, ref) => {
     spawnTourists(20);
     let touristMsgShown = false;
     setTimeout(() => { if (!touristMsgShown) { touristMsgShown = true; onTouristMessage?.("Tourist has joined our city"); } }, 30000);
+
+    const treeTrunkMat = mat(0x5a3d24, 0.95, 0.05);
+    const treeLeafMat = mat(0x2d6e3d, 0.9);
+    const treeLeafMat2 = mat(0x3a8a4c, 0.9);
+    const treeLeafMat3 = mat(0x1f5a2e, 0.9);
+    const treeLeafMat4 = mat(0x4a9d5a, 0.9);
+    const treeTrunkGeo = new THREE.CylinderGeometry(2.2, 3.5, 28, 7);
+    const treeLeafCone = new THREE.ConeGeometry(18, 42, 8);
+    const treeLeafConeSmall = new THREE.ConeGeometry(14, 32, 7);
+    const treeLeafSphereBig = new THREE.SphereGeometry(18, 10, 9);
+    function tree(x, z, sc = 1) {
+      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
+      const t = new THREE.Mesh(treeTrunkGeo, treeTrunkMat); t.position.y = 14; g.add(t);
+      const roll = Math.random();
+      if (roll < 0.5) {
+        const l = new THREE.Mesh(treeLeafCone, treeLeafMat); l.position.y = 38; g.add(l);
+        const l2 = new THREE.Mesh(treeLeafConeSmall, treeLeafMat2); l2.position.y = 52; l2.scale.setScalar(0.75); g.add(l2);
+      } else {
+        const l = new THREE.Mesh(treeLeafSphereBig, treeLeafMat4); l.position.y = 40; l.scale.set(1.2, 1.1, 1.2); g.add(l);
+        const l2 = new THREE.Mesh(treeLeafConeSmall, treeLeafMat3); l2.position.y = 55; l2.scale.setScalar(0.6); g.add(l2);
+      }
+      scene.add(g);
+    }
+    function bush(x, z, sc = 1) {
+      const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
+      const colors = [0x2d6e3d, 0x3a8a4c, 0x1f5a2e, 0x4a9d5a];
+      for (let i = 0; i < 3; i++) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(4 + Math.random() * 3, 6, 5), mat(colors[Math.floor(Math.random() * colors.length)], 0.95));
+        b.position.set((Math.random() - 0.5) * 6, 4 + Math.random() * 2, (Math.random() - 0.5) * 6); g.add(b);
+      }
+      scene.add(g);
+    }
+    function isOnRoad(x, z) {
+      const clear = 130;
+      for (const rz of roadZs) if (Math.abs(z - rz) < clear) return true;
+      for (const rx of roadXs) if (Math.abs(x - rx) < clear) return true;
+      return false;
+    }
+    function isInsideCity(x, z) { return Math.abs(x) < CITY_HALF - 200 && Math.abs(z) < CITY_HALF - 200; }
+    const occupiedSpots = [
+      { x: -600, z: -600, r: 260 }, { x: 600, z: -600, r: 250 }, { x: 600, z: 600, r: 300 },
+      { x: 1800, z: -600, r: 400 }, { x: 600, z: 1800, r: 290 }, { x: 1800, z: 1750, r: 320 }, { x: 1800, z: 600, r: 290 },
+      { x: 0, z: 0, r: 130 }, { x: -5400, z: 3600, r: 1200 }, { x: 3600, z: -3600, r: 600 },
+      { x: -3600, z: -3600, r: 600 }, { x: 3600, z: 3600, r: 600 }, { x: -1800, z: 1800, r: 400 },
+      { x: -600, z: 600, r: 500 }, { x: -1600, z: 800, r: 260 }, { x: -3900, z: -2400, r: 350 },
+      { x: -3600, z: -800, r: 400 }, { x: -3600, z: 800, r: 350 }, { x: 900, z: 1400, r: 250 },
+      { x: 2900, z: -2400, r: 400 }, { x: -900, z: -1500, r: 300 },
+    ];
+    function isOnBuilding(x, z) {
+      for (const o of occupiedSpots) {
+        const dx = x - o.x, dz = z - o.z;
+        if (dx * dx + dz * dz < o.r * o.r) return true;
+      }
+      return false;
+    }
+    function isFree(x, z) { return isInsideCity(x, z) && !isOnRoad(x, z) && !isOnBuilding(x, z); }
+
+    const TOWER_COLORS = [0x5b9bd5, 0x4a90e2, 0x7bb3e0, 0x6ba3d9, 0x82c0e8, 0x5090d0, 0xc0629b, 0xd475a8, 0xb84f8a, 0xe087b6, 0xf5a623, 0xf7b955, 0xe89b3e, 0xffc866, 0x6cd4a0, 0x4ec39a, 0x8adbb8, 0x5bc08a, 0x9b7ad9, 0xaa8ae0, 0x8a66c9, 0xbaa0e8, 0xe8635c, 0xd94f4a, 0xf0776b, 0x4a4a5c, 0x5a5a6e, 0x3d3d4e, 0x6a6a7e, 0xdde0e3, 0xc8ccd0, 0xb0b5bb, 0x22a5b8, 0x2bb8c9, 0x40c9d9];
+
+    function tallTower(x, z, w, h, d, color) {
+      const g = new THREE.Group(); g.position.set(x, 5, z);
+      const bMat = mat(color, 0.4, 0.55);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bMat); body.position.y = h / 2; g.add(body);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(w * 0.95, 6, d * 0.95), mat(0x2a2a35, 0.5, 0.6)); cap.position.y = h + 3; g.add(cap);
+      if (Math.random() > 0.4) {
+        const antH = 30 + Math.random() * 40;
+        const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, antH, 6), mat(0x9a9a9a, 0.4, 0.8)); ant.position.y = h + 6 + antH / 2; g.add(ant);
+        const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2222, emissiveIntensity: 4 })); beacon.position.y = h + 6 + antH; g.add(beacon);
+      }
+      const glassMat3 = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, emissive: 0x66ccff, emissiveIntensity: 0.7, metalness: 0.6, roughness: 0.2 });
+      for (let f = 1; f <= 4; f++) {
+        const fy = (h / 5) * f;
+        const line = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 0.6, d + 0.5), glassMat3);
+        line.position.y = fy; g.add(line);
+      }
+      const lightColor = [0xff6666, 0x66ff99, 0x66aaff, 0xffdd66][Math.floor(Math.random() * 4)];
+      const spot = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), new THREE.MeshStandardMaterial({ color: lightColor, emissive: lightColor, emissiveIntensity: 3 }));
+      spot.position.y = h + 8; g.add(spot);
+      scene.add(g);
+    }
+
+    const solarPanelMat2 = new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.18, metalness: 0.7, emissive: 0x063b62, emissiveIntensity: 0.7 });
+    function solarPanelUnit(x, z, rotY = 0) {
+      const g = new THREE.Group(); g.position.set(x, 5, z); g.rotation.y = rotY;
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 20), mat(0x2a2a35, 0.5, 0.6)); frame.position.y = 3; g.add(frame);
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(26, 0.6, 18), solarPanelMat2); panel.position.y = 4.2; panel.rotation.x = -0.2; g.add(panel);
+      for (const lx of [-10, 10]) for (const lz of [-7, 7]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 3, 6), mat(0x555a5e, 0.5, 0.7)); leg.position.set(lx, 1.5, lz); g.add(leg);
+      }
+      scene.add(g);
+    }
+
+    function buildSociety(centerX, centerZ) {
+      const SOCIETY_W = 850, SOCIETY_D = 850;
+      const HALF_W = SOCIETY_W / 2, HALF_D = SOCIETY_D / 2;
+      const SOCIETY_GREEN = 0x2ecc71;
+      const societyBorderMat = new THREE.MeshStandardMaterial({ color: SOCIETY_GREEN, emissive: SOCIETY_GREEN, emissiveIntensity: 2.4, metalness: 0.6, roughness: 0.25 });
+      s.borderLights.push(societyBorderMat);
+      const innerGround = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W - 30, 0.6, SOCIETY_D - 30), mat(0xb8bcc0, 0.92)); innerGround.position.set(centerX, 4.85, centerZ); scene.add(innerGround);
+      const grassPad = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 50, 0.4, SOCIETY_D + 50), grassMaterial); grassPad.position.set(centerX, 4.6, centerZ); scene.add(grassPad);
+      const WALL_H = 14, WALL_T = 6;
+      const wallF = new THREE.Mesh(new THREE.BoxGeometry(SOCIETY_W + 12, WALL_H, WALL_T), societyBorderMat); wallF.position.set(centerX, 5 + WALL_H / 2, centerZ + HALF_D + 6); scene.add(wallF);
+      const wallB = wallF.clone(); wallB.position.z = centerZ - HALF_D - 6; scene.add(wallB);
+      const wallL = new THREE.Mesh(new THREE.BoxGeometry(WALL_T, WALL_H, SOCIETY_D + 12), societyBorderMat); wallL.position.set(centerX - HALF_W - 6, 5 + WALL_H / 2, centerZ); scene.add(wallL);
+      const wallR = wallL.clone(); wallR.position.x = centerX + HALF_W + 6; scene.add(wallR);
+      for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
+        const cx = centerX + dx * (HALF_W + 6), cz = centerZ + dz * (HALF_D + 6);
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 40, 12), societyBorderMat); p.position.set(cx, 25, cz); scene.add(p);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: SOCIETY_GREEN, emissiveIntensity: 3.5 })); cap.position.set(cx, 48, cz); scene.add(cap);
+      }
+      const towerRows = 4, towerCols = 3, innerMargin = 100;
+      const usableW = SOCIETY_W - innerMargin * 2, usableD = SOCIETY_D - innerMargin * 2;
+      for (let r = 0; r < towerRows; r++) for (let c = 0; c < towerCols; c++) {
+        const tx = centerX - usableW / 2 + (c + 0.5) * (usableW / towerCols);
+        const tz = centerZ - usableD / 2 + (r + 0.5) * (usableD / towerRows);
+        const w = 28 + Math.random() * 14, d = 28 + Math.random() * 14, h = 180 + Math.random() * 180;
+        tallTower(tx, tz, w, h, d, TOWER_COLORS[Math.floor(Math.random() * TOWER_COLORS.length)]);
+      }
+      for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ + HALF_D - 60, 0);
+      for (let i = 0; i < 6; i++) solarPanelUnit(centerX - 250 + i * 100, centerZ - HALF_D + 60, Math.PI);
+      board("BSS SMART SOCIETY", centerX, 5, centerZ + HALF_D + 100, 280, 18, SOCIETY_GREEN);
+    }
+    const SOCIETY_X = -600, SOCIETY_Z = 600;
+    buildSociety(SOCIETY_X, SOCIETY_Z);
+    const societyGroup = new THREE.Group(); societyGroup.position.set(SOCIETY_X, 0, SOCIETY_Z);
+    clickable.push({ object: societyGroup, type: "society", name: "BSS Smart Society" });
 
     for (let i = 0; i < 650; i++) {
       const x = (Math.random() - 0.5) * (CITY_HALF * 2 - 300);
@@ -2197,17 +2101,6 @@ const SmartCity3D = forwardRef((props, ref) => {
             </div>
           ))}
           <div style={{ marginTop: 8, fontSize: 10, color: "#7fe3ff", letterSpacing: 1.2 }}>PHASE: {securityHUD.phase} - AI CONTROL: ACTIVE</div>
-        </div>
-      )}
-
-      {aiLog.length > 0 && (
-        <div style={{ position: "fixed", bottom: 24, left: 24, background: "linear-gradient(135deg, rgba(6,20,35,0.92), rgba(12,35,55,0.9))", border: "1px solid rgba(34,207,255,0.5)", borderRadius: 12, padding: "10px 14px", color: "#b8e8ff", fontFamily: "monospace", fontSize: 11, boxShadow: "0 0 30px rgba(34,207,255,0.35)", zIndex: 9996, minWidth: 280, maxWidth: 340, backdropFilter: "blur(10px)" }}>
-          <div style={{ fontSize: 10, letterSpacing: 2, color: "#7fe3ff", textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>GLB Loader Log</div>
-          {aiLog.map((entry, i) => (
-            <div key={i} style={{ padding: "2px 0", color: entry.msg.startsWith("FAIL") ? "#ff6b6b" : "#6aff9d" }}>
-              [{entry.t}] {entry.msg}
-            </div>
-          ))}
         </div>
       )}
     </>
