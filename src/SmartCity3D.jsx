@@ -1,3 +1,4 @@
+// src/SmartCity3D.jsx
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -21,10 +22,10 @@ const BARRIER_CLOSED_ANGLE = 0;
 const BARRIER_ANIM_SPEED = 1.6;
 
 const SECURITY_GATES_DEF = [
-  { id: "SG-01", label: "North Entry Gate", axis: "z", sign: -1, offset: -30, stop:  150, hinge:  1 },
-  { id: "SG-02", label: "South Entry Gate", axis: "z", sign:  1, offset:  30, stop: -150, hinge:  1 },
-  { id: "SG-03", label: "East Entry Gate",  axis: "x", sign:  1, offset:  30, stop: -150, hinge: -1 },
-  { id: "SG-04", label: "West Entry Gate",  axis: "x", sign: -1, offset: -30, stop:  150, hinge: -1 },
+  { id: "SG-01", label: "North Entry Gate", axis: "z", sign: -1, offset: -30, stop: 150, hinge: 1 },
+  { id: "SG-02", label: "South Entry Gate", axis: "z", sign: 1, offset: 30, stop: -150, hinge: 1 },
+  { id: "SG-03", label: "East Entry Gate", axis: "x", sign: 1, offset: 30, stop: -150, hinge: -1 },
+  { id: "SG-04", label: "West Entry Gate", axis: "x", sign: -1, offset: -30, stop: 150, hinge: -1 },
 ];
 
 const BUILDING_INFO = {
@@ -62,11 +63,10 @@ const BUILDING_INFO = {
   antenna: { title: "Smart Antenna", type: "TELECOM", icon: "📡", desc: "Multi-band city coverage.", stats: [["📶 Bands","4"],["📡 Range","30 km"],["🔋 Power","Solar"],["📊 Uptime","99%"]] },
   shop: { title: "Smart Shop", type: "COMMERCE", icon: "🛒", desc: "AI-powered retail, cashless payment.", stats: [["🛒 Items","1,200"],["💳 Digital","100%"],["👥 Today","86"],["📦 Delivery","Yes"]] },
   securityGate: { title: "Smart Security Gate", type: "SECURITY", icon: "🛡️", desc: "AI barrier with detection, CCTV.", stats: [["🛡️ AI","ACTIVE"],["🚗 Detection","Laser+Radar"],["📹 CCTV","Online"],["⚡ Priority","Emergency"]] },
-  // 🔥 NEW types
-  verticalFarm: { title: "Vertical Farm Tower", type: "AGRICULTURE", icon: "🌿", desc: "Multi-level hydroponic tower with AI nutrient dosing and grow-LED arrays.", stats: [["🌿 Levels","24"],["💧 Water","-92%"],["🥬 Yield","+340%"],["💡 LEDs","Full"] },
-  smartHome: { title: "Smart Home", type: "RESIDENTIAL", icon: "🏠", desc: "IoT home with solar roof, smart meter and AI climate control.", stats: [["🏠 Type","IoT Home"],["☀️ Solar","Yes"],["🔒 Security","Smart"],["📊 Energy","A+"] },
-  modernBuilding: { title: "Modern Building", type: "COMMERCIAL", icon: "🏢", desc: "Modern commercial building with smart energy and flexible offices.", stats: [["🏢 Floors","Mixed"],["⚡ Energy","A+"],["🌡️ HVAC","Smart"],["🅿️ Parking","Auto"] },
-  skyline: { title: "City Skyline", type: "SKYLINE", icon: "🌃", desc: "Dense downtown skyline with dynamic facade lighting.", stats: [["🏙️ Towers","Many"],["💡 Lights","Dynamic"],["🌆 Mode","Night"],["📡 WiFi","City-wide"] },
+  verticalFarm: { title: "Vertical Farm Tower", type: "AGRICULTURE", icon: "🌿", desc: "Multi-level hydroponic tower with AI nutrient dosing.", stats: [["🌿 Levels","24"],["💧 Water","-92%"],["🥬 Yield","+340%"],["💡 LEDs","Full"]] },
+  smartHome: { title: "Smart Home", type: "RESIDENTIAL", icon: "🏠", desc: "IoT home with solar roof, smart meter and AI climate control.", stats: [["🏠 Type","IoT Home"],["☀️ Solar","Yes"],["🔒 Security","Smart"],["📊 Energy","A+"]] },
+  modernBuilding: { title: "Modern Building", type: "COMMERCIAL", icon: "🏢", desc: "Modern commercial building with smart energy.", stats: [["🏢 Floors","Mixed"],["⚡ Energy","A+"],["🌡️ HVAC","Smart"],["🅿️ Parking","Auto"]] },
+  skyline: { title: "City Skyline", type: "SKYLINE", icon: "🌃", desc: "Dense downtown skyline with dynamic facade lighting.", stats: [["🏙️ Towers","Many"],["💡 Lights","Dynamic"],["🌆 Mode","Night"],["📡 WiFi","City-wide"]] },
   commercial: { title: "Commercial Hub", type: "COMMERCIAL", icon: "🏬", desc: "Concept commercial building with retail + offices.", stats: [["🏬 Retail","Multi"],["💼 Offices","Yes"],["☕ Cafes","3"],["📶 WiFi","Free"]] },
   greatHall: { title: "Great Hall", type: "CIVIC", icon: "🏛️", desc: "Civic assembly hall for city events and ceremonies.", stats: [["🎭 Capacity","1,200"],["🎤 Events","Weekly"],["💡 Lights","Smart"],["🎵 Sound","Pro"]] },
 };
@@ -95,7 +95,6 @@ export const LOCATIONS = {
   securitySG02: { key: "securitySG02", label: "Security Gate SG-02", icon: "🛡️", type: "SECURITY", position: [30, 5, -150], camHeight: 260, camDistance: 260, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   securitySG03: { key: "securitySG03", label: "Security Gate SG-03", icon: "🛡️", type: "SECURITY", position: [-150, 5, 30], camHeight: 260, camDistance: 260, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   securitySG04: { key: "securitySG04", label: "Security Gate SG-04", icon: "🛡️", type: "SECURITY", position: [150, 5, -30], camHeight: 260, camDistance: 260, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
-  // 🔥 NEW locations
   verticalFarm: { key: "verticalFarm", label: "Vertical Farm Towers", icon: "🌿", type: "AGRICULTURE", position: [2900, 5, -2400], camHeight: 480, camDistance: 460, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
   smartHomes: { key: "smartHomes", label: "Smart Homes", icon: "🏠", type: "RESIDENTIAL", position: [-900, 5, -1500], camHeight: 320, camDistance: 340, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Top View", top: true }] },
 };
@@ -124,7 +123,6 @@ export const LOCATION_LIVE_DATA = {
   securitySG02: { desc: "AI barrier, CCTV", stats: [["🛡️ Gate","02"],["🚗 Det","Act"],["📹 CCTV","On"],["⚡ Pri","Emer"]] },
   securitySG03: { desc: "AI barrier, CCTV", stats: [["🛡️ Gate","03"],["🚗 Det","Act"],["📹 CCTV","On"],["⚡ Pri","Emer"]] },
   securitySG04: { desc: "AI barrier, CCTV", stats: [["🛡️ Gate","04"],["🚗 Det","Act"],["📹 CCTV","On"],["⚡ Pri","Emer"]] },
-  // 🔥 NEW
   verticalFarm: { desc: "24-level hydroponic tower", stats: [["🌿 Levels","24"],["💧 Water","-92%"],["🥬 Yield","+340%"],["💡 LEDs","Full"]] },
   smartHomes: { desc: "IoT smart homes", stats: [["🏠 Homes","12"],["☀️ Solar","100%"],["🔒 Sec","Smart"],["📊 En","A+"]] },
 };
@@ -141,9 +139,6 @@ const FILTRATION_STAGES = [
   { id: "recycling", label: "WATER RECYCLING", color: 0x2ecc71, duration: 4 },
 ];
 
-// ─────────────────────────────────────────────────────────────
-// ⬆️ UPGRADED AI TRAFFIC SYSTEM — 4 phases, emergency priority
-// ─────────────────────────────────────────────────────────────
 function createAITrafficSystem(callbacks) {
   const PHASE_DURATION = 9, YELLOW_DURATION = 2.5;
   let elapsed = 0, phase = 1, inYellow = false, yellowElapsed = 0;
@@ -154,7 +149,6 @@ function createAITrafficSystem(callbacks) {
   function tick(delta) {
     elapsed += delta;
 
-    // Occasionally trigger emergency lane priority
     if (!emergencyLane && Math.random() < 0.002) {
       emergencyLane = 1 + Math.floor(Math.random() * 4);
       emergencyTimer = 6;
@@ -319,9 +313,9 @@ const SmartCity3D = forwardRef((props, ref) => {
     filtrationStageIndex: 0, filtrationStageElapsed: 0,
     filtrationStageMeshes: [], filtrationFlowMeshes: [],
     filtrationUVLight: null, filtrationCleanReservoir: null, filtrationPumpRings: [],
-    verticalFarms: [],     // 🔥 NEW
-    growLights: [],        // 🔥 NEW
-    smartHomeSigns: [],    // 🔥 NEW
+    verticalFarms: [],
+    growLights: [],
+    smartHomeSigns: [],
   }).current;
 
   useImperativeHandle(ref, () => ({
@@ -435,7 +429,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.streetBulbMats.forEach((m) => { m.emissiveIntensity = night ? 7.5 : 1.8; });
     s.batteryRings.forEach((m) => { m.emissiveIntensity = night ? 6.5 : 2.0; });
     s.borderLights.forEach((m) => { m.emissiveIntensity = night ? 7.5 : 3.0; });
-    s.growLights.forEach((m) => { m.emissiveIntensity = night ? 8.0 : 4.5; }); // 🔥 vertical farm LEDs
+    s.growLights.forEach((m) => { m.emissiveIntensity = night ? 8.0 : 4.5; });
   }
 
   useEffect(() => {
@@ -446,7 +440,7 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     const scene = new THREE.Scene(); s.scene = scene;
     scene.background = new THREE.Color(0x8fbcd4);
-    scene.fog = new THREE.Fog(0x8fbcd4, 4500, 11000); // ⬆️ atmospheric depth
+    scene.fog = new THREE.Fog(0x8fbcd4, 4500, 11000);
 
     const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 5, 15000);
     camera.position.set(1400, 950, 1400); s.camera = camera;
@@ -456,7 +450,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05; // ⬆️ slightly brighter
+    renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = false;
     container.appendChild(renderer.domElement); s.renderer = renderer;
 
@@ -471,7 +465,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     sun.position.set(-800, 1400, 500); scene.add(sun); s.sun = sun;
     const fillLight = new THREE.DirectionalLight(0xd0e8ff, 1.3);
     fillLight.position.set(800, 1000, -500); scene.add(fillLight);
-    // 🔥 NEW rim light for depth
     const rimLight = new THREE.DirectionalLight(0x88ddff, 0.9);
     rimLight.position.set(0, 600, -1200); scene.add(rimLight);
 
@@ -667,7 +660,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       scene.add(g);
     }
 
-    // 🔥 NEW: Info board like reference image (Cultural Heritage Center style)
     function buildInfoBoard(x, z, title, subtitle, panels, accent = 0xc98a3a) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
       const frameMat = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.4, metalness: 0.5 });
@@ -720,7 +712,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       return g;
     }
 
-    // 🔥 NEW: Vertical Farm Tower (hydroponic racks + grow LEDs)
     function buildVerticalFarm(cx, cz, count = 6) {
       for (let i = 0; i < count; i++) {
         const ax = cx + Math.cos((i / count) * Math.PI * 2) * 180;
@@ -775,7 +766,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         ], 0x2a8a4a);
     }
 
-    // 🔥 NEW: Smart Home with name board
     function buildSmartHome(cx, cz, name, color, rot = 0) {
       const g = new THREE.Group(); g.position.set(cx, 5, cz); g.rotation.y = rot;
       const base = new THREE.Mesh(new THREE.BoxGeometry(160, 4, 160), mat(0x3a4a3e, 0.9)); base.position.y = 2; g.add(base);
@@ -790,11 +780,9 @@ const SmartCity3D = forwardRef((props, ref) => {
         const win = new THREE.Mesh(new THREE.BoxGeometry(24, 22, 2), winMat);
         win.position.set(wx, 45, 57); g.add(win);
       }
-      // solar roof
       const solar = new THREE.Mesh(new THREE.BoxGeometry(110, 2, 90),
         new THREE.MeshStandardMaterial({ color: 0x082c4b, roughness: 0.2, metalness: 0.8, emissive: 0x0a3a5a, emissiveIntensity: 0.8 }));
       solar.rotation.x = -0.15; solar.position.y = 84; g.add(solar);
-      // name board
       const c = document.createElement("canvas"); c.width = 512; c.height = 128;
       const ctx = c.getContext("2d");
       ctx.fillStyle = "#0a1e10"; ctx.fillRect(0, 0, 512, 128);
@@ -827,9 +815,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
     roadZs.forEach((z) => { for (let x = -ROAD_HALF_LEN + 100; x <= ROAD_HALF_LEN - 100; x += 400) { sl(x, z + ROAD_HALF + 18); sl(x, z - ROAD_HALF - 18); } });
 
-    // ───────────────────────────────────────────────────
-    // ⬆️ UPGRADED TRAFFIC LIGHT — big halo, blinking pulse
-    // ───────────────────────────────────────────────────
     const trafficLights = []; s.trafficLights = trafficLights;
     function tl(x, z) {
       const g = new THREE.Group(); g.position.set(x, 5, z);
@@ -839,14 +824,12 @@ const SmartCity3D = forwardRef((props, ref) => {
         const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10),
           new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0 }));
         m.position.set(0, y, 0.75); g.add(m);
-        // halo
         const halo = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 10),
           new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending }));
         halo.position.set(0, y, 0.75); g.add(halo);
         return { core: m, halo };
       };
       const r = light(0xff2222, 8.8), yL = light(0xffcc22, 7.5), gr = light(0x22ff66, 6.2);
-      // small point light at top
       const pl = new THREE.PointLight(0xffcc22, 0, 14);
       pl.position.set(0, 8, 0.8); g.add(pl);
       scene.add(g);
@@ -1058,7 +1041,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       { x: -3600, z: -3600, r: 600 }, { x: 3600, z: 3600, r: 600 }, { x: -1800, z: 1800, r: 400 },
       { x: -600, z: 600, r: 500 }, { x: -1600, z: 800, r: 260 }, { x: -3900, z: -2400, r: 350 },
       { x: -3600, z: -800, r: 400 }, { x: -3600, z: 800, r: 350 }, { x: 900, z: 1400, r: 250 },
-      { x: 2900, z: -2400, r: 400 }, { x: -900, z: -1500, r: 300 }, // 🔥 NEW reserved for vertical farm + smart homes
+      { x: 2900, z: -2400, r: 400 }, { x: -900, z: -1500, r: 300 },
     ];
     function isOnBuilding(x, z) {
       for (const o of occupiedSpots) {
@@ -1142,7 +1125,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const societyGroup = new THREE.Group(); societyGroup.position.set(SOCIETY_X, 0, SOCIETY_Z);
     clickable.push({ object: societyGroup, type: "society", name: "BSS Smart Society" });
 
-    // 🔥 FIXED: american_high_school → use commercial_building_concept (since not in your file list)
     bld("/commercial_building_concept.glb", 300, [-600, -600], "school", "American High School", 0x1a5490);
     bld("/low_poly_hospital.glb", 280, [600, -600], "hospital", "Smart Hospital", 0xc0392b);
     bld("/us_bank_tower.glb", 360, [600, 600], "bank", "State Bank", 0x8e44ad);
@@ -1158,14 +1140,12 @@ const SmartCity3D = forwardRef((props, ref) => {
     bld("/sci-fi_building_9.glb", 440, [-3900, -2400], "scifi9", "Sci-Fi Building 9", 0x66ff99);
     bld("/beautifultowerbuilding.glb", 520, [-3600, -800], "beautifulTower", "Beautiful Tower", 0x22cfff);
     bld("/sci-fi_building_10.glb", 440, [-3600, 800], "scifi10", "Sci-Fi Building 10", 0xff66dd);
-    // 🔥 NEW GLB USES
     bld("/modernbuildings.glb", 480, [2900, 1200], "modernBuilding", "Modern Building Complex", 0x22cfff);
     bld("/low_poly_night_city_building_skyline.glb", 700, [2900, 2400], "skyline", "Downtown Skyline", 0xff66dd);
     bld("/great_hall.glb", 420, [-2900, 1600], "greatHall", "Great Hall", 0xffd15a);
     bld("/nearbank.glb", 240, [1000, -1200], "bank", "ATM Branch", 0xf1c40f);
     bld("/twobuildingsneedspace.glb", 300, [-2400, 2200], "modernBuilding", "Residential Pair", 0x6cd4a0);
     bld("/trash_pack.glb", 120, [1100, 1400], "wasteBin", "Trash Props", 0x2ecc71, true, true);
-    // Additional modern buildings around city
     bld("/modernbuildings.glb", 420, [-2900, 2400], "modernBuilding", "Modern West Block", 0x22cfff);
     bld("/commercial_building_concept.glb", 380, [2400, -1800], "commercial", "Commercial Hub", 0xf39c12);
 
@@ -1285,9 +1265,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     buildEVStation(-2700, 2500); buildPoliceStation(2400, -2900); buildFireStation(-2400, -2900);
     buildLibrary(2800, 2800); buildHelipad(-2800, -1500); buildSmartParking(-2800, 1200); buildPublicGarden(2000, 2800);
 
-    // 🔥 NEW: Vertical Farm + Smart Homes
     buildVerticalFarm(2900, -2400, 6);
-    // Smart home row
     const homeNames = ["SMART HOME 01","SMART HOME 02","SMART HOME 03","SMART HOME 04","SMART HOME 05","SMART HOME 06"];
     const homeColors = [0xd9c5a0, 0xc9a870, 0xe8d0b0, 0xb8a080, 0xd0b890, 0xc0a880];
     for (let i = 0; i < 6; i++) {
@@ -1811,7 +1789,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     spawnPeople(0, 0, 5, 130); spawnPeople(-1800, 1800, 12, 200); spawnPeople(-3900, -2400, 4, 200);
     spawnPeople(-3600, -800, 4, 200); spawnPeople(-3600, 800, 4, 200); spawnPeople(2900, 1000, 5, 180);
     spawnPeople(-2900, -300, 4, 180); spawnPeople(2800, -1600, 4, 180);
-    spawnPeople(-1400, -1500, 8, 400); // 🔥 near smart homes
+    spawnPeople(-1400, -1500, 8, 400);
 
     const tourists = []; s.tourists = tourists;
     const touristShirtColors = [0xff6b6b, 0xffdd57, 0xff8fab, 0xa29bfe, 0x74b9ff, 0xfd79a8, 0x00cec9, 0xff9f43];
@@ -1971,7 +1949,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         }
       }
 
-      // ⬆️ UPGRADED: blinking halo pulse on intersection lights
       for (const l of intersectionLights) {
         l.r.core.material.emissiveIntensity = 0;
         l.y.core.material.emissiveIntensity = 0;
@@ -2019,7 +1996,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         if (wp.mesh.position.y > 105) { wp.mesh.position.y = 18; wp.mesh.position.x = (Math.random() - 0.5) * 180; wp.mesh.position.z = (Math.random() - 0.5) * 180; }
       }
 
-      // ⬆️ UPGRADED: pulsing halo on street traffic lights
       for (const l of trafficLights) {
         const cyc = (t + l.phase) % 12;
         const pulse = 0.7 + 0.3 * Math.sin(t * 6);
@@ -2056,12 +2032,10 @@ const SmartCity3D = forwardRef((props, ref) => {
       radar.rotation.z = t * 1.7; controllerRing.rotation.z = t * 0.5;
       controllerRing2.rotation.z = -t * 0.4; controllerSig.scale.setScalar(1 + Math.sin(t * 4) * 0.15);
 
-      // 🔥 NEW: vertical farm beacon pulse + LED shimmer
       for (const vf of s.verticalFarms) {
         vf.beacon.material.emissiveIntensity = 4.5 + Math.sin(t * 4) * 2.5;
         vf.topLED.rotation.z = t * 0.6;
       }
-      // 🔥 NEW: grow light shimmer
       for (const g of s.growLights) {
         g.emissiveIntensity = 4.0 + Math.sin(t * 3) * 1.2;
       }
