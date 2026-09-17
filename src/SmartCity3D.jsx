@@ -72,9 +72,7 @@ const BUILDING_INFO = {
   shop: { title: "Smart Shop", type: "COMMERCE", icon: "🛒", desc: "AI-powered retail shop with cashless payment.", stats: [["🛒 Items", "1,200"], ["💳 Digital", "100%"], ["👥 Today", "86"], ["📦 Delivery", "Yes"]] },
   securityGate: { title: "Smart Security Gate", type: "SECURITY", icon: "🛡️", desc: "AI-controlled automatic barrier with vehicle detection, CCTV and emergency priority.", stats: [["🛡️ AI Control", "ACTIVE"], ["🚗 Detection", "Laser + Radar"], ["📹 CCTV", "Online"], ["⚡ Priority", "Emergency"]] },
 };
-/* ============================================================
-   LOCATIONS
-   ============================================================ */
+
 export const LOCATIONS = {
   school: { key: "school", label: "American High School", icon: "🏫", type: "EDUCATION", position: [-600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
   hospital: { key: "hospital", label: "Smart Hospital", icon: "🏥", type: "HEALTHCARE", position: [600, 5, -600], camHeight: 380, camDistance: 330, cameras: [{ name: "Camera 1", angle: 0 }, { name: "Camera 2", angle: Math.PI }, { name: "Camera 3", angle: Math.PI / 2 }, { name: "Camera 4", angle: -Math.PI / 2 }, { name: "Top View", top: true }] },
@@ -121,10 +119,10 @@ export const LOCATION_LIVE_DATA = {
   scifi10: { desc: "Space tech, satellite control, AI mission planning", stats: [["🛰️ Satellites", "6 linked"], ["🚀 Missions", "2 active"], ["📡 Signal", "Strong"], ["🤖 AI", "Online"]] },
   wasteCollector: { desc: "Smart bins, AI route optimization, odor control", stats: [["🗑️ Bins", "24"], ["📊 Fill Level", "42%"], ["🚛 Next pickup", "18 min"], ["♻️ Sorted", "78%"]] },
   trafficController: { desc: "AI controls 4 roads, adaptive signals, jam detection", stats: [["🚗 Vehicles", "80"], ["🟢 Green", "Roads 1&2"], ["🤖 AI Mode", "Active"], ["📡 Sensors", "24 online"]] },
-  securitySG01: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-01"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
-  securitySG02: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-02"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
-  securitySG03: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-03"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
-  securitySG04: { desc: "AI barrier, CCTV, laser detection — restricted-entry control.", stats: [["🛡️ Gate", "SG-04"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
+  securitySG01: { desc: "AI barrier, CCTV, laser detection.", stats: [["🛡️ Gate", "SG-01"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
+  securitySG02: { desc: "AI barrier, CCTV, laser detection.", stats: [["🛡️ Gate", "SG-02"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
+  securitySG03: { desc: "AI barrier, CCTV, laser detection.", stats: [["🛡️ Gate", "SG-03"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
+  securitySG04: { desc: "AI barrier, CCTV, laser detection.", stats: [["🛡️ Gate", "SG-04"], ["🚗 Detection", "Active"], ["📹 CCTV", "Online"], ["⚡ Emergency", "Priority"]] },
 };
 
 const FILTRATION_STAGES = [
@@ -139,9 +137,6 @@ const FILTRATION_STAGES = [
   { id: "recycling", label: "WATER RECYCLING", color: 0x2ecc71, duration: 4 },
 ];
 
-/* ============================================================
-   AI TRAFFIC SYSTEM
-   ============================================================ */
 function createAITrafficSystem(callbacks) {
   const PHASE_DURATION = 8;
   const YELLOW_DURATION = 2.5;
@@ -189,7 +184,7 @@ function createAITrafficSystem(callbacks) {
 }
 
 /* ============================================================
-   AI SECURITY SYSTEM — autonomous gate open/close controller
+   AI SECURITY SYSTEM
    ============================================================ */
 function createAISecuritySystem(callbacks) {
   const CYCLE = 70;
@@ -215,13 +210,11 @@ function createAISecuritySystem(callbacks) {
 
   function tick(delta, vehicleSnapshot) {
     elapsed += delta;
-
     if (elapsed > CYCLE) {
       elapsed = 0;
       activeGateIdx = (activeGateIdx + 1) % gates.length;
       phase = "NORMAL";
     }
-
     if (elapsed < NORMAL_T) phase = "NORMAL";
     else if (elapsed < NORMAL_T + ALERT_T) phase = "ALERT";
     else if (elapsed < NORMAL_T + ALERT_T + CLOSED_T) phase = "CLOSED";
@@ -279,9 +272,6 @@ function createAISecuritySystem(callbacks) {
   return { tick, isGateClosed, getGate, getGates: () => gates };
 }
 
-/* ============================================================
-   CITY SIMULATION (traffic event cycle)
-   ============================================================ */
 function createCitySimulation(callbacks) {
   const CYCLE_TIME = 60, NORMAL_DURATION = 25, JAM_DURATION = 20, REROUTE_DURATION = 15;
   let simSec = 0, tState = 0, cycleStart = 0, jamStart = 0, rerouteStart = 0;
@@ -454,11 +444,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     const p = new THREE.Vector3();
     if (gate.axis === "z") p.set(gate.offset, 5, gate.stop);
     else p.set(gate.stop, 5, gate.offset);
-    smoothCameraTo(
-      p.clone().add(new THREE.Vector3(180, 200, 180)),
-      p.clone(),
-      1500
-    );
+    smoothCameraTo(p.clone().add(new THREE.Vector3(180, 200, 180)), p.clone(), 1500);
     s.controls.enableRotate = true;
   }
   function setDayNight(night) {
@@ -829,7 +815,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     clickable.push({ object: controller, type: "trafficController", name: "AI Traffic Controller" });
 
     /* ============================================================
-       SMART SECURITY BARRIER SYSTEM — gate meshes
+       SMART SECURITY BARRIER SYSTEM — build gate meshes
        ============================================================ */
     const securityGates = [];
     s.securityGates = securityGates;
@@ -844,15 +830,12 @@ const SmartCity3D = forwardRef((props, ref) => {
 
     function buildSecurityGate(def) {
       const g = new THREE.Group();
-
-      // Position group so hinge/arm is at the correct place
       let worldX, worldZ, armAxis;
       if (def.axis === "z") { worldX = def.offset; worldZ = def.stop; armAxis = "x"; }
       else { worldX = def.stop; worldZ = def.offset; armAxis = "z"; }
       g.position.set(worldX, 5, worldZ);
       scene.add(g);
 
-      // Control Box (support)
       const box = new THREE.Mesh(new THREE.BoxGeometry(18, BARRIER_POLE_HEIGHT, 14), gateBodyMat);
       box.position.y = BARRIER_POLE_HEIGHT / 2; g.add(box);
       const boxCap = new THREE.Mesh(new THREE.BoxGeometry(20, 3, 16), gateHazardMat);
@@ -860,7 +843,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const stripeBand = new THREE.Mesh(new THREE.BoxGeometry(19, 2, 15), gateStripeMat);
       stripeBand.position.y = BARRIER_POLE_HEIGHT * 0.65; g.add(stripeBand);
 
-      // Warning lamps on top (red + amber)
       const lampRed = new THREE.Mesh(new THREE.SphereGeometry(2.2, 12, 12), gateLampRedMat.clone());
       lampRed.position.set(0, BARRIER_POLE_HEIGHT + 6, 0); g.add(lampRed);
       const lampAmber = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 12), gateLampAmberMat.clone());
@@ -868,48 +850,31 @@ const SmartCity3D = forwardRef((props, ref) => {
       const lampGreen = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 12), gateLampGreenMat.clone());
       lampGreen.position.set(-6, BARRIER_POLE_HEIGHT + 4, 0); g.add(lampGreen);
 
-      // Hinge pivot (arm rotates around this)
       const hinge = new THREE.Group();
       hinge.position.set(0, BARRIER_HINGE_Y, 0);
       g.add(hinge);
 
-      // Barrier arm — oriented so that when closed, it lies across the road
       const armGroup = new THREE.Group();
       hinge.add(armGroup);
 
-      // Build arm lying along local X (extends from hinge)
       const armLen = BARRIER_ARM_LENGTH;
-      const armBar = new THREE.Mesh(
-        new THREE.BoxGeometry(armLen, BARRIER_ARM_THICKNESS, BARRIER_ARM_THICKNESS),
-        gateBodyMat
-      );
+      const armBar = new THREE.Mesh(new THREE.BoxGeometry(armLen, BARRIER_ARM_THICKNESS, BARRIER_ARM_THICKNESS), gateBodyMat);
       armBar.position.set(armLen / 2, 0, 0);
       armGroup.add(armBar);
 
-      // Red/white hazard stripes along arm
       const stripeCount = 5;
       for (let i = 0; i < stripeCount; i++) {
-        const st = new THREE.Mesh(
-          new THREE.BoxGeometry(armLen / stripeCount - 2, BARRIER_ARM_THICKNESS + 0.4, BARRIER_ARM_THICKNESS + 0.4),
-          i % 2 === 0 ? gateStripeMat : gateHazardMat
-        );
+        const st = new THREE.Mesh(new THREE.BoxGeometry(armLen / stripeCount - 2, BARRIER_ARM_THICKNESS + 0.4, BARRIER_ARM_THICKNESS + 0.4), i % 2 === 0 ? gateStripeMat : gateHazardMat);
         st.position.set((i + 0.5) * (armLen / stripeCount), 0, 0);
         armGroup.add(st);
       }
 
-      // Arm tip lamp
       const tipLamp = new THREE.Mesh(new THREE.SphereGeometry(1.4, 10, 10), gateLampRedMat.clone());
       tipLamp.position.set(armLen + 1.5, 0, 0);
       armGroup.add(tipLamp);
 
-      // Orient the hinge so the arm lies across the road when closed.
-      // For "z"-axis gates (vertical roads), arm should span along X — already correct.
-      // For "x"-axis gates (horizontal roads), arm should span along Z.
-      if (armAxis === "z") {
-        hinge.rotation.y = Math.PI / 2;
-      }
+      if (armAxis === "z") { hinge.rotation.y = Math.PI / 2; }
 
-      // Ground stop-line marking (white stripe across lane)
       const stopLine = new THREE.Mesh(new THREE.BoxGeometry(4, 0.1, ROAD_W * 0.45), whiteLineMaterial);
       if (def.axis === "z") {
         stopLine.rotation.y = Math.PI / 2;
@@ -919,7 +884,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       }
       g.add(stopLine);
 
-      // Hazard chevrons
       const chevMat = new THREE.MeshStandardMaterial({ color: 0xffaa22, emissive: 0xffaa22, emissiveIntensity: 1.4 });
       for (let i = 0; i < 4; i++) {
         const chev = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 6), chevMat);
@@ -932,7 +896,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         g.add(chev);
       }
 
-      // CCTV camera pole + housing
       const cctvPole = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 30, 6), darkMaterial);
       cctvPole.position.set(18, 15, 0); g.add(cctvPole);
       const cctvArm = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 1), darkMaterial);
@@ -942,7 +905,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       const cctvLens = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 10), new THREE.MeshStandardMaterial({ color: 0x22cfff, emissive: 0x22cfff, emissiveIntensity: 2.5 }));
       cctvLens.position.set(30, 29.5, 0); g.add(cctvLens);
 
-      // Floating AI status sign (billboard plane with canvas texture)
       const signCanvas = document.createElement("canvas");
       signCanvas.width = 1024; signCanvas.height = 256;
       const signCtx = signCanvas.getContext("2d");
@@ -953,31 +915,17 @@ const SmartCity3D = forwardRef((props, ref) => {
       signMesh.position.set(0, BARRIER_POLE_HEIGHT + 20, 0);
       g.add(signMesh);
 
-      // Clickable hitbox (larger invisible box over the gate)
       const hitBox = new THREE.Mesh(new THREE.BoxGeometry(90, 70, 90), new THREE.MeshBasicMaterial({ visible: false }));
       hitBox.position.set(0, 35, 0);
       g.add(hitBox);
 
       const gateObj = {
-        ...def,
-        group: g,
-        hinge,
-        armGroup,
-        lampRed,
-        lampAmber,
-        lampGreen,
-        tipLamp,
-        signCanvas,
-        signCtx,
-        signTex,
-        signMesh,
-        hitBox,
-        status: "OPEN",
-        aiState: "NORMAL",
-        vehiclesDetected: 0,
-        vehiclesWaiting: 0,
-        density: "LOW",
-        phase: "NORMAL",
+        ...def, group: g, hinge, armGroup,
+        lampRed, lampAmber, lampGreen, tipLamp,
+        signCanvas, signCtx, signTex, signMesh, hitBox,
+        status: "OPEN", aiState: "NORMAL",
+        vehiclesDetected: 0, vehiclesWaiting: 0,
+        density: "LOW", phase: "NORMAL",
       };
       securityGates.push(gateObj);
       clickable.push({ object: hitBox, type: "securityGate", name: gateObj.id + " · " + gateObj.label, gateRef: gateObj });
@@ -990,17 +938,16 @@ const SmartCity3D = forwardRef((props, ref) => {
       const ctx = gate.signCtx;
       const W = gate.signCanvas.width, H = gate.signCanvas.height;
       ctx.clearRect(0, 0, W, H);
-      // glassy panel
       ctx.fillStyle = "rgba(6,20,35,0.85)";
       ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = statusText === "RESTRICTED" ? "#ff8a1f" : "#22cfff";
+      ctx.strokeStyle = statusText === "RESTRICTED" || statusText === "CLOSED" ? "#ff8a1f" : "#22cfff";
       ctx.lineWidth = 8;
       ctx.strokeRect(6, 6, W - 12, H - 12);
       ctx.fillStyle = "#22cfff";
       ctx.font = "bold 44px system-ui, Arial";
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
       ctx.fillText(gate.id + " · " + gate.label, 30, 60);
-      ctx.fillStyle = statusText === "RESTRICTED" ? "#ff8a1f" : "#6aff9d";
+      ctx.fillStyle = statusText === "CLOSED" ? "#ff8a1f" : "#6aff9d";
       ctx.font = "bold 56px system-ui, Arial";
       ctx.fillText("STATUS: " + statusText, 30, 150);
       ctx.fillStyle = "#7fe3ff";
@@ -1078,8 +1025,7 @@ const SmartCity3D = forwardRef((props, ref) => {
       const g = new THREE.Group(); g.position.set(x, 5, z); g.scale.setScalar(sc);
       const colors = [0x2d6e3d, 0x3a8a4c, 0x1f5a2e, 0x4a9d5a];
       for (let i = 0; i < 3; i++) {
-        const b = new THREE.Mesh(new THREE.SphereGeometry(4 + Math.random() * 3, 6, 5),
-          mat(colors[Math.floor(Math.random() * colors.length)], 0.95));
+        const b = new THREE.Mesh(new THREE.SphereGeometry(4 + Math.random() * 3, 6, 5), mat(colors[Math.floor(Math.random() * colors.length)], 0.95));
         b.position.set((Math.random() - 0.5) * 6, 4 + Math.random() * 2, (Math.random() - 0.5) * 6);
         g.add(b);
       }
@@ -1121,8 +1067,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     function isFree(x, z) {
       return isInsideCity(x, z) && !isOnRoad(x, z) && !isOnBuilding(x, z);
     }
-
-    const TOWER_COLORS = [
+         const TOWER_COLORS = [
       0x5b9bd5, 0x4a90e2, 0x7bb3e0, 0x6ba3d9, 0x82c0e8, 0x5090d0,
       0xc0629b, 0xd475a8, 0xb84f8a, 0xe087b6, 0xf5a623, 0xf7b955,
       0xe89b3e, 0xffc866, 0x6cd4a0, 0x4ec39a, 0x8adbb8, 0x5bc08a,
@@ -1956,7 +1901,7 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
 
     /* ============================================================
-       INTERSECTION CARS — now with barrier stop logic
+       INTERSECTION CARS — with barrier stop logic
        ============================================================ */
     const intersectionCars = []; s.intersectionCars = intersectionCars;
     const ROAD_LANES = [
@@ -2003,7 +1948,6 @@ const SmartCity3D = forwardRef((props, ref) => {
       spawnIntersectionCar(roadId, startPos, lane);
     }
 
-    /* vehicle snapshot for AI detection */
     function buildVehicleSnapshot() {
       const arr = [];
       for (const c of intersectionCars) {
@@ -2020,7 +1964,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     }
 
     function updateIntersectionCars(delta, aiSystem, securitySystem) {
-      // sort each lane's cars so we can compute queue spacing
       const laneGroups = {};
       for (const c of intersectionCars) {
         (laneGroups[c.roadId] = laneGroups[c.roadId] || []).push(c);
@@ -2028,13 +1971,9 @@ const SmartCity3D = forwardRef((props, ref) => {
 
       for (const rid of Object.keys(laneGroups)) {
         const list = laneGroups[rid];
-        // For sign<0 movement is decreasing position; sort by distance from barrier (closest first)
-        // Determine barrier coordinate:
         const gate = securitySystem ? securitySystem.getGate(list[0].gateId) : null;
         const gateStop = gate ? gate.stop : null;
-        const gateClosed = gate ? securitySystem.isGateClosed(gate.id) : false;
 
-        // Sort: "closest to gate" first
         list.sort((a, b) => {
           if (!gateStop) return 0;
           const da = Math.abs(a.pos - gateStop);
@@ -2042,20 +1981,15 @@ const SmartCity3D = forwardRef((props, ref) => {
           return da - db;
         });
 
-        // Queue spacing enforcement
         const MIN_GAP = 40;
         for (let i = 1; i < list.length; i++) {
           const leader = list[i - 1];
           const follower = list[i];
-          const leaderAhead = leader.pos;
-          const followerPos = follower.pos;
-          // If they'd overlap, clamp follower behind leader
           const sign = follower.sign;
           if (sign < 0) {
-            // moving in -pos direction; follower must be at greater pos than leader
-            if (followerPos < leaderAhead + MIN_GAP) follower.pos = leaderAhead + MIN_GAP;
+            if (follower.pos < leader.pos + MIN_GAP) follower.pos = leader.pos + MIN_GAP;
           } else {
-            if (followerPos > leaderAhead - MIN_GAP) follower.pos = leaderAhead - MIN_GAP;
+            if (follower.pos > leader.pos - MIN_GAP) follower.pos = leader.pos - MIN_GAP;
           }
         }
       }
@@ -2064,7 +1998,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         const isGreen = aiSystem.isGreen(c.roadId);
         const isYellow = aiSystem.isYellowRoad(c.roadId);
 
-        // gate stop target
         const gate = securitySystem ? securitySystem.getGate(c.gateId) : null;
         const gateStopPos = gate ? gate.stop : null;
         const gateClosed = gate ? securitySystem.isGateClosed(gate.id) : false;
@@ -2072,49 +2005,31 @@ const SmartCity3D = forwardRef((props, ref) => {
         const stopLinePos = c.axis === "z" ? (c.sign < 0 ? 180 : -180) : (c.sign < 0 ? -180 : 180);
         const distToStop = Math.abs(c.pos - stopLinePos);
 
-        // How far until the gate stop?
         let distToGate = Infinity;
         let approachingGate = false;
         if (gateStopPos !== null) {
-          const along = (c.sign < 0)
-            ? (c.pos - gateStopPos)   // >0 means still before gate
-            : (gateStopPos - c.pos);
+          const along = (c.sign < 0) ? (c.pos - gateStopPos) : (gateStopPos - c.pos);
           if (along > -40) { distToGate = along; approachingGate = true; }
         }
 
         let targetSpeed = c.baseSpeed;
         let braking = false;
 
-        // 1) Barrier takes priority over traffic light
         if (gateClosed && approachingGate && distToGate < 90 && distToGate > 0) {
-          targetSpeed = 0;
-          braking = true;
-          c.waiting = true;
+          targetSpeed = 0; braking = true; c.waiting = true;
         } else if (gateClosed && approachingGate && distToGate < 260) {
-          targetSpeed = c.baseSpeed * 0.25;
-          c.waiting = false;
+          targetSpeed = c.baseSpeed * 0.25; c.waiting = false;
         } else if (isGreen) {
-          targetSpeed = c.baseSpeed;
-          c.waiting = false;
-          c.waitTimer = 0;
+          targetSpeed = c.baseSpeed; c.waiting = false; c.waitTimer = 0;
         } else if (isYellow) {
-          targetSpeed = c.baseSpeed * 0.55;
-          c.waiting = false;
-          c.waitTimer = 0;
+          targetSpeed = c.baseSpeed * 0.55; c.waiting = false; c.waitTimer = 0;
         } else {
           if (distToStop < 60 && c.waitTimer < 6) {
-            targetSpeed = 0;
-            c.waiting = true;
-            c.waitTimer += delta;
-            braking = true;
+            targetSpeed = 0; c.waiting = true; c.waitTimer += delta; braking = true;
           } else if (distToStop < 180) {
-            targetSpeed = c.baseSpeed * 0.25;
-            c.waiting = false;
-            c.waitTimer = 0;
+            targetSpeed = c.baseSpeed * 0.25; c.waiting = false; c.waitTimer = 0;
           } else {
-            targetSpeed = c.baseSpeed * 0.6;
-            c.waiting = false;
-            c.waitTimer = 0;
+            targetSpeed = c.baseSpeed * 0.6; c.waiting = false; c.waitTimer = 0;
           }
         }
 
@@ -2302,7 +2217,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     s.aiSystem = aiSystem;
     const securitySystem = createAISecuritySystem({
       onSecurityUpdate: (data) => {
-        // redraw gate signs + push to parent UI
         for (const g of securityGates) {
           const snap = data.gates.find((x) => x.id === g.id);
           if (!snap) continue;
@@ -2391,7 +2305,6 @@ const SmartCity3D = forwardRef((props, ref) => {
     const clock = new THREE.Clock();
     let fc = 0;
     let rafId;
-    let signRedrawCounter = 0;
 
     function animate() {
       rafId = requestAnimationFrame(animate);
@@ -2402,19 +2315,15 @@ const SmartCity3D = forwardRef((props, ref) => {
       sim.tick(delta);
       aiSystem.tick(delta);
 
-      // snapshot before running vehicle update so the security AI sees fresh data
       const snap = buildVehicleSnapshot();
       securitySystem.tick(delta, snap);
 
       updateCarMovement();
       updateIntersectionCars(delta, aiSystem, securitySystem);
 
-      // apply arm angles + lamps
       for (const g of securityGates) {
-        g.armGroup.parent.rotation.z = g.armAngle; // rotate the arm around the hinge (Z-axis local)
-        // lamps: red pulsing when CLOSED, green when OPEN, amber during transition
-        const target = g.armAngle;
-        const moving = Math.abs(target - g.armAngle) > 0.01;
+        g.hinge.rotation.z = g.armAngle;
+        const moving = Math.abs(g.armAngle - (g.status === "CLOSED" ? 0 : BARRIER_OPEN_ANGLE)) > 0.01;
         if (moving || g.status === "CLOSED") {
           const blink = (Math.sin(t * 6) * 0.5 + 0.5);
           g.lampRed.material.emissiveIntensity = 3 + blink * 2;
@@ -2426,13 +2335,6 @@ const SmartCity3D = forwardRef((props, ref) => {
           g.lampAmber.material.emissiveIntensity = 0.4;
           g.lampGreen.material.emissiveIntensity = 3.5;
           g.tipLamp.material.emissiveIntensity = 0.5;
-        }
-      }
-
-      // periodic sign refresh (every 30 frames) for stability
-      if (fc % 30 === 0) {
-        for (const g of securityGates) {
-          redrawGateSign(g, securitySystem.getGate(g.id)?.aiState || "NORMAL", g.status);
         }
       }
 
@@ -2603,75 +2505,62 @@ const SmartCity3D = forwardRef((props, ref) => {
     <>
       <div ref={mountRef} style={{ position: "fixed", inset: 0 }} />
 
-      {/* ====== BUILDING CLICK POPUP ====== */}
       {buildingPopup && (
         <div style={{
           position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
           background: "linear-gradient(135deg, rgba(6,20,35,0.97), rgba(12,35,55,0.95))",
           border: "2px solid #22cfff", borderRadius: 20, padding: "22px 28px",
           color: "#fff", fontFamily: "system-ui, -apple-system, sans-serif",
-          boxShadow: "0 0 60px rgba(34,207,255,0.6), inset 0 0 30px rgba(34,207,255,0.08)",
-          zIndex: 9999, minWidth: 420, maxWidth: 540, backdropFilter: "blur(16px)",
+          boxShadow: "0 0 60px rgba(34,207,255,0.6)", zIndex: 9999,
+          minWidth: 420, maxWidth: 540, backdropFilter: "blur(16px)",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <span style={{ fontSize: 44 }}>{buildingPopup.icon}</span>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#22cfff", letterSpacing: 0.5 }}>{buildingPopup.title}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#22cfff" }}>{buildingPopup.title}</div>
                 <div style={{ fontSize: 10, color: "#7fe3ff", letterSpacing: 2, textTransform: "uppercase", marginTop: 3 }}>{buildingPopup.type}</div>
               </div>
             </div>
-            <button onClick={() => setBuildingPopup(null)} style={{ background: "transparent", border: "none", color: "#7fe3ff", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+            <button onClick={() => setBuildingPopup(null)} style={{ background: "transparent", border: "none", color: "#7fe3ff", cursor: "pointer", fontSize: 20 }}>✕</button>
           </div>
           <div style={{ fontSize: 13, color: "#b8e8ff", marginBottom: 14, lineHeight: 1.6 }}>{buildingPopup.desc}</div>
           {buildingPopup.stats && buildingPopup.stats.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {buildingPopup.stats.map((stat, i) => (
-                <div key={i} style={{
-                  background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)",
-                  borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between",
-                  alignItems: "center", fontSize: 12,
-                }}>
+                <div key={i} style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                   <span style={{ color: "#8fd8f0" }}>{stat[0]}</span>
                   <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
                 </div>
               ))}
             </div>
           )}
-          <div style={{ marginTop: 14, fontSize: 10, color: "#22cfff", textAlign: "center", letterSpacing: 1.5, textTransform: "uppercase" }}>
-            Click anywhere outside to close
-          </div>
         </div>
       )}
 
-      {/* ====== SECURITY GATE POPUP ====== */}
       {securityPopup && (
         <div style={{
           position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
           background: "linear-gradient(135deg, rgba(6,20,35,0.97), rgba(12,35,55,0.95))",
           border: "2px solid " + (securityPopup.status === "CLOSED" ? "#ff8a1f" : "#22cfff"),
-          borderRadius: 20, padding: "22px 28px",
-          color: "#fff", fontFamily: "system-ui, -apple-system, sans-serif",
-          boxShadow: "0 0 60px rgba(34,207,255,0.6), inset 0 0 30px rgba(34,207,255,0.08)",
-          zIndex: 9999, minWidth: 460, maxWidth: 560, backdropFilter: "blur(16px)",
+          borderRadius: 20, padding: "22px 28px", color: "#fff",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          boxShadow: "0 0 60px rgba(34,207,255,0.6)", zIndex: 9999,
+          minWidth: 460, maxWidth: 560, backdropFilter: "blur(16px)",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <span style={{ fontSize: 44 }}>🛡️</span>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#22cfff", letterSpacing: 0.5 }}>SMART SECURITY GATE</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#22cfff" }}>SMART SECURITY GATE</div>
                 <div style={{ fontSize: 11, color: "#7fe3ff", letterSpacing: 2, textTransform: "uppercase", marginTop: 3 }}>
                   {securityPopup.id} · {securityPopup.label}
                 </div>
               </div>
             </div>
-            <button onClick={() => setSecurityPopup(null)} style={{ background: "transparent", border: "none", color: "#7fe3ff", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+            <button onClick={() => setSecurityPopup(null)} style={{ background: "transparent", border: "none", color: "#7fe3ff", cursor: "pointer", fontSize: 20 }}>✕</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-              <span style={{ color: "#8fd8f0" }}>Gate ID</span>
-              <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.id}</span>
-            </div>
             <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
               <span style={{ color: "#8fd8f0" }}>Status</span>
               <span style={{ color: securityPopup.status === "CLOSED" ? "#ff8a1f" : "#6aff9d", fontWeight: 700 }}>{securityPopup.status}</span>
@@ -2696,35 +2585,14 @@ const SmartCity3D = forwardRef((props, ref) => {
               <span style={{ color: "#8fd8f0" }}>Traffic Density</span>
               <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.density}</span>
             </div>
-            <div style={{ background: "rgba(34,207,255,0.1)", border: "1px solid rgba(34,207,255,0.3)", borderRadius: 10, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-              <span style={{ color: "#8fd8f0" }}>Reason</span>
-              <span style={{ color: "#fff", fontWeight: 700 }}>{securityPopup.aiState === "RESTRICTED" ? "Security Restriction" : "Normal Flow"}</span>
-            </div>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
-            <button
-              onClick={() => { focusSecurityGate(securityPopup.id); setSecurityPopup(null); }}
-              style={{
-                flex: 1, padding: "12px 18px", borderRadius: 12,
-                background: "linear-gradient(135deg, #22cfff, #0a8fbf)",
-                color: "#031a24", fontWeight: 800, letterSpacing: 1,
-                border: "none", cursor: "pointer", fontSize: 13, textTransform: "uppercase",
-                boxShadow: "0 0 20px rgba(34,207,255,0.5)",
-              }}
-            >🎥 View Checkpoint</button>
-            <button
-              onClick={() => setSecurityPopup(null)}
-              style={{
-                padding: "12px 18px", borderRadius: 12,
-                background: "transparent", border: "1px solid rgba(34,207,255,0.5)",
-                color: "#7fe3ff", fontWeight: 700, cursor: "pointer", fontSize: 13, letterSpacing: 1,
-              }}
-            >Close</button>
+            <button onClick={() => { focusSecurityGate(securityPopup.id); setSecurityPopup(null); }} style={{ flex: 1, padding: "12px 18px", borderRadius: 12, background: "linear-gradient(135deg, #22cfff, #0a8fbf)", color: "#031a24", fontWeight: 800, letterSpacing: 1, border: "none", cursor: "pointer", fontSize: 13, textTransform: "uppercase" }}>🎥 View Checkpoint</button>
+            <button onClick={() => setSecurityPopup(null)} style={{ padding: "12px 18px", borderRadius: 12, background: "transparent", border: "1px solid rgba(34,207,255,0.5)", color: "#7fe3ff", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Close</button>
           </div>
         </div>
       )}
 
-      {/* ====== LOCATION POPUP (bottom) ====== */}
       {locationPopup && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
@@ -2744,11 +2612,7 @@ const SmartCity3D = forwardRef((props, ref) => {
           <div style={{ fontSize: 13, color: "#b8e8ff", marginBottom: 12, lineHeight: 1.5 }}>{locationPopup.desc}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {locationPopup.stats.map((stat, i) => (
-              <div key={i} style={{
-                background: "rgba(34, 207, 255, 0.1)", border: "1px solid rgba(34, 207, 255, 0.3)",
-                borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between",
-                alignItems: "center", fontSize: 12,
-              }}>
+              <div key={i} style={{ background: "rgba(34, 207, 255, 0.1)", border: "1px solid rgba(34, 207, 255, 0.3)", borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ color: "#8fd8f0" }}>{stat[0]}</span>
                 <span style={{ color: "#fff", fontWeight: 700 }}>{stat[1]}</span>
               </div>
@@ -2757,7 +2621,6 @@ const SmartCity3D = forwardRef((props, ref) => {
         </div>
       )}
 
-      {/* ====== AI SECURITY HUD ====== */}
       {securityHUD && (
         <div style={{
           position: "fixed", top: 24, right: 24,
@@ -2766,24 +2629,15 @@ const SmartCity3D = forwardRef((props, ref) => {
           padding: "14px 18px", color: "#fff",
           fontFamily: "system-ui, -apple-system, sans-serif",
           boxShadow: "0 0 30px rgba(34,207,255,0.35)",
-          zIndex: 9997, minWidth: 260, backdropFilter: "blur(10px)",
-          fontSize: 12,
+          zIndex: 9997, minWidth: 260, backdropFilter: "blur(10px)", fontSize: 12,
         }}>
           <div style={{ fontSize: 11, letterSpacing: 2, color: "#7fe3ff", textTransform: "uppercase", marginBottom: 8, fontWeight: 700 }}>
             🛡️ AI TRAFFIC &amp; SECURITY
           </div>
           {securityHUD.gates.map((g) => (
-            <div key={g.id} style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "5px 0", borderBottom: "1px solid rgba(34,207,255,0.12)",
-            }}>
+            <div key={g.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid rgba(34,207,255,0.12)" }}>
               <span style={{ color: "#b8e8ff" }}>{g.id}</span>
-              <span style={{
-                color: g.status === "CLOSED" ? "#ff8a1f" : "#6aff9d",
-                fontWeight: 700, letterSpacing: 0.5,
-              }}>
-                {g.status} · {g.vehiclesWaiting}q
-              </span>
+              <span style={{ color: g.status === "CLOSED" ? "#ff8a1f" : "#6aff9d", fontWeight: 700 }}>{g.status} · {g.vehiclesWaiting}q</span>
             </div>
           ))}
           <div style={{ marginTop: 8, fontSize: 10, color: "#7fe3ff", letterSpacing: 1.2 }}>
